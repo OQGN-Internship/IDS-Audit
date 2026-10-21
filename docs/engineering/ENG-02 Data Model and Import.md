@@ -8,7 +8,7 @@ This document defines where every number comes from: the tables that hold the da
 
 It covers the data model, file reading, cleaning, upload states, duplicates, mapping versions, reconciliation, commit and rollback. Sign-in and access are in ENG-01, and the report screens and exports are in ENG-03.
 
-The rules are written against the agreed file structure: spend lines plus the GL and cost center mapping sheets, all in one file. Anything marked **Confirm with the real export** may change when that file arrives on Day 1. Section 13 lists those items.
+The rules are written against the agreed file structure: spend lines plus the GL and cost center mapping sheets, all in one file. Until the real export arrives, they're built and tested against the sample file (12.2). Anything marked **Confirm with the real export** may change when the real file arrives. Section 13 lists those items.
 
 ## 2. Data model
 
@@ -498,7 +498,7 @@ Each section above ends with the tests that prove it. This section is how they'r
 
 ### 12.2 Golden files
 
-Each golden file has an expected result beside it: totals by GL account, by commitment item and by department, the outside-IDS total, the skipped rows with reasons, and the reconciliation. The expected results are worked out independently of the app. For the sample file, they come from the script that generated it.
+Each golden file has an expected result beside it: totals by GL account, by commitment item and by department, the outside-IDS total, the skipped rows with reasons, and the reconciliation. The expected results are worked out independently of the app. For the sample file, they come from the script that generated it. The sample file imitates an SAP G/L line item export (transaction FAGLL03), with the two mapping sheets added, so that moving to the real export changes as little as possible.
 
 | File | Proves |
 | --- | --- |
@@ -516,23 +516,24 @@ A golden result changes only on purpose, in its own commit, with the reason in t
 
 The real export is client data, so it never goes into the repository. Its test reads it from a local folder outside the repository, and is skipped when the folder isn't there.
 
-**Done when** every test passes on a clean checkout with `uv run pytest`, and the real export's overall and GL totals match SAP's to the baisa.
+**Done when** every test passes on a clean checkout with `uv run pytest`, and the sample file's totals match its expected result to the baisa. Once the real export arrives, its overall and GL totals must also match SAP's to the baisa.
 
 ## 13. To confirm against the real export
 
-Every assumption the rules above depend on is listed here, including each one marked **Confirm with the real export**. Items confirmed by opening the file are checked on Day 1, when it arrives. The others are questions for the client, needed by the day shown, which follows the plan's open questions. Until an answer arrives, the plan's default is what gets built. Each change lands in the phase that owns it: reading, cleaning and counting on Day 2, and duplicates and the control total on Day 3.
+Every assumption the rules above depend on is listed here, including each one marked **Confirm with the real export**. Items confirmed by opening the file are checked when it arrives. Until then, the sample file follows each assumption as written. The others are questions for the client, needed by the day shown, which follows the plan's open questions. Until an answer arrives, the plan's default is what gets built. Each change goes into the part that owns it: reading, cleaning and counting (Phase 1), or duplicates and the control total (Phase 2).
 
 | # | Assumption | Section | Confirmed by | If it's different |
 | --- | --- | --- | --- | --- |
-| 1 | The file is a real Excel file, not HTML saved as `.xls` | 4.1 | Opening the file, on Day 1 | Add an HTML table reader |
-| 2 | The headers match the built-in names | 4.4 | Opening the file, on Day 1 | Add the names to `header_names` |
+| 1 | The file is a real Excel file, not HTML saved as `.xls` | 4.1 | Opening the file | Add an HTML table reader |
+| 2 | The headers match the built-in names | 4.4 | Opening the file | Add the names to `header_names` |
 | 3 | The GL and cost center mapping sheets are in the file, and the cost center sheet lists only IDS cost centers | 4.2, 8.2 | Opening the file, and the client by Day 2 | Set `outside_ids_rule` to the rule the client gives, before the report's first commit (Section 3) |
 | 4 | Company code, fiscal year, document number and line item are in the file | 2, 7.3 | Opening the file, and the client by Day 3 | Line-key mode isn't offered. Replace by period is used |
 | 5 | The amount column is in local currency (OMR) | 5 | The client, by Day 2 | Point the amount field at the local-currency column |
-| 6 | Credits are negative amounts in the amount column | 5 | Opening the file, on Day 1 | Read SAP's debit and credit column (S or H), and make H amounts negative |
-| 7 | Dates are day first, or real date cells | 5 | Opening the file, on Day 1 | Change `date_order` |
+| 6 | Credits are negative amounts in the amount column | 5 | Opening the file | Read SAP's debit and credit column (S or H), and make H amounts negative |
+| 7 | Dates are day first, or real date cells | 5 | Opening the file | Change `date_order` |
 | 8 | The fiscal year is the calendar year, if there's no date column | 5 | The client, by Day 2 | Map periods to the fiscal calendar |
 | 9 | Which value-type values mean actual spend | 3, 5 | The client, by Day 2 | Set `actual_spend_rule` |
 | 10 | Each export is year-to-date, or covers whole months | 7.3 | The client, by Day 3 | Use line-key mode, if item 4 allows it |
 | 11 | The spend sheet has a total row | 9.1 | Opening the file, and the client by Day 3 | The uploader types the total from SAP |
-| 12 | The date, document number and line item columns hold SAP's posting date, accounting document number and its line item, not the document date, the reference or a purchasing item | 4.4 | Opening the file, on Day 1 | Point those fields at the right columns in `header_names` |
+| 12 | The date, document number and line item columns hold SAP's posting date, accounting document number and its line item, not the document date, the reference or a purchasing item | 4.4 | Opening the file | Point those fields at the right columns in `header_names` |
+| 13 | The export is SAP's G/L line item report (FAGLL03), laid out like the sample file | 4.4, 12.2 | The client, before acceptance | Add the real report's header names to `header_names`, and update the sample file to match |

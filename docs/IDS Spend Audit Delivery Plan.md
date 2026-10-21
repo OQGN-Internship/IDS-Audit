@@ -8,7 +8,7 @@ Users upload the SAP export. The app checks it, shows a preview, and adds it to 
 
 The plan takes **five working days** with one developer: Day 1 for planning, and Days 2 to 5 for the build. The client's review and sign-off follow the build. For now, the application runs locally on the developer's machine.
 
-**Current status:** Phase 0, planning. Nothing is complete yet.
+**Current status:** the client has approved this plan. The real SAP export hasn't arrived yet, so the build starts on a sample file made to look like a real SAP export (see Phase 1).
 
 ## Goal and scope
 
@@ -117,22 +117,23 @@ The dashed line marks the end of Day 5. After it, timing depends on the client's
 ### Phase 0: Planning (Day 1)
 
 - **Goal:** agree this plan with the client.
-- **Deliverables:** this plan, confirmed, plus answers to the open questions needed by Day 1.
-- **From the client:** confirmation of the plan, and the real SAP export with SAP's own totals for it.
-- **Done when:** the client confirms the plan, and the real export is in hand.
+- **Deliverables:** this plan, confirmed.
+- **From the client:** confirmation of the plan. The real SAP export, with SAP's own totals for it, can follow during the build.
+- **Done when:** the client confirms the plan.
 
 ### Phase 1: Correct numbers (Day 2)
 
 - **Goal:** prove the app calculates exactly what SAP reports.
 - **Deliverables:**
   - database tables for reports, uploads, postings and the two mappings
-  - reading the real export: finding its sheets, header rows and columns
+  - a sample file that imitates an SAP G/L line item export (transaction FAGLL03), with the GL and cost center mapping sheets and its expected totals
+  - reading the export: finding its sheets, header rows and columns, first in the sample file and then in the real export
   - cleaning rules: codes without leading zeros, SAP amounts such as `1,234.500-`, and dates as dd.mm.yyyy
   - counting only actual spend, using the export's value type where it has one
   - joining each posting to its budget line, its cost center and its IDS department
-  - automated tests that check the totals for the real export
-- **From the client:** the real export, plus SAP's own totals for it: the overall total and at least three GL accounts.
-- **Done when:** the app's overall total and those three GL totals match SAP's to the baisa, and the automated tests pass.
+  - automated tests that check the totals for the sample file, and for the real export once it arrives
+- **From the client:** the real export, plus SAP's own totals for it: the overall total and at least three GL accounts. The build doesn't wait for it, but acceptance does.
+- **Done when:** the app's totals for the sample file match its expected totals to the baisa, and the automated tests pass. Once the real export arrives, its overall total and those three GL totals must also match SAP's to the baisa.
 
 ### Phase 2: Audit-grade import (Day 3)
 
@@ -165,7 +166,7 @@ The dashed line marks the end of Day 5. After it, timing depends on the client's
   - FAQ pages, one per agreed question. The client confirmed that a fixed FAQ is enough, so users don't add questions in the app
   - Excel export of any view, with a source sheet listing the filters and uploads it used. Each export is recorded in the audit log
 - **From the client:** the final FAQ list, by the start of Day 4.
-- **Done when:** every FAQ answer for the real export is on screen, each total equals the sum of its source rows, and the Excel export matches the screen.
+- **Done when:** every FAQ answer for the sample file, and for the real export once it arrives, is on screen, each total equals the sum of its source rows, and the Excel export matches the screen.
 
 ### Phase 4: Permissions and handover (Day 5)
 
@@ -199,11 +200,12 @@ The dashed line marks the end of Day 5. After it, timing depends on the client's
 
 ## Open questions
 
-The build can't start without the first answer. Each later answer is needed by the day shown, or that phase uses the default.
+Each answer is needed by the day shown, or that phase uses the default.
 
 | Question | Needed by | Default if unanswered |
 | --- | --- | --- |
-| The real SAP export, with SAP's own totals for it | Day 1 | The build can't start |
+| The real SAP export, with SAP's own totals for it | Before acceptance | The build uses the sample file. Acceptance can't start without the real export |
+| Which SAP report produces the export? | Before acceptance | G/L line items (FAGLL03), the layout the sample file imitates |
 | Does the export hold only actual spend, or also POs and PRs? If both, which column marks actual spend? | Day 2 | Every row is treated as actual spend |
 | Are all amounts in Omani rials? | Day 2 | Yes |
 | Is every cost center that isn't in the cost center mapping outside IDS? | Day 2 | Yes |

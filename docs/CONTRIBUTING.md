@@ -16,7 +16,7 @@ The documents in `docs/` decide what the application does:
 - Before writing code, read the section it implements. Name that section in the PR description, for example "ENG-02 5".
 - If the code and a document disagree, fix one of them in the same PR. Never leave them out of step.
 - A change of decision goes into the plan first, then the ENG document that owns the topic, then the code.
-- The master copies of these documents are kept as Claude Docs. The files here are their exports, with the diagrams saved in `docs/images/` and relative links between them. A document change is made in both copies, and they stay identical.
+- During the build, the files here are the working copy of the documents, so every document change is made here. The copies kept as Claude Docs are brought up to date once, at the end of the project.
 
 ## 2. Branches
 
