@@ -14,6 +14,7 @@ EXPECTED_RESULTS = ["sample.expected.json", "sample_semicolon.expected.json"]
 
 
 def test_running_the_script_again_changes_no_fixture(tmp_path: Path) -> None:
+    """Verify rerunning the generator leaves fixture files unchanged."""
     changed = [
         fresh.name
         for fresh in make_fixtures.write_all(tmp_path)
@@ -23,11 +24,13 @@ def test_running_the_script_again_changes_no_fixture(tmp_path: Path) -> None:
 
 
 def add_up(amounts: Iterable[str]) -> Decimal:
+    """Return the sum of the given monetary amounts."""
     return sum((Decimal(amount) for amount in amounts), Decimal("0.000"))
 
 
 @pytest.mark.parametrize("name", EXPECTED_RESULTS)
 def test_expected_totals_add_up(name: str) -> None:
+    """Verify each expected breakdown sums to the actual spend total."""
     result = json.loads((FIXTURES_DIR / name).read_text(encoding="utf-8"))
     spend = result["actual_spend"]
     total = Decimal(spend["total"])

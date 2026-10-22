@@ -31,12 +31,16 @@ PERIOD_END = date(2026, 6, 30)
 
 @dataclass(frozen=True)
 class GlAccount:
+    """A general-ledger account and its optional commitment item."""
+
     name: str
     commitment_item: str | None  # None: listed without a commitment item
 
 
 @dataclass(frozen=True)
 class CostCenter:
+    """A cost center and its associated department."""
+
     name: str
     department: str
 
