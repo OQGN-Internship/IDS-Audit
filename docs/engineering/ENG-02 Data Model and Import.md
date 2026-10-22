@@ -514,7 +514,7 @@ Each golden file has an expected result beside it: totals by GL account, by comm
 
 A golden result changes only on purpose, in its own commit, with the reason in the commit message. A rule change that moves any number fails the tests until then.
 
-The real export is client data, so it never goes into the repository. Its test reads it from a local folder outside the repository, and is skipped when the folder isn't there.
+The real export is client data, so it never goes into Git. It is kept in `real-export/`, with SAP's totals for it, and Git ignores everything there except the folder's README (ENG-01, 6.4). Its test reads them from that folder, and is skipped when the folder holds no export.
 
 ### 12.3 The sample file
 

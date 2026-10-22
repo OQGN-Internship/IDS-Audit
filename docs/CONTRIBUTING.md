@@ -137,7 +137,7 @@ uv run ruff format --check .
 uv run pytest
 ```
 
-- The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when its folder isn't there (ENG-02 12.2).
+- The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when `real-export/` holds no export (ENG-02 12.2).
 - Any change to a figure, a permission or a migration needs a test that would fail without it.
 - There is no CI yet. When it's added, it runs the same three commands.
 
@@ -145,9 +145,11 @@ uv run pytest
 
 The application handles OQGN's real spend data. These rules have no exceptions:
 
-- **The real SAP export never goes into the repository**, nor anything taken from it: not a copy, a sample of its rows, a screenshot, or its expected results. It's kept in a folder outside the repository, and outside any synced or cloud folder such as OneDrive.
-- **Backups and uploads stay out of Git.** `backups/` is excluded, and the uploads volume lives in Docker.
+- **The real SAP export never goes into Git**, nor anything taken from it: not a copy, a sample of its rows, a screenshot, or its expected results. It's kept in `real-export/`, which Git ignores except its README.
+- **Backups and uploads stay out of Git.** Git ignores `backups/` except its README, and the uploads volume lives in Docker.
 - **No secrets in Git.** The real `.env` is excluded. `.env.example` is committed with every setting name and no real values.
+- **The working copy stays outside any synced or cloud folder** such as OneDrive, because it holds `.env`, `real-export/` and `backups/` (ENG-01 6.4).
+- **Never run `git clean -x` or `git clean -X`.** They delete ignored files, and that includes the real export and the backups.
 - **Test data is made up.** The sample file and the golden files are generated, and their README says how.
 - If client data or a secret is ever committed, stop and tell the project owner. Removing it from the history needs a force-push and rotating every exposed secret.
 

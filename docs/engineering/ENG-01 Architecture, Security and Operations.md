@@ -79,8 +79,11 @@ IDS-Audit/
 │   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)
 ├── scripts/           backup.sh and restore.sh
 ├── docs/              the plan, engineering/, CONTRIBUTING.md, and the guide for users and administrators
+├── backups/           backups made by scripts/backup.sh (7.2). Git ignores everything here except its README
+├── real-export/       the client's real SAP export and SAP's totals for it (ENG-02, 12.2). Git ignores everything here except its README
 ├── Dockerfile
 ├── compose.yaml
+├── .env               the real settings and passwords (7.1). Git ignores it
 └── .env.example       every setting the application needs, with no real values
 ```
 
@@ -243,6 +246,8 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 | Clickjacking | Every response carries `X-Frame-Options: DENY` |
 | Formula injection in exports | XlsxWriter's `strings_to_formulas` and `strings_to_urls` options are off, so text such as `=HYPERLINK(...)` stays text |
 | Secrets in the repository | `SECRET_KEY` and the database passwords are kept in `.env`, which `.gitignore` excludes. `.env.example` holds only the names |
+| Client data in Git | The real export, and anything taken from it, stays in `real-export/`. Backups stay in `backups/`. Git ignores both folders except the README in each, and `.dockerignore` keeps them and `.env` out of the application image |
+| Client data in cloud-synced folders | The working copy holds `.env`, `real-export/` and `backups/`, so it must sit outside any cloud-synced folder such as OneDrive. `pgdata` and `uploads` stay Docker named volumes, never folders in the working copy |
 | Access from other machines | The application's port is published on 127.0.0.1 only |
 | Client data on the developer's machine | Full-disk encryption must be on, because the machine holds the client's real exports. Backups go to encrypted storage (see 7.2) |
 | Calls to outside services | None. The JavaScript libraries are in the repository, and nothing is sent out |
@@ -256,6 +261,8 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 - An HTMX request from a button outside a form succeeds with the token header, and is refused without it.
 - A description containing `<script>` displays as plain text.
 - An exported cell containing `=1+1` opens in Excel as text.
+- Git tracks no file in `backups/` or `real-export/` except its README.
+- Git ignores any new file in `backups/` or `real-export/`, including in a sub-folder, but not their READMEs.
 - `manage.py check --deploy` reports only the HTTPS warnings, which don't apply while the application runs locally over plain HTTP.
 
 ## 7. Operations
@@ -266,8 +273,9 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 
 **Prerequisites**
 
-- Docker Engine with the Compose plugin, or Docker Desktop. Docker Desktop needs a paid subscription in larger organisations. Docker Engine on Linux doesn't.
+- Docker Engine with the Compose plugin, or Docker Desktop. Docker Desktop needs a paid subscription in larger organisations. Docker Engine on Linux doesn't. On Windows 11, the developer's machine uses Docker Desktop with its WSL2 backend.
 - Git.
+- A folder for the working copy outside any cloud-synced folder such as OneDrive (6.4).
 - Enough disk space for the exports and their backups.
 
 **Services in `compose.yaml`**
@@ -281,7 +289,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 **First-time setup**
 
 ```bash
-git clone <repository-url> IDS-Audit
+git clone <repository-url> IDS-Audit   # outside any cloud-synced folder (6.4)
 cd IDS-Audit
 cp .env.example .env          # then fill in the settings below
 docker compose up -d          # starts db, runs migrate, then starts app
@@ -339,7 +347,7 @@ A backup always holds both the database and the uploads volume. Postings point t
 
 - Run a backup at the end of every working day while client data is on the machine, and before every update (see 7.3).
 - Copy each backup folder off the machine to encrypted storage, and keep at least the last 7.
-- The `backups/` folder is excluded from Git.
+- Git ignores everything in `backups/` except its README (6.4).
 
 **`scripts/restore.sh backups/<folder>`** runs these steps in order:
 

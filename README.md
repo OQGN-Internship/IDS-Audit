@@ -62,7 +62,7 @@ The app is then at `http://localhost:8000`, reachable only from the same machine
 
 ## Client data
 
-The real SAP export is OQGN's data. Never commit it, any rows taken from it, backups, uploads or `.env`. Keep them outside the repository and outside any synced folder such as OneDrive. Tests use generated sample files only. See [Contributing](docs/CONTRIBUTING.md), section 7.
+The real SAP export is OQGN's data. Never commit it, any rows taken from it, backups, uploads or `.env`. The real export goes in `real-export/` and backups in `backups/`, which Git ignores, and the working copy stays outside any synced folder such as OneDrive. Tests use generated sample files only. See [Contributing](docs/CONTRIBUTING.md), section 7.
 
 ## Contributing
 
