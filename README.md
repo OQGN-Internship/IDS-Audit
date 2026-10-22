@@ -13,7 +13,7 @@ Each user has their own account and per-report permissions. Every sign-in, uploa
 
 ## Status
 
-Phase 0, planning. The delivery plan is a draft awaiting the client's sign-off. The build runs over Days 2 to 5, followed by the client's acceptance:
+Phase 1, correct numbers. The client has approved the delivery plan. The real SAP export hasn't arrived yet, so the build starts on a generated sample file made to look like one (ENG-02 12.3). The build runs over Days 2 to 5, followed by the client's acceptance:
 
 | Phase | Day | Delivers |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Phase 0, planning. The delivery plan is a draft awaiting the client's sign-off. 
 | 3. Reports | 4 | Screens, FAQ, charts, Excel exports |
 | 4. Permissions and handover | 5 | Users and roles, backup and restore, handover |
 
-So far the repository holds only the planning documents. The code starts in Phase 1.
+Phase 1 starts with the sample file and the script that generates it. The application code follows.
 
 ## Documentation
 
@@ -42,7 +42,7 @@ Python 3.12, Django 5.2, PostgreSQL 17, HTMX, Alpine.js and ECharts, packaged wi
 
 ## Getting started
 
-**Now (Phase 0):** there's nothing to run yet. Clone the repository and read the documents above, starting with the plan.
+**Now (early Phase 1):** there's no app to run yet. Clone the repository and read the documents above, starting with the plan.
 
 ```bash
 git clone https://github.com/OQGN-Internship/IDS-Audit.git

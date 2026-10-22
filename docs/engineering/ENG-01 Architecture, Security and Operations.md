@@ -76,8 +76,9 @@ IDS-Audit/
 │   └── static/        CSS, and the HTMX, Alpine.js and ECharts files
 ├── sql/               database roles and grants
 ├── tests/             unit, golden-file, permission and browser tests
+│   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)
 ├── scripts/           backup.sh and restore.sh
-├── docs/              the guide for users and administrators
+├── docs/              the plan, engineering/, CONTRIBUTING.md, and the guide for users and administrators
 ├── Dockerfile
 ├── compose.yaml
 └── .env.example       every setting the application needs, with no real values

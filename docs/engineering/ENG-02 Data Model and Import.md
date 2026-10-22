@@ -478,7 +478,7 @@ While a report has no committed upload, "Value type not seen before in this repo
 
 **Tested by**
 
-- The sample file's preview shows exactly the exceptions its README describes: `640200`, `650200`, `3100` and `3200`.
+- The sample file's preview shows exactly the exceptions its README describes: `640200`, `650200`, `3100` and `3200`, and its subtotal rows as other rows without a GL account or cost center (12.3).
 - Each exception type shows once, with the right rows, in a file built to cause it. The types that need an earlier upload (mapping change, value type not seen before, duplicate with a different amount, a month with no rows) use a pair of files in a report of the right mode.
 - The preview of a rejected upload shows the same figures as before it was rejected.
 
@@ -498,12 +498,12 @@ Each section above ends with the tests that prove it. This section is how they'r
 
 ### 12.2 Golden files
 
-Each golden file has an expected result beside it: totals by GL account, by commitment item and by department, the outside-IDS total, the skipped rows with reasons, and the reconciliation. The expected results are worked out independently of the app. For the sample file, they come from the script that generated it. The sample file imitates an SAP G/L line item export (transaction FAGLL03), with the two mapping sheets added, so that moving to the real export changes as little as possible.
+Each golden file has an expected result beside it: totals by GL account, by commitment item and by department, the outside-IDS total, the skipped rows with reasons, and the reconciliation. The expected results are worked out independently of the app. For the sample file, they come from the script that generated it (12.3). The sample file imitates an SAP G/L line item export (transaction FAGLL03), with the two mapping sheets added, so that moving to the real export changes as little as possible.
 
 | File | Proves |
 | --- | --- |
-| The sample file | Title lines and the README sheet, zero-padded codes, `640200`, `650200`, `3100` and `3200`, and a total that reconciles |
-| The sample saved as semicolon-separated text | Uploaded after the Excel sample into the same report, it gives the same figures, using the Excel file's mappings |
+| The sample file (12.3) | Title lines, the README sheet, subtotal rows, zero-padded codes, `640200`, `650200`, `3100` and `3200`, and a total that reconciles |
+| The sample saved as semicolon-separated text (12.3) | Uploaded after the Excel sample into the same report, it gives the same figures, using the Excel file's mappings |
 | Messy amounts | Trailing minus, brackets, thousands separators, Excel serial dates |
 | Bad rows | An invalid date, 4 decimals and `#N/A`, each skipped with its reason, and a total that still reconciles |
 | A row in another currency | A `USD` row blocks approval, so its expected result is the preview alone |
@@ -515,6 +515,119 @@ Each golden file has an expected result beside it: totals by GL account, by comm
 A golden result changes only on purpose, in its own commit, with the reason in the commit message. A rule change that moves any number fails the tests until then.
 
 The real export is client data, so it never goes into the repository. Its test reads it from a local folder outside the repository, and is skipped when the folder isn't there.
+
+### 12.3 The sample file
+
+A script, `tests/fixtures/make_fixtures.py`, makes the sample file and its semicolon-separated copy. It starts from a table of true values, such as `610100`, `4510`, `12400.000` and 4 January 2026. It writes them the way SAP does, and works out the expected results from the same table with `Decimal`. It never reads its own files back and never imports from `ids_audit`, so a bug in the app can't also hide in the expected results.
+
+The sample looks like a real export but has no bad rows. Invalid dates, `#N/A`, extra decimals and other currencies have golden files of their own (12.2). Every spend row in it is clean and counts.
+
+**Sheets**
+
+| Sheet | Holds |
+| --- | --- |
+| README | Sentences in column A: that the file is made up, how to make it again, and every exception and subtotal row it contains. It has no recognised header, so it's ignored (4.2) |
+| Transactions | The title on row 1, the selection on row 2 ("Company code 1000, posting date 01.07.2025 to 30.06.2026"), row 3 blank, and the header on row 4. Then the spend rows, sorted by GL account and posting date, with a subtotal row after each GL account and the total row last |
+| GL Mapping | G/L Account, G/L Account Name, Commitment Item, Commitment Item Name |
+| Cost Center Mapping | Cost Center, Cost Center Name, Department Code, Department Name. IDS cost centers only |
+
+**Transactions columns**
+
+| Header | Written as |
+| --- | --- |
+| CoCd | Text: `1000` |
+| G/L Acct | Text, zero-padded to 10 digits: `0000610100` |
+| DocumentNo | Text, 10 digits: `5100000123`, and `0100000045` for journals |
+| Line Item | Text, 3 digits: `002` |
+| Type | Text: `KR` for an invoice, `KG` for a credit memo, `SA` for a journal. Not read (4.4) |
+| Doc. Date | Text, `dd.mm.yyyy`. Not read (4.4) |
+| Pstng Date | Text, `dd.mm.yyyy` |
+| Year | A number cell: the fiscal year, which is the calendar year (13, item 8) |
+| Period | A number cell: the month |
+| Cost Ctr | Text, zero-padded to 10 digits: `0000004510` |
+| Reference | Text: the vendor's invoice number. Not read (4.4) |
+| Text | As written. Three rows are in Arabic |
+| Amount in LC | Text, as SAP writes it: `12,400.000`, `1,250.000-` |
+| LCurr | Text: `OMR`. The header isn't recognised (4.4), so OMR is assumed (5) |
+
+A subtotal row holds only the G/L Acct, the amount and `OMR`. The total row holds `Total` in column A, the sum of every spend row, and `OMR`. It's a value, not a formula: XlsxWriter doesn't calculate formulas, and saves their result as `0`.
+
+On the mapping sheets, codes are number cells, so `4510` stored as a number must match `0000004510` stored as text (5).
+
+**Codes**
+
+| Commitment item | GL accounts |
+| --- | --- |
+| `2101` Software and licences | `610100` Software licences, `610200` Software support, `610300` Cloud services |
+| `2201` Hardware | `620100` Hardware purchases, `620200` Hardware maintenance |
+| `2301` Telecom and network | `630100` Telecommunications, `630200` Data lines |
+| `2401` Professional services | `640100` IT consulting |
+| `2501` Training and other | `650100` IT training, `660100` IT supplies |
+| Listed with an empty commitment item | `650200` Conferences and travel |
+| Not on the GL Mapping sheet | `640200` IT contractors |
+
+| Department | Cost centers |
+| --- | --- |
+| `APP` Applications | `4510` Application development, `4520` Enterprise applications |
+| `INF` Infrastructure | `4530` Data center, `4540` Network |
+| `SEC` Cyber security | `4550` Security operations |
+| `GOV` IT governance | `4560` IT governance office |
+| Not on the Cost Center Mapping sheet | `3100` and `3200`, outside IDS |
+
+**Cases**
+
+| Rows | Prove |
+| --- | --- |
+| `640200` on IDS cost centers, and one row on `3200` | No budget line (8.2). The `3200` row is in both exception lists and counts once in every total |
+| `650200` | Listed without a commitment item (8.2) |
+| `3100` on `610100` | Outside IDS on a mapped GL account (8.2), and the outside IDS filter (ENG-03, 3.1) |
+| Document date 28.12.2025, posting date 04.01.2026 | The posting date is used (4.4), by the year filter too (ENG-03, 3.1) |
+| One document with lines `002` and `003` | The line item is part of `line_key` (2) |
+| Document `5100000123` in fiscal years 2025 and 2026 | The fiscal year is part of `line_key` |
+| Journals numbered `0100000045` | Leading zeros are removed from document numbers (5) |
+| Three item texts in Arabic | Kept as written (5), and shown right to left (ENG-03, 6.2) |
+| `1,150,000.000` | Thousands separators (5) |
+| Amounts that use all three decimals, such as `3,456.789` | Totals are exact (5) |
+| Credits with a trailing minus, on several GL accounts | Negative amounts (5) |
+| A posting dated `03.04.2026` | Dates are read day first (5) |
+| `610100` is the largest GL account, spread over several departments and `3100` | Spend by cost center and department on the GL account screen (ENG-03, 4) |
+| `620200`: a `2,000.000` cost and a `3,500.000-` credit memo | A GL account with a negative total |
+| Postings in every month from July 2025 to June 2026, and spend in every department | Months and the running total (ENG-03, 5 and 7), with no empty month (11.2) |
+| 12 GL accounts, each with a different total | The overview's 10 largest and one row for all the others (ENG-03, 4) |
+
+**Files**, all in `tests/fixtures/`
+
+| File | Holds |
+| --- | --- |
+| `make_fixtures.py` | The script. `uv run python -m tests.fixtures.make_fixtures` makes every file below again |
+| `sample.xlsx` | The four sheets |
+| `sample.expected.json` | Its expected result, as the first upload into an empty report |
+| `sample_semicolon.csv` | The Transactions sheet as text: `;` between fields, UTF-8 with a byte-order mark, CRLF line endings, and every line padded to 14 fields, so line *n* is Excel row *n*. Values are as on the sheet |
+| `sample_semicolon.expected.json` | Its expected result when uploaded after `sample.xlsx` into the same report: the same figures, using the Excel file's mappings (8.1), with every posting of `sample.xlsx` replaced (7.3) |
+
+**Expected result**
+
+Each expected result is a JSON object. Every amount is a string with three decimal places, such as `"12400.000"`, so reading it never passes through a float.
+
+| Key | Holds |
+| --- | --- |
+| `fixture`, `scenario` | The file name, and the upload it describes |
+| `header_row` | `4` |
+| `rows` | `to_commit`, `skipped`, and `other` for the subtotal rows |
+| `period` | `first_posting` and `last_posting` (11.1) |
+| `reconciliation` | `control_total`, `to_commit`, `skipped` and `difference` (9.2) |
+| `actual_spend` | `total`, `inside_ids` and `outside_ids` (11.1) |
+| `by_gl`, `by_ci`, `by_department`, `by_month` | Actual spend per GL account, per commitment item with `none` for no budget line, per department with `outside` for outside IDS (ENG-03, 6.1), and per posting month as `2025-07` |
+| `exceptions` | `missing_from_gl_mapping`, `listed_without_ci` and `outside_ids`: each code's amount and Transactions row numbers. `other_rows`: the subtotal row numbers |
+| `skipped_rows` | Empty |
+| `replaced` | The CSV only: the number and amount of postings replaced (7.3) |
+
+Running the script again gives byte-identical files. The workbook's creation date is fixed, and Git never changes the fixtures' line endings (`docs/CONTRIBUTING.md`, section 9).
+
+**Tested by**
+
+- Running the script again leaves every file in `tests/fixtures/` byte for byte unchanged.
+- In each expected result, `by_gl`, `by_ci`, `by_department` and `by_month` each add up to `actual_spend.total`, so do `inside_ids` and `outside_ids`, and the reconciliation `difference` is `0.000`.
 
 **Done when** every test passes on a clean checkout with `uv run pytest`, and the sample file's totals match its expected result to the baisa. Once the real export arrives, its overall and GL totals must also match SAP's to the baisa.
 
