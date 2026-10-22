@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Client data (ENG-01 6.4)
+#   Git ignores everything in these two folders except the README in each.
+#   Never run `git clean -x` or `git clean -X`: they delete ignored files.
+/backups/*
+!/backups/README.md
+/real-export/*
+!/real-export/README.md
