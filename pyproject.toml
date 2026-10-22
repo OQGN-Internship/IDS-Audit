@@ -1,0 +1,36 @@
+[project]
+name = "ids-audit"
+version = "0.1.0"
+description = "A small application for OQGN that shows how much IDS has actually spent, against which GL account, from which budget line, and by which cost center and department. Every figure can be traced back to the row of the SAP export it came from."
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "xlsxwriter>=3.3.0",
+]
+
+[tool.ruff]
+# Set the target Python version to 3.12
+target-version = "py312"
+
+# Line length defaults to 88
+line-length = 88
+
+[tool.ruff.lint]
+# Enable the rule sets
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes (real mistakes / unused imports)
+    "I",   # isort (import order)
+    "B",   # flake8-bugbear (common bug patterns)
+    "UP",  # pyupgrade (Python 3.12+ syntax upgrades)
+]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
