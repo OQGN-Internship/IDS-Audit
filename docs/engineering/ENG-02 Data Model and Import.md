@@ -493,7 +493,7 @@ Each section above ends with the tests that prove it. This section is how they'r
 | Unit | Cleaning rules, header matching, sheet classification, line keys | pytest |
 | Property | Amounts and codes read back unchanged. Every row of a random file in OMR with readable amounts ends up staged or skipped, and the file reconciles | Hypothesis |
 | Golden file | A whole file from upload to report figures, compared with an expected result | pytest |
-| Database | Commit, rollback, replacement, `posting_resolved` and the `ids_app` grants, on a real PostgreSQL | pytest-django |
+| Database | Commit, rollback, replacement, `posting_resolved` and the `ids_app` grants, on a real PostgreSQL set up as in ENG-01, 7.5 | pytest-django |
 | Browser | Upload, preview, approve, report and rollback, as a user would | Playwright |
 
 ### 12.2 Golden files

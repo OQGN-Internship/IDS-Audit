@@ -48,14 +48,22 @@ Python 3.12, Django 5.2, PostgreSQL 17, HTMX, Alpine.js and ECharts, packaged wi
 git clone https://github.com/OQGN-Internship/IDS-Audit.git
 ```
 
-**Once Phase 1 lands:** you'll need Docker, Python 3.12 and [uv](https://docs.astral.sh/uv/). The whole app then starts with one command (ENG-01 7.1):
+**During Phase 1:** you'll need Docker, Python 3.12 and [uv](https://docs.astral.sh/uv/). Python runs on your machine, and only the database runs in Docker (ENG-01 7.5):
 
 ```bash
 cd IDS-Audit
+uv sync
 cp .env.example .env          # then fill in the settings
+docker compose up -d db       # starts the database, reachable only from this machine
+uv run python manage.py migrate
+uv run pytest
+```
+
+**From Phase 2:** the whole app starts with one command (ENG-01 7.1):
+
+```bash
 docker compose up -d          # starts the database, runs migrations, starts the app
 docker compose exec app python manage.py create_admin <username>
-uv run pytest
 ```
 
 The app is then at `http://localhost:8000`, reachable only from the same machine.

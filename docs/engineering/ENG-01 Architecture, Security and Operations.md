@@ -15,7 +15,7 @@ Two things are covered elsewhere:
 
 ## 2. System overview
 
-The whole system runs on the developer's machine as two containers, the application and the database, started together by Docker Compose. Users open it in a browser on the same machine. Inside its container the application listens on port 8000, and Docker publishes that port on the machine's 127.0.0.1 only, so other machines can't reach it.
+The whole system runs on the developer's machine as two containers, the application and the database, started together by Docker Compose. Users open it in a browser on the same machine. Inside its container the application listens on port 8000, and Docker publishes that port on the machine's 127.0.0.1 only, so other machines can't reach it. Docker publishes the database's port on 127.0.0.1 only as well, so the developer's tests and `manage.py` can reach it from the same machine (7.5).
 
 ![Everything runs on one machine, reachable only from it](../images/eng01-system-overview.png)
 
@@ -48,6 +48,7 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | Excel writing | XlsxWriter | Pinned | Cell formats, frozen headers, and a memory-saving mode for large exports | openpyxl, which is slower for large exports |
 | Sign-in lock-out | django-axes | Pinned | Counts failed sign-ins and locks accounts, configured by settings | A hand-written counter |
 | Password hashing | Argon2, through argon2-cffi | Pinned | Django's recommended hasher | PBKDF2, Django's default |
+| Settings file | python-dotenv | Pinned | Django reads `.env` itself when it runs outside Docker, so `manage.py`, pytest and the editor's test button all see the same settings (7.5) | uv's `--env-file` option, which every command would have to repeat, and which stops with an error when `.env` is missing |
 | Packaging | Docker Compose | Current | One command starts the application and database the same way on any machine | Installing Python and PostgreSQL by hand |
 | Development tools | uv, ruff, pytest, pytest-django, Hypothesis, Playwright | Pinned | Locked dependencies, linting, and unit, property and browser tests | None |
 
@@ -64,7 +65,7 @@ The repository is `IDS-Audit`, and the application code lives in the Python pack
 
 ```text
 IDS-Audit/
-├── config/            Django settings (base, dev, production), URLs, WSGI entry point
+├── config/            Django settings (base, dev, test, production), URLs, WSGI entry point
 ├── ids_audit/
 │   ├── pipeline/      plain Python: reading files, cleaning rows, reconciliation, duplicate rules
 │   ├── accounts/      users, roles, report access, sign-in rules, the access check
@@ -219,7 +220,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 
 **Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way:
 
-- **`ids_owner`** owns the application database and its tables, and is used only by the migration job.
+- **`ids_owner`** owns the application database and its tables. The migration job connects as it, and so does Django on the developer's machine, for the tests and `manage.py` (7.5). It has `CREATEDB`, so pytest-django can create the test database. It's also a member of `ids_app`, so a grant test can switch to `ids_app` with `SET ROLE`.
 - **`ids_app`** is the role the application connects as. Default privileges, set by `sql/init-roles.sh` before the first migration (7.1), give it `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table `ids_owner` creates. It has `TRUNCATE` on no table.
 - **Insert-only tables:** on `audit_event`, `posting`, `gl_ci_map`, `cc_dept_map` and `skipped_row`, `ids_app` has only `SELECT` and `INSERT`.
 - **`sql/grants.sql`** runs after every migration, and can run any number of times. It grants `ids_app` its rights on every existing table and sequence, then revokes `UPDATE` and `DELETE` on the insert-only tables, so a new migration can't reopen them. It also revokes `INSERT`, `UPDATE` and `DELETE` on every view, such as `posting_resolved` (ENG-02, 8.4). A simple view passes writes through to its table, with the rights of the view's owner, `ids_owner`.
@@ -229,6 +230,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 
 **Tested by**
 
+- An `INSERT` as `ids_app` works on every insert-only table.
 - An `UPDATE`, a `DELETE` and a `TRUNCATE` as `ids_app` each fail on every insert-only table.
 - An `UPDATE` and a `DELETE` through `posting_resolved` as `ids_app` each fail, and `posting` is unchanged.
 - Each action in the list writes exactly one event, with one test per action.
@@ -248,7 +250,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 | Secrets in the repository | `SECRET_KEY` and the database passwords are kept in `.env`, which `.gitignore` excludes. `.env.example` holds only the names |
 | Client data in Git | The real export, and anything taken from it, stays in `real-export/`. Backups stay in `backups/`. Git ignores both folders except the README in each, and `.dockerignore` keeps them and `.env` out of the application image |
 | Client data in cloud-synced folders | The working copy holds `.env`, `real-export/` and `backups/`, so it must sit outside any cloud-synced folder such as OneDrive. `pgdata` and `uploads` stay Docker named volumes, never folders in the working copy |
-| Access from other machines | The application's port is published on 127.0.0.1 only |
+| Access from other machines | The application's port and the database's port are published on 127.0.0.1 only |
 | Client data on the developer's machine | Full-disk encryption must be on, because the machine holds the client's real exports. Backups go to encrypted storage (see 7.2) |
 | Calls to outside services | None. The JavaScript libraries are in the repository, and nothing is sent out |
 | Error pages exposing details | `DEBUG` is off, so errors never show code or settings |
@@ -282,7 +284,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 
 | Service | Image | What it does |
 | --- | --- | --- |
-| `db` | `postgres:17` | Stores its data in the `pgdata` volume. On first start, `sql/init-roles.sh` creates `ids_owner` and `ids_app`, creates the `DB_NAME` database owned by `ids_owner`, and sets the default privileges in 6.3. A health check (`pg_isready`) tells the other services when it's ready |
+| `db` | `postgres:17` | Stores its data in the `pgdata` volume. On first start, `sql/init-roles.sh` creates `ids_owner` and `ids_app` as 6.3 describes, creates the `DB_NAME` database owned by `ids_owner`, and sets the default privileges in 6.3. Compose publishes PostgreSQL as `127.0.0.1:${DB_PORT}:5432`, so only this machine can reach it (7.5). A health check (`pg_isready`) tells the other services when it's ready |
 | `migrate` | The application image | Waits until `db` is healthy. Then it runs migrations as `ids_owner`, applies `sql/grants.sql`, and exits |
 | `app` | The application image | Starts only after `migrate` finishes successfully. Runs Gunicorn on port 8000 of every interface inside the container, connects as `ids_app`, and mounts the `uploads` volume. Compose publishes the port as `127.0.0.1:${APP_PORT}:8000`, so only this machine can reach it |
 
@@ -310,7 +312,9 @@ Then open `http://localhost:8000` and sign in as that administrator, with the in
 | `SECRET_KEY` | Signs sessions and CSRF tokens | None. Must be set to a long random value |
 | `POSTGRES_PASSWORD` | The database superuser's password, used only inside the `db` container | None. Must be set |
 | `DB_NAME` | The application database, created on first start | `ids_audit` |
-| `DB_OWNER_PASSWORD` | Password for `ids_owner`. The `db` container sets it on first start, and only the migration job signs in with it | None. Must be set |
+| `DB_HOST` | Where Django on the developer's machine finds the database (7.5). `migrate` and `app` use `db` instead | `127.0.0.1` |
+| `DB_PORT` | The database's port on the developer's machine. `migrate` and `app` use `5432` instead | `5432` |
+| `DB_OWNER_PASSWORD` | Password for `ids_owner`. The `db` container sets it on first start. The migration job signs in with it, and so does Django on the developer's machine (7.5) | None. Must be set |
 | `DB_APP_PASSWORD` | Password for `ids_app`. The `db` container sets it on first start, and the application signs in with it | None. Must be set |
 | `ALLOWED_HOSTS` | The host names the application answers to | `localhost,127.0.0.1` |
 | `APP_PORT` | The port on the developer's machine | `8000` |
@@ -328,7 +332,7 @@ The session and lock-out defaults are rules in the plan. Changing them changes w
 
 - On a clean machine, the first-time steps reach a working sign-in page.
 - `docker compose ps --all migrate` shows that `migrate` exited with code 0.
-- A request from another machine on the same network can't reach the application.
+- A request from another machine on the same network can't reach the application or the database.
 
 ### 7.2 Backup and restore
 
@@ -390,6 +394,46 @@ Run `manage.py` commands as `docker compose exec app python manage.py <command>`
 | A user is locked out | Five failed sign-ins | Wait 15 minutes, or run `axes_reset_username <username>` |
 | A fixed administrator forgot their password | Only the command line can reset it | Run `changepassword <username>` |
 | A restore reports a total that doesn't match | The backup is damaged or incomplete | Restore the backup before it, and keep the failing one for investigation |
+
+### 7.5 Development and test environment
+
+**Implements:** the plan's Phase 1 gate "the automated tests pass", which every later phase keeps. ENG-02, 12.1 needs those tests on a real PostgreSQL.
+
+During the build, Python runs on the developer's machine and only the database runs in Docker. The editor, its test button and its debugger then use the project's own `.venv`.
+
+**From Phase 1 (Day 2)**
+
+- **The database:** `compose.yaml` starts with only the `db` service from 7.1. It publishes PostgreSQL on `127.0.0.1:${DB_PORT}`, so Django on this machine reaches it at `DB_HOST` and `DB_PORT`, and no other machine can.
+- **Settings:** Django reads `.env` itself, through python-dotenv, when it runs outside Docker. A setting already in the environment wins, and a missing `.env` is not an error. `manage.py` uses `config.settings.dev`. pytest uses `config.settings.test`, named in `pyproject.toml`.
+- **Role:** Django on this machine connects as `ids_owner`, for the tests, `migrate`, `makemigrations` and the shell (6.3). Nothing connects to the development database as `ids_app` during Phase 1, so it needs no grants yet.
+
+**From Phase 2 (Day 3)**
+
+As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production`, and the `migrate` and `app` services from 7.1 are added. From then on, the application runs in Docker every day as `ids_app`, and `migrate` applies `sql/grants.sql` to the development database after each migration. Phase 4 completes the packaging and meets its gate.
+
+**Tests and the database**
+
+- Tests that don't use the database never connect, so they pass with Docker stopped. The database tests need `docker compose up -d db` first.
+- pytest-django creates the test database `test_<DB_NAME>`, migrates it, and drops it at the end.
+- Default privileges belong to one database, so they never reach the test database. A session fixture in `tests/conftest.py` applies `sql/grants.sql` to the test database once it's migrated, so the tests see the same grants as the application.
+- A grant test switches to the application's role with `SET LOCAL ROLE ids_app` before the statement it checks, so the database refuses that statement as it would refuse the application. The switch ends with the test's transaction.
+- Every test that a statement is refused has a matching test that an allowed statement works (6.3), so a refusal can't come from missing grants.
+
+**First-time setup**, after cloning as in 7.1:
+
+```bash
+uv sync
+cp .env.example .env              # then fill in the settings in 7.1
+docker compose up -d db
+uv run python manage.py migrate
+uv run pytest
+```
+
+**Tested by**
+
+- With Docker stopped, the tests that don't use the database pass.
+- With `db` running, `uv run pytest` passes on a clean checkout.
+- Removing one `REVOKE` from `sql/grants.sql` makes the matching grant test fail.
 
 ## 8. Open technical decisions
 

@@ -138,6 +138,7 @@ uv run pytest
 ```
 
 - The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when `real-export/` holds no export (ENG-02 12.2).
+- The database tests need PostgreSQL, so start it first with `docker compose up -d db` (ENG-01 7.5). The other tests pass without it.
 - Any change to a figure, a permission or a migration needs a test that would fail without it.
 - There is no CI yet. When it's added, it runs the same three commands.
 
