@@ -148,7 +148,9 @@ Steps 3 and 4 run inside the web request. If files turn out to be too large for 
 
 **Implements:** the plan's "Users, sign-in and access", the Sign-in and Administrators parts.
 
-The application uses a custom user model from its first migration, as Django recommends. Besides Django's standard fields, it adds two flags: `is_fixed_admin` and `must_change_password`.
+The application uses a custom user model from its first migration, as Django recommends. It keeps Django's standard fields, except that one required `full_name` replaces `first_name` and `last_name`. It adds two flags: `is_fixed_admin` and `must_change_password`.
+
+**Names.** `full_name` holds the name as the person writes it, in Arabic or English. An Omani name such as "Mohammed bin Said bin Ali Al Balushi" doesn't split into a first and a last name. Two people can share a full name, but never a username. So wherever the application names a user, as in the as-of line and the export's Source sheet (ENG-03, 3.2 and 9.2) and the audit log, it shows "Full name (username)".
 
 | Rule in the plan | How it is implemented |
 | --- | --- |
@@ -166,10 +168,10 @@ The application uses a custom user model from its first migration, as Django rec
 
 **Fixed administrator accounts**
 
-- **Created from the command line:** `manage.py create_admin <username>` asks twice for an initial password, without showing it, and checks it against the 12-character rule. It creates the account as a fixed administrator with `must_change_password` on, so the administrator chooses their own password at first sign-in. The audit log records the creation as a command-line action.
+- **Created from the command line:** `manage.py create_admin <username>` asks for the full name, then twice for an initial password, without showing it, and checks it against the 12-character rule. It creates the account as a fixed administrator with `must_change_password` on, so the administrator chooses their own password at first sign-in. The audit log records the creation as a command-line action.
 - **No passwords in files:** no administrator username or password is kept in `.env`, or anywhere else outside the database.
 - **Removing one:** `manage.py disable_admin <username>` disables the account. Its history stays in the audit log.
-- **Checking who they are:** `manage.py list_admins` shows every fixed administrator, and whether the account is active.
+- **Checking who they are:** `manage.py list_admins` shows every fixed administrator, with their full name, and whether the account is active.
 - **No changes from inside the application:** it refuses to delete, disable or remove rights from a fixed administrator, both in the screens and in the model's save and delete logic.
 - **Recovery:** a fixed administrator's forgotten password is reset only from the command line, with `manage.py changepassword <username>`. A locked administrator is unlocked with `manage.py axes_reset_username <username>`.
 - **Who can run these commands:** only someone with shell access to the developer's machine. That's the same boundary that protects `.env` and the database.
@@ -182,7 +184,8 @@ The application uses a custom user model from its first migration, as Django rec
 - With the clock moved forward 31 minutes of inactivity, the user is signed out, and an HTMX request gets an `HX-Redirect` to the sign-in page.
 - An 11-character password is refused, including by `create_admin`.
 - A new user, and a user whose password was reset, can't reach any page except the change-password page until they change it. An HTMX request from them gets an `HX-Redirect` to the change-password page.
-- `create_admin` creates a fixed administrator who must change the initial password at first sign-in, and refuses a username that already exists.
+- `create_admin` creates a fixed administrator who must change the initial password at first sign-in, and refuses a username that already exists or an empty full name.
+- A user is shown as "Full name (username)" in the as-of line, the Source sheet and the audit log.
 - After `disable_admin`, that administrator can't sign in, and `list_admins` shows the account as disabled.
 - A fixed administrator can't be deleted or disabled from inside the application.
 
