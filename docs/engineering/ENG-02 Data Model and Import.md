@@ -14,6 +14,8 @@ The rules are written against the agreed file structure: spend lines plus the GL
 
 Everything belongs to a report, and every posting, mapping row and skipped row belongs to the upload it came from. Users, roles, report access and the audit log are defined in ENG-01.
 
+Each table has the name given here, set with `Meta.db_table` on its model, so hand-written SQL such as `sql/grants.sql` and `posting_resolved` (8.4) can name it. `audit_event` (ENG-01, 6.3) does the same. The `accounts` models keep Django's own table names, since no hand-written SQL names them.
+
 ![Everything hangs off a report, and each upload brings its own rows](../images/eng02-data-model.png)
 
 Every arrow points from one row to many: a report has many uploads, and an upload has many postings.
@@ -65,8 +67,8 @@ An upload changes only through the state changes in Section 6, and each change w
 
 | Table | Fields | Rule |
 | --- | --- | --- |
-| `gl_ci_map` | `upload_id`, `report_id`, `gl_code`, `gl_name`, `ci_code` (may be empty), `ci_name` | One row per GL account in each upload |
-| `cc_dept_map` | `upload_id`, `report_id`, `cc_code`, `cc_name`, `dept_code`, `dept_name` | One row per cost center in each upload |
+| `gl_ci_map` | `upload_id`, `report_id`, `gl_code`, `gl_name`, `ci_code` (may be empty), `ci_name` | One row per GL account in each upload, enforced by a unique constraint on (`upload_id`, `gl_code`) |
+| `cc_dept_map` | `upload_id`, `report_id`, `cc_code`, `cc_name`, `dept_code`, `dept_name` | One row per cost center in each upload, enforced by a unique constraint on (`upload_id`, `cc_code`) |
 
 ### The other tables
 
@@ -343,11 +345,32 @@ On a report with no committed upload, no mapping is in force to compare with, so
 
 ### 8.4 The resolved view
 
-Reports never join the tables themselves. A database view, `posting_resolved` in `sql/`, joins each posting that counts (Section 10.2) to its mapping in force. Every report, chart and export reads from it (ENG-03), so all of them follow the same rules.
+Reports never join the tables themselves. A database view, `posting_resolved`, joins each posting that counts (Section 10.2) to its mapping in force. Every report, chart and export reads from it (ENG-03), so all of them follow the same rules.
+
+**What it returns:** one row per posting that counts. Postings that aren't actual spend are included, with `is_actual` false. ENG-03, 2.1 keeps only actual spend.
+
+| Columns | From |
+| --- | --- |
+| Every column of `posting` (Section 2), unchanged | The posting |
+| `gl_name`, `ci_code`, `ci_name`, `ci_status` | The GL mapping in force (8.1) |
+| `cc_name`, `dept_code`, `dept_name`, `is_outside_ids` | The cost center mapping in force (8.1), and the report's `outside_ids_rule` (Section 3) |
+
+- **`ci_status`** is `mapped`, `missing_from_gl_map` or `listed_without_ci`, the cases in 8.2. `ci_code` and `ci_name` are empty unless it's `mapped`.
+- **`is_outside_ids`** is true when the report's `outside_ids_rule` puts the posting's cost center outside IDS. `dept_code` and `dept_name` are then empty.
+- **The upload's file name** isn't in the view. Screens that show it read `upload` by `upload_id`.
+
+**How it's created:** a migration in `ledger/` creates the view with `RunSQL`, so the main database and the test database both get it (ENG-01, 7.5).
+
+- The view's SQL is written in the migration itself. Each migration keeps its own version of the view, so replaying the migrations on a new database always gives the same result.
+- A change to the view is a new migration that holds the whole new definition, with the previous definition as its reverse. An existing migration is never edited.
+- A migration that changes or drops a column the view uses drops the view first and creates it again after, because PostgreSQL refuses to change a column a view depends on.
+- `sql/grants.sql` runs after every migration, so a view created again gets its revokes back (ENG-01, 6.3).
 
 **Tested by**
 
 - In the sample file, `640200` shows no budget line, `650200` shows listed without a commitment item, and `3100` and `3200` show outside IDS.
+- In the sample file, the `640200` posting at `3200` shows both no budget line and outside IDS.
+- The view has exactly one row per posting that counts, and its total equals theirs.
 - A second file moving `610100` to another commitment item shows the move and its amount in the preview. After approval, every `610100` posting reports under the new item, and after rollback, under the old one.
 - A second file whose mapping leaves out a cost center makes that cost center outside IDS under `latest`.
 

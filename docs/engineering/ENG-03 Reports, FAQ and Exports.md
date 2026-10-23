@@ -352,11 +352,11 @@ The plan's default is files of up to tens of thousands of rows. The speed test b
 | `posting` | `(report_id, gl_code)` | GL account screens and drill-down |
 | `posting` | `(report_id, cost_center_code)` | Department screens and drill-down |
 | `posting` | `(upload_id)` | Deciding which postings count (ENG-02, 10.2) |
-| `gl_ci_map` | `(upload_id, gl_code)` | The GL mapping in force |
-| `cc_dept_map` | `(upload_id, cc_code)` | The cost center mapping in force |
+| `gl_ci_map` | `(upload_id, gl_code)`, unique (ENG-02, 2) | The GL mapping in force |
+| `cc_dept_map` | `(upload_id, cc_code)`, unique (ENG-02, 2) | The cost center mapping in force |
 | `upload` | `(report_id, status, decided_at)` | Finding the uploads that count, in order |
 
-**If it's still too slow.** `posting_resolved` becomes a materialized view, refreshed inside the commit and rollback transactions (ENG-02, 10), so it's never out of date. This is done only if the speed test fails.
+**If it's still too slow.** `posting_resolved` becomes a materialized view, refreshed inside the commit and rollback transactions (ENG-02, 10), so it's never out of date. This is done only if the speed test fails. The refresh runs as `ids_app`, and PostgreSQL 17 lets only the owner or a role with the `MAINTAIN` privilege refresh a materialized view, so `sql/grants.sql` then grants `MAINTAIN` on it to `ids_app`.
 
 **Tested by**
 
