@@ -28,6 +28,10 @@ select = [
     "UP",  # pyupgrade (Python 3.12+ syntax upgrades)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Django writes the migrations, with help texts on one long line each
+"**/migrations/*.py" = ["E501"]
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
