@@ -46,6 +46,7 @@ Every arrow points from one row to many: a report has many uploads, and an uploa
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id`, `report_id` |  |  |
+| `number` | integer | 1, 2, 3 within the report, in the order its uploads are created. Given once, when the upload is created, and never changed, so failed and rejected uploads keep theirs and no number is reused or skipped. Unique per report. "Upload *n*" means this number (7.1, and ENG-03, 3.2) |
 | `file_sha256` | text | The stored file's name in the uploads volume |
 | `original_name`, `size_bytes` | text, integer |  |
 | `uploaded_by`, `uploaded_at` | user, time |  |
@@ -266,6 +267,7 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 - A user without **approve** can't commit, and the uploader can withdraw.
 - An upload stopped during reading leaves no staging rows and is later marked `failed`.
 - Reading an upload again after its columns are picked saves each skipped row and mapping row once.
+- A report's uploads are numbered 1, 2, 3 in the order they're created, failed and rejected ones included.
 
 ## 7. Duplicates
 
