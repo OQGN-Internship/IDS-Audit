@@ -96,6 +96,24 @@ IDS-Audit/
 4. **`audit/` exposes one function, `record()`,** which every other part calls. Nothing else writes to the audit log.
 5. **Amounts are `Decimal` in Python and `NUMERIC(18,3)` in PostgreSQL.** They never pass through a float.
 
+**Build order**
+
+The plan's Phase 1 gate compares the application's totals with expected totals. A posting counts only once it's committed (ENG-02, 10.2), and every figure comes from `reports/queries.py` (ENG-03, 2). So Phase 1 builds every step a figure passes through, in its plain form, called from the tests. A test that added up cleaned rows straight from `pipeline/` would skip staging, commit, the view and the queries, which are the steps the real figures take.
+
+| Step | Phase 1 builds | Added later |
+| --- | --- | --- |
+| Receive | Creating a report with ruleset version 1. Hashing and storing a file, and creating its upload at `reading` (5.1) | Phase 2: the upload screen, the refusals before an upload exists, and one open upload per report (ENG-02, 6) |
+| Read and clean | `pipeline/`: reading (ENG-02, 4), cleaning (ENG-02, 5) and the actual-spend rule (ENG-02, 3) | Phase 2: picking columns at `needs_columns` |
+| Stage | Staging rows, skipped rows and mapping rows, the upload's period, and the count and total the commit checks | Phase 2: duplicates (ENG-02, 7), reconciliation that blocks approval (ENG-02, 9.3) and the preview screen (ENG-02, 11) |
+| Commit | ENG-02, 10.1, writing its audit event through `audit.record()` | Phase 2: sign-in, the approve and reject screens, and rollback. Phase 4: roles and per-report access |
+| Resolve | `posting_resolved` in full (ENG-02, 8.4) | Nothing |
+| Add up | In `reports/queries.py`: the total, inside and outside IDS, and the totals by GL account, budget line, department and month (ENG-03, 2.3). `manage.py report_totals` | Phase 3: filters, screens, drill-down, the FAQ and exports |
+
+- **The access check exists from Phase 1.** Until Phase 4 adds roles, the only users are fixed administrators, and they pass every check (6.2, rule 4).
+- **The Phase 1 gate test** sends the sample file through every step and compares every figure with its expected result. It then does the same with the semicolon file uploaded after it (ENG-02, 12.2). The real export follows the same path once it arrives.
+
+**Tested by:** the Phase 1 gate test reaches the figures only through the `imports/` functions and `reports/queries.py`, never by calling `pipeline/` directly.
+
 ## 5. How requests flow
 
 ### 5.1 An upload, from file to committed rows
@@ -406,6 +424,7 @@ During the build, Python runs on the developer's machine and only the database r
 - **The database:** `compose.yaml` starts with only the `db` service from 7.1. It publishes PostgreSQL on `127.0.0.1:${DB_PORT}`, so Django on this machine reaches it at `DB_HOST` and `DB_PORT`, and no other machine can.
 - **Settings:** Django reads `.env` itself, through python-dotenv, when it runs outside Docker. A setting already in the environment wins, and a missing `.env` is not an error. `manage.py` uses `config.settings.dev`. pytest uses `config.settings.test`, named in `pyproject.toml`.
 - **Role:** Django on this machine connects as `ids_owner`, for the tests, `migrate`, `makemigrations` and the shell (6.3). Nothing connects to the development database as `ids_app` during Phase 1, so it needs no grants yet.
+- **Uploaded files:** during Phase 1, files are uploaded only by the tests (4, Build order), which store them in pytest's temporary folder. From Phase 2, the application stores them in the `uploads` volume (7.1).
 
 **From Phase 2 (Day 3)**
 

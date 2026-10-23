@@ -12,7 +12,7 @@ The FAQ pages follow the plan's eight default questions until the client sends t
 
 ## 2. Where every figure comes from
 
-Every figure on every screen, FAQ page and export comes from one set of functions in `reports/queries.py`, run over `posting_resolved` (ENG-02, 8.4). PostgreSQL adds the amounts as exact decimals. No view, template or chart adds amounts itself, and `manage.py report_totals` (ENG-01, 7.2) calls the same functions.
+Every figure on every screen, FAQ page and export comes from one set of functions in `reports/queries.py`, run over `posting_resolved` (ENG-02, 8.4). PostgreSQL adds the amounts as exact decimals. No view, template or chart adds amounts itself, and `manage.py report_totals` (ENG-01, 7.2) calls the same functions. The functions for the total and the groups in 2.3 are built in Phase 1, for its gate. The rest of this document is Phase 3 (ENG-01, 4, Build order).
 
 ### 2.1 What's counted
 

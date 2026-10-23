@@ -6,7 +6,7 @@ Implements: Phases 1 and 2 of [IDS Spend Audit Delivery Plan](../IDS%20Spend%20A
 
 This document defines where every number comes from: the tables that hold the data, how an uploaded file becomes postings, and the rules that decide what counts. It's written for the finance validator as much as for developers. Every rule here can be checked by hand against a file.
 
-It covers the data model, file reading, cleaning, upload states, duplicates, mapping versions, reconciliation, commit and rollback. Sign-in and access are in ENG-01, and the report screens and exports are in ENG-03.
+It covers the data model, file reading, cleaning, upload states, duplicates, mapping versions, reconciliation, commit and rollback. Sign-in and access are in ENG-01, and the report screens and exports are in ENG-03. Which parts are built in Phase 1 and which in Phase 2 is set by the build order in ENG-01, 4.
 
 The rules are written against the agreed file structure: spend lines plus the GL and cost center mapping sheets, all in one file. Until the real export arrives, they're built and tested against the sample file (12.2). Anything marked **Confirm with the real export** may change when the real file arrives. Section 13 lists those items.
 
