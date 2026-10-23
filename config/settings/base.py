@@ -38,6 +38,9 @@ INSTALLED_APPS = [
     "ids_audit.audit",
 ]
 
+# Set before the first migration, as Django requires (ENG-01 6.1).
+AUTH_USER_MODEL = "accounts.User"
+
 # Each environment's settings add the role and its password (ENG-01 6.3).
 DATABASES = {
     "default": {
