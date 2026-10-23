@@ -20,7 +20,7 @@ Each table has the name given here, set with `Meta.db_table` on its model, so ha
 
 Every arrow points from one row to many: a report has many uploads, and an upload has many postings.
 
-**Written once, never changed.** Postings, mapping rows and skipped rows are only ever inserted. The application's database role, `ids_app`, has no `UPDATE` or `DELETE` on them, the same protection as the audit log (ENG-01, 6.3). Staging rows are the exception: they are deleted once an upload is approved or rejected.
+**Written once, never changed.** Postings, mapping rows, skipped rows and ruleset versions are only ever inserted. The application's database role, `ids_app`, has no `UPDATE` or `DELETE` on them, the same protection as the audit log (ENG-01, 6.3). Staging rows are the exception: they are deleted once an upload is approved or rejected.
 
 ### `posting`: one row per spend line
 
@@ -74,7 +74,7 @@ An upload changes only through the state changes in Section 6, and each change w
 
 | Table | Holds |
 | --- | --- |
-| `report` | `id`, `name`, `duplicate_mode` (fixed by the first committed upload, Section 7), `created_by`, `created_at` |
+| `report` | `id`, `name`, `duplicate_mode` (`replace_by_period` or `line_key`, fixed by the first committed upload and empty until then, Section 7), `created_by`, `created_at` |
 | `ruleset` | `report_id`, `version`, `settings` (JSON), `created_by`, `created_at`. One row per report and version |
 | `staging_row` | The same fields as `posting`, plus `is_duplicate`. Rows exist only while an upload awaits approval |
 | `skipped_row` | `upload_id`, `sheet`, `row_number`, `reason`, `amount` (if it could be read), and the row's raw values as JSON |
@@ -99,7 +99,7 @@ The first four settings act while a file is read, so their effect is stored in i
 **Changing a ruleset**
 
 - Only fixed administrators can change a ruleset.
-- A change creates a new version. Old versions are never edited.
+- A change creates a new version. No version is ever edited: `ids_app` can't `UPDATE` or `DELETE` a ruleset row (ENG-01, 6.3).
 - A change to a setting that acts while a file is read applies only to uploads made after it. Committed uploads keep the rows, amounts and `is_actual` flags they were read with.
 - `outside_ids_rule` and `mapping_rule` can't change once the report has a committed upload, like `report.duplicate_mode` (7.3), or while it has an open upload (Section 6). Otherwise a change would move figures that a preview has already shown.
 - To apply new rules to old data, create a new report and upload the files again.

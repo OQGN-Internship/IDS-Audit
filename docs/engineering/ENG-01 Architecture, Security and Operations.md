@@ -243,7 +243,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 
 - **`ids_owner`** owns the application database and its tables. The migration job connects as it, and so does Django on the developer's machine, for the tests and `manage.py` (7.5). It has `CREATEDB`, so pytest-django can create the test database. It's also a member of `ids_app`, so a grant test can switch to `ids_app` with `SET ROLE`.
 - **`ids_app`** is the role the application connects as. Default privileges, set by `sql/init-roles.sh` before the first migration (7.1), give it `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table `ids_owner` creates. It has `TRUNCATE` on no table.
-- **Insert-only tables:** on `audit_event`, `posting`, `gl_ci_map`, `cc_dept_map` and `skipped_row`, `ids_app` has only `SELECT` and `INSERT`.
+- **Insert-only tables:** on `audit_event`, `posting`, `gl_ci_map`, `cc_dept_map`, `skipped_row` and `ruleset`, `ids_app` has only `SELECT` and `INSERT`.
 - **`sql/grants.sql`** runs after every migration, and can run any number of times. It grants `ids_app` its rights on every existing table and sequence, then revokes `UPDATE` and `DELETE` on the insert-only tables, so a new migration can't reopen them. It also revokes `INSERT`, `UPDATE` and `DELETE` on every view, such as `posting_resolved` (ENG-02, 8.4). A simple view passes writes through to its table, with the rights of the view's owner, `ids_owner`.
 - **The admin screens** show the audit log as read-only.
 
