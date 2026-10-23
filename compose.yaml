@@ -1,0 +1,28 @@
+# Phase 1 runs only the database. Phase 2 adds migrate and app (ENG-01 7.1, 7.5).
+name: ids-audit
+
+services:
+  db:
+    image: postgres:17
+    # Only the values the database needs, read from .env.
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DB_NAME: ${DB_NAME:-ids_audit}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?Set DB_OWNER_PASSWORD in .env}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs once, on the first start with an empty pgdata volume.
+      - ./sql/init-roles.sh:/docker-entrypoint-initdb.d/init-roles.sh:ro
+    # This machine only (ENG-01 6.4).
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    # Ready only once the real server accepts connections over TCP.
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pgdata:
