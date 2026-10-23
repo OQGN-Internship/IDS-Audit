@@ -78,7 +78,7 @@ An upload changes only through the state changes in Section 6, and each change w
 | `report` | `id`, `name`, `duplicate_mode` (`replace_by_period` or `line_key`, fixed by the first committed upload and empty until then, Section 7), `created_by`, `created_at` |
 | `ruleset` | `report_id`, `version`, `settings` (JSON), `created_by`, `created_at`. One row per report and version |
 | `staging_row` | The same fields as `posting`, plus `is_duplicate`. Rows exist only while an upload awaits approval |
-| `skipped_row` | `upload_id`, `sheet`, `row_number`, `reason`, `amount` (if it could be read), and the row's raw values as JSON |
+| `skipped_row` | `upload_id`, `sheet`, `row_number`, `reason`, `amount` (if it could be read, stored exactly as read in plain `numeric`, ENG-01, 4 rule 5), and `raw_values`: the row's cells as JSON |
 
 ## 3. Reports and rulesets
 
@@ -227,6 +227,7 @@ A **spend row** is any row with both a GL account and a cost center. Rows withou
 - Cleaning a code that's already clean leaves it unchanged.
 - Every row below the sample file's header ends up clean, skipped with a reason, or listed in the preview as the total row, a subtotal or a label. Only blank rows are left out, and none is lost.
 - `31.02.2026`, `12.3456` and a `USD` row are each skipped with the right reason.
+- The skipped `12.3456` row keeps its amount as `12.3456`, not `12.346`.
 - The same line read from Excel number cells and from CSV text gets the same `line_key`.
 
 ## 6. Upload states

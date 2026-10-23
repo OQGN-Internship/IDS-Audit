@@ -94,7 +94,7 @@ IDS-Audit/
 2. **Only `imports/` writes postings,** and only inside the single transaction that runs at approval (see 5.1).
 3. **Every view that touches a report calls the one access check in `accounts/`** (see 6.2). No view decides access on its own.
 4. **`audit/` exposes one function, `record()`,** which every other part calls. Nothing else writes to the audit log.
-5. **Amounts are `Decimal` in Python and `NUMERIC(18,3)` in PostgreSQL.** They never pass through a float.
+5. **Amounts are `Decimal` in Python and `NUMERIC(18,3)` in PostgreSQL.** They never pass through a float. The one exception is `skipped_row.amount`, which is plain `NUMERIC`. `NUMERIC(18,3)` would silently round an amount skipped for having more than 3 decimal places, such as `12.3456` to `12.346`, so the skipped row keeps it exactly as read (ENG-02, 5).
 
 **Build order**
 
