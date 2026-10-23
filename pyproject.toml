@@ -31,6 +31,8 @@ select = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# pytest-django loads these settings before any test runs (ENG-01 7.5)
+DJANGO_SETTINGS_MODULE = "config.settings.test"
 
 [dependency-groups]
 dev = [
