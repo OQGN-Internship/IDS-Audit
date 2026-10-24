@@ -29,7 +29,7 @@ Every arrow points from one row to many: a report has many uploads, and an uploa
 | `id` | bigint |  |
 | `report_id` | reference to `report` |  |
 | `upload_id` | reference to `upload` | The upload it came from. An upload with postings can't be deleted |
-| `sheet`, `row_number` | text, integer | Its place in the original file |
+| `sheet`, `row_number` | text, integer | Its place in the original file: the sheet's name, and the 1-based row number Excel shows, counted from the top of the sheet with blank rows included. For a delimited text file, `sheet` is empty and the row number is the record's number, which is the row Excel shows when it opens the file |
 | `company_code`, `fiscal_year`, `document_number`, `line_item` | text, integer, text, text | All optional. **Confirm with the real export** |
 | `line_key` | text | The four fields above, cleaned as in Section 5 and joined with `-`, when all four exist, such as `1000-2026-5100000123-1`. Used for duplicates (Section 7) |
 | `posting_date` | date | Required, or derived from fiscal year and period |
@@ -78,7 +78,7 @@ An upload changes only through the state changes in Section 6, and each change w
 | `report` | `id`, `name` (unique ignoring case, Section 3), `duplicate_mode` (`replace_by_period` or `line_key`, fixed by the first committed upload and empty until then, Section 7), `created_by`, `created_at` |
 | `ruleset` | `report_id`, `version`, `settings` (JSON), `created_by`, `created_at`. One row per report and version |
 | `staging_row` | The same fields as `posting`, plus `is_duplicate`. Rows exist only while an upload awaits approval |
-| `skipped_row` | `upload_id`, `sheet`, `row_number`, `reason`, `amount` (if it could be read, stored exactly as read in plain `numeric`, ENG-01, 4 rule 5), and `raw_values`: the row's cells as JSON |
+| `skipped_row` | `upload_id`, `sheet` and `row_number` (as in `posting`), `reason`, `amount` (if it could be read, stored exactly as read in plain `numeric`, ENG-01, 4 rule 5), and `raw_values`: the row's cells as JSON |
 
 ## 3. Reports and rulesets
 
@@ -129,11 +129,17 @@ The format is identified from the file's first bytes, never from its name.
 
 | Format | First bytes | Reader |
 | --- | --- | --- |
-| Excel `.xlsx` | `PK`, which marks a ZIP file | python-calamine, with openpyxl if calamine fails |
-| Excel `.xls` | `D0 CF 11 E0` | python-calamine |
-| Delimited text | Readable text in UTF-8, or UTF-16 with its byte-order mark | Python's `csv` module, which detects comma, semicolon or tab separators |
+| Excel `.xlsx` | `50 4B 03 04`: `PK`, which marks a ZIP file, and the start of its first entry | python-calamine, with openpyxl if calamine fails |
+| Excel `.xls` | `D0 CF 11 E0 A1 B1 1A E1` | python-calamine |
+| Delimited text | Readable text in UTF-8, with or without a byte-order mark, or UTF-16 with its byte-order mark | Python's `csv` module, which detects comma, semicolon or tab separators |
 
-A text file named `.xls` is read as delimited text. Anything else, such as HTML or PDF, is refused as an unknown file type. A file whose first characters, after any byte-order mark and spaces, are `<`, `MIME-Version` or `%PDF` is HTML, XML, MHTML or PDF, never text. Text that turns out not to be valid UTF-8 or UTF-16 while it's read ends the upload at `failed` (Section 6). **Confirm with the real export:** some SAP exports are HTML saved as `.xls`. If the client's is, a reader for it is added on Day 2.
+Both Excel readers read each sheet from cell A1, so blank rows at the top keep their row numbers (Section 2). calamine is called with `skip_empty_area=False`, since by default it drops them.
+
+Only a formula's cached result, the value saved with it, is read. calamine reads it as it is, and openpyxl is opened with `data_only=True`. A formula with no saved result, and an error such as `#N/A`, read as an empty cell in both readers, because calamine can't tell either from one. The rules for an empty cell then apply (Section 5).
+
+Readable text means the first 4,096 bytes decode, and hold no control characters other than tab, line feed and carriage return. A text file named `.xls` is read as delimited text. Anything else, such as HTML, PDF or an empty file, is refused as an unknown file type. A file whose first characters, after any byte-order mark and spaces, are `<`, `MIME-Version` or `%PDF` is HTML, XML, MHTML or PDF, never text. **Confirm with the real export:** some SAP exports are HTML saved as `.xls`. If the client's is, a reader for it is added on Day 2.
+
+**No other text encoding is read.** A file in a Windows code page, such as Excel's plain "CSV" save, which uses cp1256 on an Arabic Windows, is never decoded with a guessed encoding. If its first 4,096 bytes aren't valid UTF-8, it's refused as an unknown file type. If they are, and an invalid byte comes later, such as in an Arabic item text, the upload ends at `failed` (Section 6). Both messages say how to fix it: "Save it as CSV UTF-8 in Excel, or choose UTF-8 when downloading from SAP, and upload it again." The real export's encoding is checked when it arrives (13, item 14).
 
 A delimited text file holds one table, so it's always a spend sheet. It never has a mapping of its own: commitment item or department columns in it are ignored, unlike on an Excel spend sheet (4.2). Its postings use the mapping in force (8.1).
 
@@ -189,7 +195,11 @@ The choice is saved for the report, so the next file with exactly the same heade
 **Tested by**
 
 - In the sample file, the README sheet is ignored and the Transactions header is found on row 4.
+- In a file whose first two rows are blank, the header is found on row 3 and the first spend row is row 4, through calamine and through openpyxl.
+- The sample file gives the same rows, mapping rows and control total through calamine and through openpyxl.
+- A formula with no saved result, and a `#N/A` error cell, each read as an empty cell through both readers.
 - An HTML file renamed to `.xlsx`, a PDF renamed to `.xls` and an MHTML file saved as `.xls` are each refused.
+- A CSV in cp1256 is refused when an Arabic text falls in its first 4,096 bytes, and ends at `failed` when one falls later, each with the message to save it as CSV UTF-8. The same file in UTF-16 with its byte-order mark is read.
 - A semicolon-separated CSV file is read correctly.
 - A CSV with a Commitment Item column, uploaded after the Excel sample, leaves every GL account's budget line as the Excel file mapped it.
 - A file with no amount column stops at `needs_columns`.
@@ -227,7 +237,7 @@ A **spend row** is any row with both a GL account and a cost center. Rows withou
 | Other rows without a GL account or cost center | A subtotal or a label | No. Listed in the preview |
 | Spend row with an invalid date | `31.02.2026` | Yes |
 | Spend row with more than 3 decimal places | `12.3456` | Yes |
-| Spend row with an unreadable code | `#N/A` as the GL account | Yes |
+| Spend row with an unreadable code | `#N/A`, written as text, as the GL account | Yes |
 | Spend row repeating a line key already in the same file | Same document and line item twice | Yes (Section 7) |
 | Spend row in another currency | `USD` | No, and approval is blocked: a file mixing currencies can't reconcile in OMR. **Confirm with the real export** which amount column holds local currency |
 
@@ -549,7 +559,7 @@ Each golden file has an expected result beside it: totals by GL account, by comm
 | The sample file (12.3) | Title lines, the README sheet, subtotal rows, zero-padded codes, `640200`, `650200`, `3100` and `3200`, and a total that reconciles |
 | The sample saved as semicolon-separated text (12.3) | Uploaded after the Excel sample into the same report, it gives the same figures, using the Excel file's mappings |
 | Messy amounts | Trailing minus, brackets, thousands separators, Excel serial dates |
-| Bad rows | An invalid date, 4 decimals and `#N/A`, each skipped with its reason, and a total that still reconciles |
+| Bad rows | An invalid date, 4 decimals and `#N/A` written as text, each skipped with its reason, and a total that still reconciles |
 | A row in another currency | A `USD` row blocks approval, so its expected result is the preview alone |
 | Two year-to-date files | Replace by period |
 | Two overlapping files with line keys | Line-key mode |
@@ -694,3 +704,4 @@ Every assumption the rules above depend on is listed here, including each one ma
 | 11 | The spend sheet has a total row | 9.1 | Opening the file, and the client by Day 3 | The uploader types the total from SAP |
 | 12 | The date, document number and line item columns hold SAP's posting date, accounting document number and its line item, not the document date, the reference or a purchasing item | 4.4 | Opening the file | Point those fields at the right columns in `header_names` |
 | 13 | The export is SAP's G/L line item report (FAGLL03), laid out like the sample file | 4.4, 12.2 | The client, before acceptance | Add the real report's header names to `header_names`, and update the sample file to match |
+| 14 | A text export is in UTF-8, or in UTF-16 with its byte-order mark | 4.1 | Opening the file, if it's text | Add a `text_encoding` setting to the ruleset (Section 3) |
