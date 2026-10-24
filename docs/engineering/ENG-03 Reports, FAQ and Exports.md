@@ -44,7 +44,7 @@ Every figure starts from the same rows:
 | Department | `dept_code` | From the cost center mapping in force | Outside IDS |
 | Month | Month of `posting_date` | `Mar 2026` | None |
 
-Every posting falls into exactly one group, so the groups on a screen always add up to its total. A code with no name in the mapping is shown as the code alone.
+Every posting falls into exactly one group, so the groups on a screen always add up to its total. A code with no name in the mapping is shown as the code alone. Within one upload's mapping, each code has one name, the first one given (ENG-02, 5, Mapping rows).
 
 ### 2.4 Formats
 

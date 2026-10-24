@@ -91,15 +91,16 @@ Each report has a **ruleset**: the settings that decide how its files are read a
 | Setting | What it decides | Form | Version 1 |
 | --- | --- | --- | --- |
 | `header_names` | The header names recognised for each field (Section 4) | An object from each field's key to its list of header names (4.4) | The built-in list in 4.4 |
-| `actual_spend_rule` | Which value-type values count as actual spend | `null`, or a list of value-type values, such as `["Actual"]`. With a list, a row counts when its value type matches one of them (Section 5), and the value-type column is required (4.4) | `null`: every row counts, whether or not the file has a value-type column. This is the plan's default |
+| `actual_spend_rule` | Which value-type values count as actual spend, and which don't | `null`, or an object with two lists of value-type values, such as `{"actual": ["Actual"], "not_actual": ["Commitment"]}`. With an object, a row is actual spend when its value type matches a value in `actual`, isn't when it matches one in `not_actual`, and is unclassified when it matches neither (Section 5). The value-type column is then required (4.4). No value may be in both lists | `null`: every row counts, whether or not the file has a value-type column. This is the plan's default |
 | `date_order` | How a date such as `03.04.2026` is read | `"day_first"` or `"month_first"`. A `yyyy-mm-dd` date is always read as written (Section 5) | `"day_first"`: 3 April 2026 |
+| `decimal_separator` | Which character separates the decimals in an amount written as text (Section 5) | `"."` or `","` | `"."`: `12,400.000` is twelve thousand four hundred |
 | `currency` | The currency every amount must be in | A three-letter currency code | `"OMR"` |
 | `outside_ids_rule` | Which cost centers are outside IDS | `"missing_from_cc_map"`: any cost center missing from the cost center mapping in force (8.1). It's the only value until the client gives another rule (13, item 3) | `"missing_from_cc_map"`. This is the plan's default |
 | `mapping_rule` | Which mapping applies when a code's budget line or department changes between files | `"latest"` or `"own_upload"` (8.1) | `"latest"`. This is the plan's default |
 
 **Every version holds every setting in full.** A report's version 1 is a copy of the defaults above, kept as `DEFAULT_SETTINGS` in `ids_audit/pipeline/ruleset.py`. A later change to the code's defaults never changes a version that already exists, so each upload's version still says exactly how it was read.
 
-The first four settings act while a file is read, so their effect is stored in its rows. `outside_ids_rule` and `mapping_rule` act whenever the report is shown, in `posting_resolved` (8.4). The view reads `mapping_rule` from the report's latest ruleset version. `outside_ids_rule` has only one value, so the view applies that rule directly, and a new value needs a new view migration (8.4).
+The first five settings act while a file is read, so their effect is stored in its rows. `outside_ids_rule` and `mapping_rule` act whenever the report is shown, in `posting_resolved` (8.4). The view reads `mapping_rule` from the report's latest ruleset version. `outside_ids_rule` has only one value, so the view applies that rule directly, and a new value needs a new view migration (8.4).
 
 **Changing a ruleset**
 
@@ -116,7 +117,7 @@ The first four settings act while a file is read, so their effect is stored in i
 - Creating a report writes the report, its ruleset version 1 and exactly one `report_created` event. A failure part-way through leaves none of them.
 - A new report's ruleset version 1 holds exactly `DEFAULT_SETTINGS`.
 - Once `IDS 2026` exists, a report named `ids 2026 ` is refused, and so is an empty name.
-- A new version with a setting missing, or with a value outside its form, such as `mapping_rule` set to `fiscal_year`, is refused.
+- A new version with a setting missing, or with a value outside its form, such as `mapping_rule` set to `fiscal_year` or a value type in both lists of `actual_spend_rule`, is refused.
 - Changing `mapping_rule` or `outside_ids_rule` is refused while the report has an open or a committed upload. On a report with neither, it creates a new ruleset version and leaves the old one unchanged.
 - After `date_order` changes, a committed upload's postings keep their dates, and the next upload is read with the new order.
 - A user who isn't a fixed administrator is refused when changing a ruleset.
@@ -143,7 +144,7 @@ Readable text means the first 4,096 bytes decode, and hold no control characters
 
 **The separator** in delimited text is a semicolon, a comma or a tab. Each is tried on the first 4,096 characters, with quoted cells kept whole, and the one that splits the most lines into the same number of cells, more than one, is used. If two split as many lines, the one giving more cells wins. A file that no separator splits is one column, so it has no spend sheet.
 
-A delimited text file holds one table, so it's always a spend sheet. It never has a mapping of its own: commitment item or department columns in it are ignored, unlike on an Excel spend sheet (4.2). Its postings use the mapping in force (8.1).
+A delimited text file holds one table. It's the spend sheet when its header has a GL account and a cost center, and otherwise the file has no spend sheet. It never has a mapping of its own: commitment item or department columns in it are ignored, unlike on an Excel spend sheet (4.2). Its postings use the mapping in force (8.1).
 
 ### 4.2 Finding the sheets
 
@@ -158,15 +159,17 @@ Each sheet is classified by the key fields found in its header row:
 
 A sheet's other required fields, such as the amount or the commitment item, are checked after it's classified (4.5). A missing one stops the upload at `needs_columns` instead of hiding the sheet.
 
-If the spend sheet itself has commitment item or department columns, their values build that upload's mappings too. Where they disagree with the mapping sheets, the mapping sheets win, and each disagreement is shown as an exception.
+A file with no spend sheet, or with two sheets of the same type, ends at `failed` (Section 6), with a message naming the sheets. Choosing between two sheets would be a guess.
+
+If the spend sheet itself has commitment item or department columns, their values build that upload's mappings too. Where they disagree with the mapping sheets, the mapping sheets win, and each disagreement is shown as an exception. The rules for mapping rows are in Section 5.
 
 ### 4.3 Finding the header row
 
-The header row is searched for in a sheet's first 25 rows. The row that matches the most recognised header names wins, and any title lines above it are ignored. In the sample file, for example, the Transactions header is on row 4, below two title lines.
+The header row is searched for in a sheet's first 25 rows. The row that matches the most recognised header names wins, and any title lines above it are ignored. If two rows match as many, the higher one wins. In the sample file, for example, the Transactions header is on row 4, below two title lines. A sheet with no recognised header in its first 25 rows is ignored.
 
 ### 4.4 Matching columns to fields
 
-Before comparing, headers are put in lower case with spaces and punctuation removed, so `G/L Account` and `gl account` match the same name. The ruleset's `header_names` holds the list, under each field's key (Section 3). These are the built-in names, which version 1 copies:
+Before comparing, headers are put in lower case with everything but letters and digits removed, so `G/L Account` and `gl account` match the same name. A header matches a name only as a whole cell. The ruleset's `header_names` holds the list, under each field's key (Section 3). These are the built-in names, which version 1 copies:
 
 | Field | Key | Built-in headers | Required |
 | --- | --- | --- | --- |
@@ -178,8 +181,8 @@ Before comparing, headers are put in lower case with spaces and punctuation remo
 | Document number | `document_number` | Document Number, DocumentNo, Doc. No. | No |
 | Line item | `line_item` | Line Item, Item | No |
 | Company code | `company_code` | Company Code, CoCd | No |
-| Value type | `value_type` | Value Type | Yes, on the spend sheet, when `actual_spend_rule` is a list (Section 3) |
-| Currency | `currency` | Currency, Crcy | No |
+| Value type | `value_type` | Value Type | Yes, on the spend sheet, when `actual_spend_rule` isn't `null` (Section 3) |
+| Currency | `currency` | Local Currency, LCurr, Company Code Currency | No |
 | Item text | `item_text` | Item Text, Description, Text | No |
 | Commitment item | `ci_code` | Commitment Item, Cmmt Item | Yes, on the GL mapping sheet |
 | GL account name, commitment item name | `gl_name`, `ci_name` | G/L Account Name, GL Name; Commitment Item Name, Cmmt Item Name | No |
@@ -187,6 +190,8 @@ Before comparing, headers are put in lower case with spaces and punctuation remo
 | Cost center name, department name | `cc_name`, `dept_name` | Cost Center Name, Cost Centre Name; Department Name, Dept Name | No |
 
 When a sheet has two columns for the same subject, such as `Department Code` and `Department`, the one ending in "code" is the code and the other is the name.
+
+**The currency is the amount's.** An SAP line carries two currencies: the invoice's (the document currency) and the company code's (the local currency), which the amount column is in. Only the local currency is read. A document-currency column, such as `Currency`, `Crcy` or `Curr.`, isn't, since an invoice in USD still has its local amount in OMR.
 
 ### 4.5 The column check
 
@@ -197,6 +202,8 @@ The choice is saved for the report, so the next file with exactly the same heade
 **Tested by**
 
 - In the sample file, the README sheet is ignored and the Transactions header is found on row 4.
+- A file with no spend sheet, a file with two, and a file with two GL mapping sheets each end at `failed`.
+- A cost center mapping sheet with `Department Code` and `Department` columns reads the first as the code and the second as the name.
 - In a file whose first two rows are blank, the header is found on row 3 and the first spend row is row 4, through calamine and through openpyxl.
 - The sample file gives the same rows, mapping rows and control total through calamine and through openpyxl.
 - A formula with no saved result, and a `#N/A` error cell, each read as an empty cell through both readers.
@@ -206,7 +213,7 @@ The choice is saved for the report, so the next file with exactly the same heade
 - A comma-separated CSV with Windows line endings, whose only quoted cell is the amount at the end of each line, and a semicolon-separated CSV below title lines that have no separators, are each read with the right separator.
 - A CSV with a Commitment Item column, uploaded after the Excel sample, leaves every GL account's budget line as the Excel file mapped it.
 - A file with no amount column stops at `needs_columns`.
-- A file with no value-type column stops at `needs_columns` when `actual_spend_rule` is a list, and is read when the rule is `null`.
+- A file with no value-type column stops at `needs_columns` when `actual_spend_rule` isn't `null`, and is read when the rule is `null`.
 - A GL mapping sheet whose commitment item header isn't recognised stops at `needs_columns`.
 - A file with both Posting Date and Document Date columns uses Posting Date.
 
@@ -216,43 +223,70 @@ Every value is cleaned the same way every time, and a value that can't be cleane
 
 | Field | Rule | Examples |
 | --- | --- | --- |
-| Codes (GL account, cost center, commitment item, department, company code, document number, line item) | Read as text and trim spaces. A number Excel stored as `4510.0` becomes `4510`. Leading zeros are removed from all-digit codes, and letters are upper-cased | `0000610100` → `610100`; `4510` → `4510`; `ab12` → `AB12` |
-| Fiscal year, period | Read as whole numbers. A number Excel stored as `2026.0` becomes `2026` | `2026.0` → `2026`; `003` → `3` |
+| Codes (GL account, cost center, commitment item, department, company code, document number, line item) | Read as text and trim spaces. A number Excel stored as `4510.0` becomes `4510`. Leading zeros are removed from all-digit codes, leaving at least one digit, and letters are upper-cased. A code is unreadable when, once cleaned, it holds anything but English letters, digits, `-`, `_` and `.`, or when it's a number that isn't whole | `0000610100` → `610100`; `4510` → `4510`; `ab12` → `AB12`; `#N/A` → unreadable |
+| Fiscal year, period | Read as whole numbers. A number Excel stored as `2026.0` becomes `2026`. Anything else is unreadable. The period is read only when the date comes from it | `2026.0` → `2026`; `003` → `3`; `FY26` → unreadable |
 | Amount, from an Excel number | Converted through its shortest text form, never straight from the binary value | `1234.5` → `1234.500` |
-| Amount, from text | Thousands separators and currency letters are removed. A trailing minus, a leading minus or brackets each mean negative | `1,234.500-` → `-1234.500`; `(300.000)` → `-300.000`; `OMR 1,200` → `1200.000` |
-| Amount, precision | More than 3 decimal places is never rounded. The row is skipped | `12.3456` → skipped |
-| Date, from an Excel date cell | Used as it is |  |
-| Date, from text | `dd.mm.yyyy`, `dd/mm/yyyy` and `dd-mm-yyyy` are read day first (the ruleset's `date_order`). `yyyy-mm-dd` is also accepted, and a two-digit year means 20yy | `03.04.2026` → 3 April 2026 |
-| Date, from an Excel serial number | Numbers between 20000 and 80000 in a date column are read as Excel day numbers | `46082` → 1 March 2026 |
-| Date, from fiscal year and period | Used only when there's no date column. Periods 1 to 12 become the first day of that month, and periods 13 to 16 become 31 December. **Confirm with the real export** that the fiscal year is the calendar year | Year 2026, period 3 → 1 March 2026 |
-| Value type | Trimmed, lower-cased and compared with each value in the ruleset's `actual_spend_rule`, trimmed and lower-cased the same way. Rows that aren't actual spend are kept with `is_actual` false, and never counted as spend | `ACTUAL ` matches `Actual` |
-| Currency | With no currency column, OMR is assumed. A row in another currency is skipped | `USD` → skipped |
-| Item text | Trimmed, and otherwise kept exactly as written, Arabic included. Stored as UTF-8 |  |
+| Amount, from text | Read with the ruleset's `decimal_separator`. Currency letters at either end are removed, with any spaces. A trailing minus, a leading minus or brackets each mean negative, and only one of them may be used. The other character, `,` when the separator is `.` and `.` when it's `,`, and spaces are allowed only as thousands separators, between groups of three digits. The decimal separator needs a digit on each side. Anything else is unreadable | `1,234.500-` → `-1234.500`; `(300.000)` → `-300.000`; `OMR 1,200` → `1200.000`; `12,34.5` → unreadable. With `","`: `1.234,500-` → `-1234.500` |
+| Amount, precision | More than 3 decimal places, not counting zeros at the end, is never rounded. The row is skipped | `12.3456` → skipped; `12.3450` → `12.345` |
+| Date, from an Excel date cell | Used as it is, without its time of day |  |
+| Date, from text | `dd.mm.yyyy`, `dd/mm/yyyy` and `dd-mm-yyyy` are read day first (the ruleset's `date_order`). `yyyy-mm-dd` is also accepted, and a two-digit year means 20yy. An empty date, or one that isn't a real day, is invalid | `03.04.2026` → 3 April 2026; `31.02.2026` → invalid |
+| Date, from an Excel serial number | Whole numbers between 20000 and 80000 in a date column, as numbers or as digits in text, are read as Excel day numbers. A number cell's time of day is dropped | `46082` → 1 March 2026 |
+| Date, from fiscal year and period | Used only when there's no date column. Periods 1 to 12 become the first day of that month, and periods 13 to 16 become 31 December. A missing or unreadable year or period, or any other period, gives an invalid date. **Confirm with the real export** that the fiscal year is the calendar year | Year 2026, period 3 → 1 March 2026 |
+| Value type | Trimmed, lower-cased and compared with the values in the ruleset's `actual_spend_rule` (Section 3), trimmed and lower-cased the same way. A row matching `actual` is actual spend. A row matching `not_actual` is kept with `is_actual` false, and never counted as spend. A row matching neither is unclassified: it's kept with `is_actual` false, and approval is blocked until a fixed administrator classifies the value in a new ruleset version and the file is uploaded again (9.3). With the rule `null`, every row is actual spend | `ACTUAL ` matches `Actual` |
+| Currency | Trimmed, upper-cased and compared with the ruleset's `currency`. The currency column is the local currency's (4.4). With no currency column, or an empty cell, the row is in the ruleset's currency. A row in another currency is skipped | `omr ` → `OMR`; `USD` → skipped |
+| Item text | Trimmed, and otherwise kept exactly as written, Arabic included. Stored as UTF-8. A number cell is written as its shortest text form |  |
 
 **When a row is skipped**
 
-A **spend row** is any row with both a GL account and a cost center. Rows without both, such as totals, subtotals and labels, are never spend.
+A **spend row** is any row whose GL account and cost center cells both hold something. Rows without both, such as totals, subtotals and labels, are never spend.
 
-| Row | Example | Counts in reconciliation (Section 9) |
+| Row | Example | Reason | Counts in reconciliation (Section 9) |
+| --- | --- | --- | --- |
+| Completely blank | All cells empty |  | Not recorded at all |
+| The total row | No GL account and no cost center, an amount, and the word Total in a cell. Total is matched as a whole word in any case, so `Grand Total` qualifies and `Subtotal` doesn't. Which one is used is in 9.1 |  | It **is** the control total |
+| Other rows without a GL account or cost center | A subtotal or a label |  | No. Listed in the preview, with its amount if it has one |
+| Spend row in another currency | `USD` | `Another currency` | No, and approval is blocked: a file mixing currencies can't reconcile in OMR. **Confirm with the real export** which amount column holds local currency |
+| Spend row with an unreadable code | `#N/A`, written as text, as the GL account | `Unreadable code` | Yes |
+| Spend row with an unreadable amount | `12,34.5`, or an empty cell | `Unreadable amount` | Yes |
+| Spend row with more than 3 decimal places | `12.3456` | `More than 3 decimal places` | Yes |
+| Spend row with an invalid date | `31.02.2026` | `Invalid date` | Yes |
+| Spend row with an unreadable fiscal year | `FY26`, in a file with a date column | `Unreadable fiscal year` | Yes |
+| Spend row repeating a line key already in the same file | Same document and line item twice | `Repeats row 12`, naming the first row | Yes (Section 7) |
+
+A row with more than one problem gets the reason that comes first in the table. A skipped row keeps its amount whenever it can be read, whatever the reason.
+
+**Mapping rows**
+
+The GL mapping sheet holds one row per GL account, and the cost center mapping sheet one per cost center (Section 2). Their codes and names are cleaned by the rules above, and then:
+
+| Row | What happens | Exception (11.2) |
 | --- | --- | --- |
-| Completely blank | All cells empty | Not recorded at all |
-| The total row | No GL account or cost center, an amount, and the word Total in a cell | It **is** the control total |
-| Other rows without a GL account or cost center | A subtotal or a label | No. Listed in the preview |
-| Spend row with an invalid date | `31.02.2026` | Yes |
-| Spend row with more than 3 decimal places | `12.3456` | Yes |
-| Spend row with an unreadable code | `#N/A`, written as text, as the GL account | Yes |
-| Spend row repeating a line key already in the same file | Same document and line item twice | Yes (Section 7) |
-| Spend row in another currency | `USD` | No, and approval is blocked: a file mixing currencies can't reconcile in OMR. **Confirm with the real export** which amount column holds local currency |
+| Completely blank | Not recorded at all | None |
+| No code of its own, such as a note | Listed in the preview as an other row | Other row without GL account or cost center |
+| A code that can't be read: its own, or its commitment item or department | Skipped with the reason `Unreadable code`. It has no amount, so it doesn't count in reconciliation | Skipped row |
+| A code listed again with the same commitment item or department | The first row is kept, and the repeat changes nothing | None |
+| A code listed again with a different commitment item or department | The first row is kept, and approval is blocked: which budget line or department its postings get would be a guess | Mapping code listed with different values |
+| A code given different names on different rows | The first name given is used for that code everywhere, so a group has one name on every screen (ENG-03). This covers GL account, commitment item, cost center and department names | Names differ for one code |
+
+**From the spend sheet (4.2).** When the spend sheet has a commitment item column, each clean spend row whose commitment item isn't empty adds its GL account to the upload's GL mapping, with the names from the spend sheet's name columns, if it has any. A GL account on the GL mapping sheet keeps the sheet's values, and each spend row that disagrees with them is shown as the exception "Mapping sheet and spend sheet disagree". A GL account found only on spend rows follows the table above, so two different commitment items for it block approval. A department column does the same for cost centers.
 
 **Tested by**
 
 - A property test writes thousands of random amounts in SAP's formats and checks that each one reads back as the same `Decimal`.
 - Cleaning a code that's already clean leaves it unchanged.
 - Every row below the sample file's header ends up clean, skipped with a reason, or listed in the preview as the total row, a subtotal or a label. Only blank rows are left out, and none is lost.
-- `31.02.2026`, `12.3456` and a `USD` row are each skipped with the right reason.
+- `USD`, `#N/A` written as text, `12,34.5`, `12.3456` and `31.02.2026` rows are each skipped with the right reason, and a row with two problems gets the first one's.
 - The skipped `12.3456` row keeps its amount as `12.3456`, not `12.346`.
-- With `actual_spend_rule` set to `["Actual"]`, a row whose value type is `ACTUAL ` is actual spend, and a `Commitment` row is kept with `is_actual` false. With the rule `null`, both are actual spend.
+- With `decimal_separator` set to `","`, `1.234,500-` reads as `-1234.500` and `12,400.000` is unreadable.
+- A row whose local currency column holds `USD` is skipped. A `Currency` column holding `USD` beside an `LCurr` of `OMR` changes nothing.
+- With `actual_spend_rule` set to `{"actual": ["Actual"], "not_actual": ["Commitment"]}`, a row whose value type is `ACTUAL ` is actual spend, a `Commitment` row is kept with `is_actual` false, and a `Plan` row is unclassified. With the rule `null`, all three are actual spend.
+- `Grand Total` makes a total row, and `Subtotal` doesn't.
 - The same line read from Excel number cells and from CSV text gets the same `line_key`.
+- A GL mapping sheet listing `610100` twice with `2101` keeps one row. Listing it with `2101` and `2201` keeps `2101`, blocks approval and names both rows.
+- `#N/A` as a cost center on the cost center mapping sheet is skipped as `Unreadable code`.
+- A commitment item given two names gets the first on every row, with an exception.
+- A spend sheet with a Commitment Item column adds the GL accounts the mapping sheet lacks, and a spend row that disagrees with the mapping sheet leaves the sheet's value and raises an exception.
+- In the sample file, mapping codes stored as numbers, such as `4510`, match spend codes written as `0000004510`.
 
 ## 6. Upload states
 
@@ -408,7 +442,7 @@ Reconciliation proves the file was read completely: every amount in it is either
 
 ### 9.1 The control total
 
-- **From the file.** The total row (Section 5) on the spend sheet. If more than one row qualifies, the last one below the last spend row is used. `control_total_source` is `file`.
+- **From the file.** The total row (Section 5) on the spend sheet. Only a row below the last spend row qualifies, and if more than one does, the last is used. Any other row that looks like a total is an other row. `control_total_source` is `file`.
 - **Entered.** If the file has no total row, the uploader types the total shown in SAP for the same selection. `control_total_source` is `entered`, and the preview shows it as typed by hand.
 
 Excel adds tiny binary errors when it sums, such as `1234.5000000001`. So the difference (9.2) is worked out from the control total as read, before any rounding. The difference is then rounded to 3 decimal places, which removes only fractions of a baisa. A file with a skipped amount such as `12.3456` still reconciles. `control_total` is saved rounded the same way. Spend rows are never rounded (Section 5).
@@ -432,6 +466,8 @@ The staged rows include every spend row, actual or not, because the file's total
 | The difference isn't exactly `0.000` | Some amount in the file is unexplained. There's no tolerance |
 | There's no control total | Nothing to reconcile against |
 | A row is in another currency (Section 5) | The file can't reconcile in OMR |
+| A row's value type is unclassified (Section 5) | Counting it or leaving it out would be a guess. The upload is rejected, a fixed administrator classifies the value in a new ruleset version, and the file is uploaded again |
+| A mapping code is listed with different values (Section 5) | The budget line or department its postings get would be a guess |
 
 A skipped spend row whose amount can't be read leaves a difference, so it blocks approval through the first condition.
 
@@ -441,6 +477,8 @@ Skipped rows count in reconciliation only to prove the file was read completely.
 
 - The sample file reconciles to `0.000`.
 - Changing one amount by `0.001` blocks approval.
+- A row with an unclassified value type blocks approval, and so does a mapping code listed with different values.
+- Of two rows reading Total below the last spend row, the last gives the control total and the other is an other row. A Total row above the last spend row is an other row.
 - A file with no total row asks for one, and the typed total is saved with `control_total_source` as `entered`.
 - A file of actual-spend rows with one skipped row reconciles, and its report total is lower by exactly that row's amount.
 
@@ -518,25 +556,27 @@ Each exception lists the rows it covers, by sheet and row number in the original
 | Difference not zero | `-0.500` | Yes |
 | No control total | No total row, and none typed | Yes |
 | Row in another currency | `USD` | Yes |
-| Skipped spend row | Invalid date, more than 3 decimals, unreadable code, repeated line, no line key | No |
+| Unclassified value type | `Plan`, where the rule lists only `Actual` and `Commitment` | Yes |
+| Mapping code listed with different values | `610100` with `2101` on one row and `2201` on another | Yes |
+| Skipped row | Invalid date, more than 3 decimals, unreadable code, repeated line, no line key, unreadable mapping code | No |
 | Other row without GL account or cost center | A subtotal or a label | No |
 | GL account with no budget line | `640200` | No |
 | GL account listed without a commitment item | `650200` | No |
 | Cost center outside IDS | `3100` | No |
 | Mapping change | `610100` moves from `2101` to another commitment item | No |
 | Mapping sheet and spend sheet disagree | 4.2 | No |
-| Value type not seen before in this report | `Actual Spend` where the rule says `Actual` | No |
+| Names differ for one code | `2101` named `Software and licences` on one row and `Software` on another | No |
 | Duplicate with a different amount | Line-key mode, 7.3 | No |
 | A month with no rows inside the replaced months | February empty between January and March | No |
 
 An exception that doesn't block approval still needs a look. The approver approves the file with its exceptions, and the audit event records how many there were of each type.
 
-While a report has no committed upload, "Value type not seen before in this report" isn't raised. The preview lists the value types found instead, with whether each counts as actual spend.
+When the file has a value-type column, the preview lists each value type found, with its row count, its amount, and whether it's actual, not actual or unclassified (Section 5).
 
 **Tested by**
 
 - The sample file's preview shows exactly the exceptions its README describes: `640200`, `650200`, `3100` and `3200`, and its subtotal rows as other rows without a GL account or cost center (12.3).
-- Each exception type shows once, with the right rows, in a file built to cause it. The types that need an earlier upload (mapping change, value type not seen before, duplicate with a different amount, a month with no rows) use a pair of files in a report of the right mode.
+- Each exception type shows once, with the right rows, in a file built to cause it. The types that need an earlier upload (mapping change, duplicate with a different amount, a month with no rows) use a pair of files in a report of the right mode.
 - The preview of a rejected upload shows the same figures as before it was rejected.
 
 ## 12. Testing
@@ -564,6 +604,8 @@ Each golden file has an expected result beside it: totals by GL account, by comm
 | Messy amounts | Trailing minus, brackets, thousands separators, Excel serial dates |
 | Bad rows | An invalid date, 4 decimals and `#N/A` written as text, each skipped with its reason, and a total that still reconciles |
 | A row in another currency | A `USD` row blocks approval, so its expected result is the preview alone |
+| Decimal commas | The sample's rows as semicolon-separated text with decimal commas, such as `1.234,500-`, read with `decimal_separator` set to `","`, give the sample's figures |
+| Repeated mapping codes | One exact repeat and one repeat with a different commitment item: no total doubles, and the second blocks approval |
 | Two year-to-date files | Replace by period |
 | Two overlapping files with line keys | Line-key mode |
 | A changed mapping | A GL account moving budget line, before and after rollback |
@@ -605,7 +647,7 @@ The sample looks like a real export but has no bad rows. Invalid dates, `#N/A`, 
 | Reference | Text: the vendor's invoice number. Not read (4.4) |
 | Text | As written. Three rows are in Arabic |
 | Amount in LC | Text, as SAP writes it: `12,400.000`, `1,250.000-` |
-| LCurr | Text: `OMR`. The header isn't recognised (4.4), so OMR is assumed (5) |
+| LCurr | Text: `OMR`, the local currency (4.4) |
 
 A subtotal row holds only the G/L Acct, the amount and `OMR`. The total row holds `Total` in column A, the sum of every spend row, and `OMR`. It's a value, not a formula: XlsxWriter doesn't calculate formulas, and saves their result as `0`.
 
@@ -698,13 +740,14 @@ Every assumption the rules above depend on is listed here, including each one ma
 | 2 | The headers match the built-in names | 4.4 | Opening the file | Add the names to `header_names` |
 | 3 | The GL and cost center mapping sheets are in the file, and the cost center sheet lists only IDS cost centers | 4.2, 8.2 | Opening the file, and the client by Day 2 | Set `outside_ids_rule` to the rule the client gives, before the report's first commit (Section 3) |
 | 4 | Company code, fiscal year, document number and line item are in the file | 2, 7.3 | Opening the file, and the client by Day 3 | Line-key mode isn't offered. Replace by period is used |
-| 5 | The amount column is in local currency (OMR) | 5 | The client, by Day 2 | Point the amount field at the local-currency column |
+| 5 | The amount column is in the local currency, OMR, and the currency column read is the local currency's (`LCurr`), not the invoice's | 4.4, 5 | The client, by Day 2 | Point the amount and currency fields at the local-currency columns in `header_names`. An amount in `Val/COArea Crcy` is in the controlling area's currency, so it's used only once the client confirms that's OMR |
 | 6 | Credits are negative amounts in the amount column | 5 | Opening the file | Read SAP's debit and credit column (S or H), and make H amounts negative |
 | 7 | Dates are day first, or real date cells | 5 | Opening the file | Change `date_order` |
 | 8 | The fiscal year is the calendar year, if there's no date column | 5 | The client, by Day 2 | Map periods to the fiscal calendar |
-| 9 | Which value-type values mean actual spend | 3, 5 | The client, by Day 2 | Set `actual_spend_rule` |
+| 9 | Which value-type values mean actual spend, and which don't | 3, 5 | The client, by Day 2 | Set `actual_spend_rule` |
 | 10 | Each export is year-to-date, or covers whole months | 7.3 | The client, by Day 3 | Use line-key mode, if item 4 allows it |
 | 11 | The spend sheet has a total row | 9.1 | Opening the file, and the client by Day 3 | The uploader types the total from SAP |
 | 12 | The date, document number and line item columns hold SAP's posting date, accounting document number and its line item, not the document date, the reference or a purchasing item | 4.4 | Opening the file | Point those fields at the right columns in `header_names` |
 | 13 | The export is SAP's G/L line item report (FAGLL03), laid out like the sample file | 4.4, 12.2 | The client, before acceptance | Add the real report's header names to `header_names`, and update the sample file to match |
 | 14 | A text export is in UTF-8, or in UTF-16 with its byte-order mark | 4.1 | Opening the file, if it's text | Add a `text_encoding` setting to the ruleset (Section 3) |
+| 15 | Amounts in a text export use a point for decimals, such as `12,400.000` | 3, 5 | Opening the file, if it's text | Set `decimal_separator` to `","` |

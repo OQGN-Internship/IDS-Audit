@@ -206,8 +206,8 @@ Each answer is needed by the day shown, or that phase uses the default.
 | --- | --- | --- |
 | The real SAP export, with SAP's own totals for it | Before acceptance | The build uses the sample file. Acceptance can't start without the real export |
 | Which SAP report produces the export? | Before acceptance | G/L line items (FAGLL03), the layout the sample file imitates |
-| Does the export hold only actual spend, or also POs and PRs? If both, which column marks actual spend? | Day 2 | Every row is treated as actual spend |
-| Are all amounts in Omani rials? | Day 2 | Yes |
+| Does the export hold only actual spend, or also POs and PRs? If both, which column marks actual spend, and which of its values are actual spend and which aren't? | Day 2 | Every row is treated as actual spend |
+| Is the company code's local currency Omani rials, and which export columns hold the local amount and its currency? | Day 2 | Yes, in the columns the sample file uses: `Amount in LC` and `LCurr` |
 | Is every cost center that isn't in the cost center mapping outside IDS? | Day 2 | Yes |
 | Is each export the new month only, or year-to-date each time? | Day 3 | Replace the period the file covers |
 | Can every spend line in the export include its company code, fiscal year, document number and line item? | Day 3 | Replace the period the file covers |
