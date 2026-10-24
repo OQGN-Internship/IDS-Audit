@@ -86,21 +86,24 @@ A report is a separate set of uploads with its own totals and its own user acces
 
 Each report has a **ruleset**: the settings that decide how its files are read and what counts. Every upload records the ruleset version it was read with, so any upload can be explained later exactly as it was processed.
 
-| Setting | What it decides | Default |
-| --- | --- | --- |
-| `header_names` | The header names recognised for each field (Section 4) | The built-in list in Section 4 |
-| `actual_spend_rule` | Which value-type values count as actual spend | Every row counts, if the file has no value-type column. This is the plan's default |
-| `date_order` | How a date such as `03.04.2026` is read | Day first: 3 April 2026 |
-| `currency` | The currency every amount must be in | `OMR` |
-| `outside_ids_rule` | Which cost centers are outside IDS | Any cost center missing from the cost center mapping in force (8.1). This is the plan's default |
-| `mapping_rule` | Which mapping applies when a code's budget line or department changes between files | The latest committed upload (Section 8). This is the plan's default |
+| Setting | What it decides | Form | Version 1 |
+| --- | --- | --- | --- |
+| `header_names` | The header names recognised for each field (Section 4) | An object from each field's key to its list of header names (4.4) | The built-in list in 4.4 |
+| `actual_spend_rule` | Which value-type values count as actual spend | `null`, or a list of value-type values, such as `["Actual"]`. With a list, a row counts when its value type matches one of them (Section 5), and the value-type column is required (4.4) | `null`: every row counts, whether or not the file has a value-type column. This is the plan's default |
+| `date_order` | How a date such as `03.04.2026` is read | `"day_first"` or `"month_first"`. A `yyyy-mm-dd` date is always read as written (Section 5) | `"day_first"`: 3 April 2026 |
+| `currency` | The currency every amount must be in | A three-letter currency code | `"OMR"` |
+| `outside_ids_rule` | Which cost centers are outside IDS | `"missing_from_cc_map"`: any cost center missing from the cost center mapping in force (8.1). It's the only value until the client gives another rule (13, item 3) | `"missing_from_cc_map"`. This is the plan's default |
+| `mapping_rule` | Which mapping applies when a code's budget line or department changes between files | `"latest"` or `"own_upload"` (8.1) | `"latest"`. This is the plan's default |
 
-The first four settings act while a file is read, so their effect is stored in its rows. `outside_ids_rule` and `mapping_rule` act whenever the report is shown: `posting_resolved` (8.4) reads them from the report's latest ruleset version.
+**Every version holds every setting in full.** A report's version 1 is a copy of the defaults above, kept as `DEFAULT_SETTINGS` in `ids_audit/pipeline/ruleset.py`. A later change to the code's defaults never changes a version that already exists, so each upload's version still says exactly how it was read.
+
+The first four settings act while a file is read, so their effect is stored in its rows. `outside_ids_rule` and `mapping_rule` act whenever the report is shown, in `posting_resolved` (8.4). The view reads `mapping_rule` from the report's latest ruleset version. `outside_ids_rule` has only one value, so the view applies that rule directly, and a new value needs a new view migration (8.4).
 
 **Changing a ruleset**
 
 - Only fixed administrators can change a ruleset.
 - A change creates a new version. No version is ever edited: `ids_app` can't `UPDATE` or `DELETE` a ruleset row (ENG-01, 6.3).
+- A new version's settings are checked against the table above before it's saved: every setting is present, and every value is in its form. Anything else is refused.
 - A change to a setting that acts while a file is read applies only to uploads made after it. Committed uploads keep the rows, amounts and `is_actual` flags they were read with.
 - `outside_ids_rule` and `mapping_rule` can't change once the report has a committed upload, like `report.duplicate_mode` (7.3), or while it has an open upload (Section 6). Otherwise a change would move figures that a preview has already shown.
 - To apply new rules to old data, create a new report and upload the files again.
@@ -108,6 +111,8 @@ The first four settings act while a file is read, so their effect is stored in i
 
 **Tested by**
 
+- A new report's ruleset version 1 holds exactly `DEFAULT_SETTINGS`.
+- A new version with a setting missing, or with a value outside its form, such as `mapping_rule` set to `fiscal_year`, is refused.
 - Changing `mapping_rule` or `outside_ids_rule` is refused while the report has an open or a committed upload. On a report with neither, it creates a new ruleset version and leaves the old one unchanged.
 - After `date_order` changes, a committed upload's postings keep their dates, and the next upload is read with the new order.
 - A user who isn't a fixed administrator is refused when changing a ruleset.
@@ -149,25 +154,25 @@ The header row is searched for in a sheet's first 25 rows. The row that matches 
 
 ### 4.4 Matching columns to fields
 
-Before comparing, headers are put in lower case with spaces and punctuation removed, so `G/L Account` and `gl account` match the same name. The ruleset's `header_names` holds the list. These are the built-in names:
+Before comparing, headers are put in lower case with spaces and punctuation removed, so `G/L Account` and `gl account` match the same name. The ruleset's `header_names` holds the list, under each field's key (Section 3). These are the built-in names, which version 1 copies:
 
-| Field | Recognised headers, for example | Required |
-| --- | --- | --- |
-| GL account | G/L Account, GL Account, GL Acct, Cost Element, Account | Yes, on the spend sheet and the GL mapping sheet |
-| Cost center | Cost Center, Cost Centre, Cost Ctr, CCtr | Yes, on the spend sheet and the cost center mapping sheet |
-| Amount | Amount in LC, Amount, Value in Local Currency, Val/COArea Crcy | Yes, on the spend sheet |
-| Posting date | Posting Date, Pstng Date, Date | Yes, on the spend sheet, unless fiscal year and period are both present |
-| Fiscal year, period | Fiscal Year, Year; Period, Posting Period | No |
-| Document number | Document Number, DocumentNo, Doc. No. | No |
-| Line item | Line Item, Item | No |
-| Company code | Company Code, CoCd | No |
-| Value type | Value Type | No |
-| Currency | Currency, Crcy | No |
-| Item text | Item Text, Description, Text | No |
-| Commitment item | Commitment Item, Cmmt Item | Yes, on the GL mapping sheet |
-| GL account name, commitment item name | G/L Account Name, GL Name; Commitment Item Name, Cmmt Item Name | No |
-| Department code | Department Code, Dept Code, Department | Yes, on the cost center mapping sheet |
-| Cost center name, department name | Cost Center Name, Cost Centre Name; Department Name, Dept Name | No |
+| Field | Key | Built-in headers | Required |
+| --- | --- | --- | --- |
+| GL account | `gl_code` | G/L Account, GL Account, GL Acct, Cost Element, Account | Yes, on the spend sheet and the GL mapping sheet |
+| Cost center | `cost_center_code` | Cost Center, Cost Centre, Cost Ctr, CCtr | Yes, on the spend sheet and the cost center mapping sheet |
+| Amount | `amount` | Amount in LC, Amount, Value in Local Currency, Val/COArea Crcy | Yes, on the spend sheet |
+| Posting date | `posting_date` | Posting Date, Pstng Date, Date | Yes, on the spend sheet, unless fiscal year and period are both present |
+| Fiscal year, period | `fiscal_year`, `period` | Fiscal Year, Year; Period, Posting Period | No |
+| Document number | `document_number` | Document Number, DocumentNo, Doc. No. | No |
+| Line item | `line_item` | Line Item, Item | No |
+| Company code | `company_code` | Company Code, CoCd | No |
+| Value type | `value_type` | Value Type | Yes, on the spend sheet, when `actual_spend_rule` is a list (Section 3) |
+| Currency | `currency` | Currency, Crcy | No |
+| Item text | `item_text` | Item Text, Description, Text | No |
+| Commitment item | `ci_code` | Commitment Item, Cmmt Item | Yes, on the GL mapping sheet |
+| GL account name, commitment item name | `gl_name`, `ci_name` | G/L Account Name, GL Name; Commitment Item Name, Cmmt Item Name | No |
+| Department code | `dept_code` | Department Code, Dept Code, Department | Yes, on the cost center mapping sheet |
+| Cost center name, department name | `cc_name`, `dept_name` | Cost Center Name, Cost Centre Name; Department Name, Dept Name | No |
 
 When a sheet has two columns for the same subject, such as `Department Code` and `Department`, the one ending in "code" is the code and the other is the name.
 
@@ -184,6 +189,7 @@ The choice is saved for the report, so the next file with exactly the same heade
 - A semicolon-separated CSV file is read correctly.
 - A CSV with a Commitment Item column, uploaded after the Excel sample, leaves every GL account's budget line as the Excel file mapped it.
 - A file with no amount column stops at `needs_columns`.
+- A file with no value-type column stops at `needs_columns` when `actual_spend_rule` is a list, and is read when the rule is `null`.
 - A GL mapping sheet whose commitment item header isn't recognised stops at `needs_columns`.
 - A file with both Posting Date and Document Date columns uses Posting Date.
 
@@ -202,7 +208,7 @@ Every value is cleaned the same way every time, and a value that can't be cleane
 | Date, from text | `dd.mm.yyyy`, `dd/mm/yyyy` and `dd-mm-yyyy` are read day first (the ruleset's `date_order`). `yyyy-mm-dd` is also accepted, and a two-digit year means 20yy | `03.04.2026` → 3 April 2026 |
 | Date, from an Excel serial number | Numbers between 20000 and 80000 in a date column are read as Excel day numbers | `46082` → 1 March 2026 |
 | Date, from fiscal year and period | Used only when there's no date column. Periods 1 to 12 become the first day of that month, and periods 13 to 16 become 31 December. **Confirm with the real export** that the fiscal year is the calendar year | Year 2026, period 3 → 1 March 2026 |
-| Value type | Trimmed, lower-cased and compared with the ruleset's `actual_spend_rule`. Rows that aren't actual spend are kept with `is_actual` false, and never counted as spend |  |
+| Value type | Trimmed, lower-cased and compared with each value in the ruleset's `actual_spend_rule`, trimmed and lower-cased the same way. Rows that aren't actual spend are kept with `is_actual` false, and never counted as spend | `ACTUAL ` matches `Actual` |
 | Currency | With no currency column, OMR is assumed. A row in another currency is skipped | `USD` → skipped |
 | Item text | Trimmed, and otherwise kept exactly as written, Arabic included. Stored as UTF-8 |  |
 
@@ -228,6 +234,7 @@ A **spend row** is any row with both a GL account and a cost center. Rows withou
 - Every row below the sample file's header ends up clean, skipped with a reason, or listed in the preview as the total row, a subtotal or a label. Only blank rows are left out, and none is lost.
 - `31.02.2026`, `12.3456` and a `USD` row are each skipped with the right reason.
 - The skipped `12.3456` row keeps its amount as `12.3456`, not `12.346`.
+- With `actual_spend_rule` set to `["Actual"]`, a row whose value type is `ACTUAL ` is actual spend, and a `Commitment` row is kept with `is_actual` false. With the rule `null`, both are actual spend.
 - The same line read from Excel number cells and from CSV text gets the same `line_key`.
 
 ## 6. Upload states
@@ -318,7 +325,7 @@ The GL mapping and the cost center mapping are resolved separately, by the rules
 
 | `mapping_rule` | Which mapping applies |
 | --- | --- |
-| `latest` (the default) | The mapping of the most recently committed upload that has that mapping, whole. A code missing from it is unmapped, even if an older file mapped it |
+| `latest` (the default) | The mapping of the most recently committed upload (10.2) that has that mapping, whole. A code missing from it is unmapped, even if an older file mapped it |
 | `own_upload` | Each posting uses the mapping from its own upload. If its upload had none, the `latest` rule applies |
 
 Rolled-back uploads are never used. Mapping values taken from the spend sheet itself (4.2) count as part of that upload's mapping.
@@ -360,6 +367,7 @@ Reports never join the tables themselves. A database view, `posting_resolved`, j
 
 - **`ci_status`** is `mapped`, `missing_from_gl_map` or `listed_without_ci`, the cases in 8.2. `ci_code` and `ci_name` are empty unless it's `mapped`.
 - **`is_outside_ids`** is true when the report's `outside_ids_rule` puts the posting's cost center outside IDS. `dept_code` and `dept_name` are then empty.
+- **Empty** means empty text, `''`, never `NULL`, in every text column of the view, as in the tables. So `gl_name` is empty for a GL account missing from the GL mapping in force, and `cc_name` for a cost center missing from the cost center mapping in force.
 - **The upload's file name** isn't in the view. Screens that show it read `upload` by `upload_id`.
 
 **How it's created:** a migration in `ledger/` creates the view with `RunSQL`, so the main database and the test database both get it (ENG-01, 7.5).
@@ -430,7 +438,7 @@ Approval runs as one database transaction. Either every step happens or none doe
 3. Check that no upload in the report was committed or rolled back since the preview was built. If one was, stop and rebuild the preview.
 4. Copy the staging rows not marked `is_duplicate` into `posting`.
 5. Check that the count and total of the new postings equal the preview's. If they don't, stop.
-6. Set the upload to `committed` with `decided_by` and `decided_at`. On the report's first commit, also set `report.duplicate_mode` to the mode chosen in the preview (7.3). Write the audit event, with the duplicate mode in its details on a first commit.
+6. Set the upload to `committed` with `decided_by` and `decided_at` (10.2). On the report's first commit, also set `report.duplicate_mode` to the mode chosen in the preview (7.3). Write the audit event, with the duplicate mode in its details on a first commit.
 7. Delete the upload's staging rows.
 
 If the transaction stops at any step, nothing is written, the upload stays at `awaiting_approval`, and the error is shown. Because the audit event is in the same transaction, a commit can't happen without its audit event.
@@ -440,13 +448,18 @@ If the transaction stops at any step, nothing is written, the upload stays at `a
 A posting counts when both are true:
 
 - its upload is `committed`, not `rolled_back`, and
-- in replace-by-period mode, no upload committed after it covers the posting's month.
+- in replace-by-period mode, no upload committed after it covers the posting's month (the months in 7.3).
+
+**The order of commits.** A report's committed uploads are ordered by `decided_at`, and by `number` when two times are equal, so no two are ever left unordered. "Committed after" here, and "the most recently committed" in 8.1 and 10.3, both mean this order.
+
+- The commit takes `decided_at` from the application's clock after it locks the report's row (10.1, step 1). PostgreSQL's `now()` isn't used: it's the time the transaction started, so a commit that waited for the lock could get an earlier time than the commit it waited for.
+- `number` alone isn't used. It follows the order uploads were created, which matches the order of commits only while the report has one open upload at a time (Section 6).
 
 **Actual spend** is the postings that count with `is_actual` true. Whether a posting counts is never stored. It's worked out by `posting_resolved` (8.4) from the uploads' states and order, so a rollback changes it without touching a posting.
 
 ### 10.3 Rollback
 
-- **Only the latest.** Only the most recently committed upload of a report can be rolled back. To undo older ones, roll back newer ones first, newest first. Replacement and mappings depend on the order of uploads, and undoing in reverse order always returns the report to a state it was really in.
+- **Only the latest.** Only the most recently committed upload of a report (10.2) can be rolled back. To undo older ones, roll back newer ones first, newest first. Replacement and mappings depend on the order of uploads, and undoing in reverse order always returns the report to a state it was really in.
 - **Who and why.** It needs **roll\_back** and a reason, which is kept in the audit event. It's refused while the report has an open upload (Section 6).
 - **What changes.** The upload is set to `rolled_back` with `rolled_back_by` and `rolled_back_at`. Nothing is deleted: its postings, mapping rows and skipped rows stay, and its history can still be viewed.
 - **What it restores.** The postings it replaced count again, and the mappings in force go back to those before it (Section 8). Every report figure returns to exactly what it was before the commit. The confirmation screen shows the change first, for example "Actual spend: 1,250,400.000 OMR → 1,198,200.000 OMR."
@@ -456,6 +469,7 @@ A posting counts when both are true:
 
 - Stopping the process during a commit leaves the upload at `awaiting_approval` with nothing written.
 - After a commit, the report total equals the previous total, minus the replaced postings, plus the new ones.
+- In replace-by-period mode, of two uploads committed in the opposite order to their numbers, the one committed last replaces the other's months. Two uploads with the same `decided_at` are ordered by `number`.
 - After a rollback, every figure in `posting_resolved` equals its value before the commit.
 - Rolling back an older upload while a newer one is committed is refused.
 - An `UPDATE` or `DELETE` on `posting` as `ids_app` is refused by the database.
