@@ -3,13 +3,11 @@
 """
 
 import datetime
-import io
 from decimal import Decimal
 
 import pytest
-import xlsxwriter
 
-from ids_audit.pipeline.read import read_file
+from ids_audit.pipeline import readers
 from ids_audit.pipeline.results import (
     ANOTHER_CURRENCY,
     INVALID_DATE,
@@ -23,72 +21,9 @@ from ids_audit.pipeline.results import (
     CcMapRow,
     GlMapRow,
     MappingIssue,
-    ReadResult,
+    raw_values,
 )
-from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
-
-# A spend sheet laid out like the sample's (ENG-02 12.3), with fewer columns.
-HEADER = (
-    "CoCd",
-    "G/L Acct",
-    "DocumentNo",
-    "Line Item",
-    "Pstng Date",
-    "Year",
-    "Cost Ctr",
-    "Text",
-    "Amount in LC",
-    "LCurr",
-)
-COLUMN = {name: index for index, name in enumerate(HEADER)}
-LINE = (
-    "1000",
-    "0000610100",
-    "5100000101",
-    "002",
-    "08.07.2025",
-    "2025",
-    "0000004520",
-    "ERP licence renewal",
-    "1,000.000",
-    "OMR",
-)
-
-
-def line(**changes: str) -> tuple:
-    """Return LINE with some cells changed, named by header: line(LCurr="USD")."""
-    cells = list(LINE)
-    for name, value in changes.items():
-        cells[COLUMN[name.replace("_", " ")]] = value
-    return tuple(cells)
-
-
-def csv_file(*rows: tuple, header: tuple = HEADER) -> bytes:
-    """Return a semicolon-separated UTF-8 file with the header on row 1."""
-    lines = [";".join(map(str, row)) for row in (header, *rows)]
-    return ("\r\n".join(lines) + "\r\n").encode("utf-8")
-
-
-def xlsx_file(sheets: dict[str, list[tuple]]) -> bytes:
-    """Return a workbook with one sheet per entry, row 1 first. Numbers are
-    written as number cells, text as text, and None leaves a cell empty.
-    """
-    buffer = io.BytesIO()
-    workbook = xlsxwriter.Workbook(buffer, {"in_memory": True})
-    for name, rows in sheets.items():
-        worksheet = workbook.add_worksheet(name)
-        for row_index, row in enumerate(rows):
-            for column, value in enumerate(row):
-                if value is not None:
-                    worksheet.write(row_index, column, value)
-    workbook.close()
-    return buffer.getvalue()
-
-
-def read(data: bytes, **settings) -> ReadResult:
-    """Read a file with the default settings, changed by settings."""
-    return read_file(data, {**DEFAULT_SETTINGS, **settings})
-
+from tests.files import HEADER, LINE, csv_file, line, read, xlsx_file
 
 # Spend rows
 
@@ -311,6 +246,75 @@ def test_the_decimal_separator_comes_from_the_ruleset() -> None:
     result = read(data, decimal_separator=",")
     assert [clean.amount for clean in result.clean_rows] == [Decimal("-1234.500")]
     assert [skipped.reason for skipped in result.skipped_rows] == [UNREADABLE_AMOUNT]
+
+
+# Raw values (ENG-02 2)
+
+
+def test_raw_values_are_each_cell_as_text_up_to_the_last_value() -> None:
+    """Verify text keeps its spaces, a whole number loses its .0, other numbers
+    keep their shortest form, dates and times are in ISO form, logical cells
+    are written as Excel shows them, and empty cells after the last value are
+    left out.
+    """
+    cells = (
+        " ab ",
+        2026.0,
+        2026,
+        12.3456,
+        True,
+        False,
+        datetime.date(2026, 1, 4),
+        datetime.datetime(2026, 1, 4, 10, 30),
+        datetime.time(10, 30),
+        datetime.timedelta(days=1, hours=2),
+        "",
+        "x",
+        "",
+        "",
+    )
+    assert raw_values(cells) == [
+        " ab ",
+        "2026",
+        "2026",
+        "12.3456",
+        "TRUE",
+        "FALSE",
+        "2026-01-04",
+        "2026-01-04T10:30:00",
+        "10:30:00",
+        "1 day, 2:00:00",
+        "",
+        "x",
+    ]
+    assert raw_values(("", "")) == []
+
+
+def fail(data: bytes) -> None:
+    """Stand in for calamine failing, so the file is read with openpyxl."""
+    raise ValueError("calamine can't read this file")
+
+
+def test_a_skipped_row_has_the_same_raw_values_from_every_reader(
+    monkeypatch,
+) -> None:
+    """Verify a skipped row read from a workbook through calamine and through
+    openpyxl, and the same row from CSV text, keeps the same raw_values, even
+    when the sheet or the line is wider than the row.
+    """
+    as_numbers = line(CoCd=1000, Year=2025, Text=" ERP ", Amount_in_LC=12.3456)
+    note = ("",) * 11 + ("Checked",)
+    workbook = xlsx_file({"Spend": [HEADER, as_numbers, note]})
+    as_text = line(Text=" ERP ", Amount_in_LC="12.3456") + ("", "")
+    expected = list(line(Text=" ERP ", Amount_in_LC="12.3456"))
+
+    (with_calamine,) = read(workbook).skipped_rows
+    (from_csv,) = read(csv_file(as_text)).skipped_rows
+    monkeypatch.setattr(readers, "read_calamine", fail)
+    (with_openpyxl,) = read(workbook).skipped_rows
+    assert with_calamine.reason == MORE_THAN_3_DECIMALS
+    for skipped in (with_calamine, with_openpyxl, from_csv):
+        assert raw_values(skipped.cells) == expected
 
 
 # The total row and other rows

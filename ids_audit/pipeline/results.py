@@ -6,9 +6,11 @@ nothing from Django.
 """
 
 import datetime
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
+from ids_audit.pipeline.cleaning import cell_text
 from ids_audit.pipeline.readers import Cell
 
 # Why a row is skipped, in the order a row with several problems is given one
@@ -73,6 +75,28 @@ class SkippedRow:
     amount: Decimal | None
     in_reconciliation: bool
     cells: tuple[Cell, ...]
+
+
+def raw_values(cells: Sequence[Cell]) -> list[str]:
+    """Return a row's cells as skipped_row.raw_values keeps them (ENG-02 2):
+    each cell as text, from column A to the last cell that isn't empty.
+    """
+    texts = [raw_text(cell) for cell in cells]
+    while texts and texts[-1] == "":
+        texts.pop()
+    return texts
+
+
+def raw_text(cell: Cell) -> str:
+    """Return one cell as text: text exactly as read, a logical cell as Excel
+    shows it, and anything else as cell_text writes it (ENG-02 2).
+    """
+    if isinstance(cell, str):
+        return cell
+    # Checked first: cell_text would write True as "True".
+    if isinstance(cell, bool):
+        return "TRUE" if cell else "FALSE"
+    return cell_text(cell)
 
 
 @dataclass(frozen=True)
