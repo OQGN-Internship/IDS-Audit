@@ -131,7 +131,7 @@ The format is identified from the file's first bytes, never from its name.
 | --- | --- | --- |
 | Excel `.xlsx` | `50 4B 03 04`: `PK`, which marks a ZIP file, and the start of its first entry | python-calamine, with openpyxl if calamine fails |
 | Excel `.xls` | `D0 CF 11 E0 A1 B1 1A E1` | python-calamine |
-| Delimited text | Readable text in UTF-8, with or without a byte-order mark, or UTF-16 with its byte-order mark | Python's `csv` module, which detects comma, semicolon or tab separators |
+| Delimited text | Readable text in UTF-8, with or without a byte-order mark, or UTF-16 with its byte-order mark | Python's `csv` module |
 
 Both Excel readers read each sheet from cell A1, so blank rows at the top keep their row numbers (Section 2). calamine is called with `skip_empty_area=False`, since by default it drops them.
 
@@ -140,6 +140,8 @@ Only a formula's cached result, the value saved with it, is read. calamine reads
 Readable text means the first 4,096 bytes decode, and hold no control characters other than tab, line feed and carriage return. A text file named `.xls` is read as delimited text. Anything else, such as HTML, PDF or an empty file, is refused as an unknown file type. A file whose first characters, after any byte-order mark and spaces, are `<`, `MIME-Version` or `%PDF` is HTML, XML, MHTML or PDF, never text. **Confirm with the real export:** some SAP exports are HTML saved as `.xls`. If the client's is, a reader for it is added on Day 2.
 
 **No other text encoding is read.** A file in a Windows code page, such as Excel's plain "CSV" save, which uses cp1256 on an Arabic Windows, is never decoded with a guessed encoding. If its first 4,096 bytes aren't valid UTF-8, it's refused as an unknown file type. If they are, and an invalid byte comes later, such as in an Arabic item text, the upload ends at `failed` (Section 6). Both messages say how to fix it: "Save it as CSV UTF-8 in Excel, or choose UTF-8 when downloading from SAP, and upload it again." The real export's encoding is checked when it arrives (13, item 14).
+
+**The separator** in delimited text is a semicolon, a comma or a tab. Each is tried on the first 4,096 characters, with quoted cells kept whole, and the one that splits the most lines into the same number of cells, more than one, is used. If two split as many lines, the one giving more cells wins. A file that no separator splits is one column, so it has no spend sheet.
 
 A delimited text file holds one table, so it's always a spend sheet. It never has a mapping of its own: commitment item or department columns in it are ignored, unlike on an Excel spend sheet (4.2). Its postings use the mapping in force (8.1).
 
@@ -201,6 +203,7 @@ The choice is saved for the report, so the next file with exactly the same heade
 - An HTML file renamed to `.xlsx`, a PDF renamed to `.xls` and an MHTML file saved as `.xls` are each refused.
 - A CSV in cp1256 is refused when an Arabic text falls in its first 4,096 bytes, and ends at `failed` when one falls later, each with the message to save it as CSV UTF-8. The same file in UTF-16 with its byte-order mark is read.
 - A semicolon-separated CSV file is read correctly.
+- A comma-separated CSV with Windows line endings, whose only quoted cell is the amount at the end of each line, and a semicolon-separated CSV below title lines that have no separators, are each read with the right separator.
 - A CSV with a Commitment Item column, uploaded after the Excel sample, leaves every GL account's budget line as the Excel file mapped it.
 - A file with no amount column stops at `needs_columns`.
 - A file with no value-type column stops at `needs_columns` when `actual_spend_rule` is a list, and is read when the rule is `null`.
