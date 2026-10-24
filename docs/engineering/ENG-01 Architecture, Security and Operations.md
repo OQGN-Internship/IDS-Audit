@@ -104,8 +104,8 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 | --- | --- | --- |
 | Receive | Creating a report with ruleset version 1. Hashing and storing a file, and creating its upload at `reading` (5.1) | Phase 2: the upload screen, the screen for creating a report, the refusals before an upload exists, and one open upload per report (ENG-02, 6) |
 | Read and clean | `pipeline/`: reading (ENG-02, 4), cleaning (ENG-02, 5) and the actual-spend rule (ENG-02, 3) | Phase 2: picking columns at `needs_columns` |
-| Stage | Staging rows, skipped rows and mapping rows, the upload's period, and the count and total the commit checks | Phase 2: duplicates (ENG-02, 7), reconciliation that blocks approval (ENG-02, 9.3) and the preview screen (ENG-02, 11) |
-| Commit | ENG-02, 10.1, writing its audit event through `audit.record()` | Phase 2: sign-in, the approve and reject screens, and rollback. Phase 4: roles and per-report access |
+| Stage | Staging rows, skipped rows and mapping rows. The upload's column layout, period, control total from the file, row figures with their amounts, and difference (ENG-02, 9 and 11.1) | Phase 2: the refusals before an upload exists (ENG-02, 6 and 7.1), line-key duplicates (ENG-02, 7.3), the entered control total (ENG-02, 9.1), reconciliation that blocks approval (ENG-02, 9.3), and the rest of the preview and its screen (ENG-02, 11) |
+| Commit | ENG-02, 10.1, writing its audit event through `audit.record()`, except the checks that need Phase 2: the user's access, what blocks approval, and whether the preview is still current. A report's first commit sets replace by period | Phase 2: sign-in, the rest of 10.1's checks, choosing line-key mode in the first upload's preview, the approve and reject screens, and rollback. Phase 4: roles and per-report access |
 | Resolve | `posting_resolved` in full (ENG-02, 8.4) | Nothing |
 | Add up | In `reports/queries.py`: the total, inside and outside IDS, and the totals by GL account, budget line, department and month (ENG-03, 2.3). `manage.py report_totals` | Phase 3: filters, screens, drill-down, the FAQ and exports |
 
@@ -254,7 +254,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 - It runs inside its caller's transaction, so an action and its event are saved together or not at all.
 - `at` is set when the row is saved, so no event can be backdated.
 
-**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `report_created` keeps the report's `name`. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`. Each other action's `details` are set when it's built.
+**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `report_created` keeps the report's `name`. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`. `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_approved` keeps the number and total of the postings written and, on the report's first commit, the duplicate mode (ENG-02, 10.1). Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
 
 **Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way:
 
@@ -273,7 +273,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 - An `INSERT`, an `UPDATE` and a `DELETE` through `posting_resolved` as `ids_app` each fail, and `posting` is unchanged. `ids_app` holds only `SELECT` on every view.
 - Each action in the list writes exactly one event, with one test per action.
 - `audit.record()` refuses an action that isn't in the list.
-- `report_created` and `upload_received` keep the `details` given above.
+- Each action listed under "What `details` keeps" keeps the `details` given there.
 - A Viewer can't open the audit log.
 
 ### 6.4 Data protection

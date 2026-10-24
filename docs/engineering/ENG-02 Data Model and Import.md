@@ -80,6 +80,8 @@ An upload changes only through the state changes in Section 6, and each change w
 | `staging_row` | The same fields as `posting`, plus `is_duplicate`. Rows exist only while an upload awaits approval |
 | `skipped_row` | `upload_id`, `sheet` and `row_number` (as in `posting`), `reason`, `amount` (if it could be read, stored exactly as read in plain `numeric`, ENG-01, 4 rule 5), and `raw_values`: the row's cells as JSON |
 
+**`raw_values`** is a JSON list of text, one entry per cell from column A to the row's last cell that isn't empty, so a row gives the same list from either Excel reader and from its CSV copy. Text is kept exactly as read, spaces included. A number is written in its shortest form, without `.0` when it's whole, such as `2026` or `12.3456`. A date is written as `yyyy-mm-dd`, a time as `hh:mm:ss`, and a date with a time as both, joined by `T`. A duration is written as `h:mm:ss`, after its days if it has any. A logical cell is `TRUE` or `FALSE`, and an empty cell is `""`. Every value is text, so a number never passes through a JSON number, which most readers turn into a float.
+
 ## 3. Reports and rulesets
 
 A report is a separate set of uploads with its own totals and its own user access. Fixed administrators create reports, following the plan's default for its open question on report creation.
@@ -274,6 +276,7 @@ The GL mapping sheet holds one row per GL account, and the cost center mapping s
 
 - A property test writes thousands of random amounts in SAP's formats and checks that each one reads back as the same `Decimal`.
 - Cleaning a code that's already clean leaves it unchanged.
+- A skipped row's `raw_values` are the same whether it's read through calamine, through openpyxl or from its CSV copy, and a text cell keeps its spaces.
 - Every row below the sample file's header ends up clean, skipped with a reason, or listed in the preview as the total row, a subtotal or a label. Only blank rows are left out, and none is lost.
 - `USD`, `#N/A` written as text, `12,34.5`, `12.3456` and `31.02.2026` rows are each skipped with the right reason, and a row with two problems gets the first one's.
 - The skipped `12.3456` row keeps its amount as `12.3456`, not `12.346`.
@@ -316,7 +319,7 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 - **Rejecting and withdrawing need a reason.** It's kept in the audit event.
 - **Approving your own upload.** A fixed administrator, or a user whose role holds both **upload** and **approve**, can approve their own upload. Who holds both is decided by the permissions an administrator gives (ENG-01, 6.2), and the audit log records both actions.
 - **An interrupted read.** If the app stops while a file is being read, nothing is staged, because reading runs in one transaction. The upload stays at `reading`, and any upload at `reading` for more than 10 minutes is marked `failed`, with the error "Reading was interrupted", the next time the report's uploads page opens.
-- **What's kept.** Skipped rows and mapping rows are saved when reading ends at `awaiting_approval`, in the same transaction as the staging rows. An upload that stops at `needs_columns` saves none, so reading it again can't save them twice. They're kept whatever happens to the upload next, so a rejected file can still be explained. Staging rows are deleted when an upload leaves `awaiting_approval` or fails.
+- **What's kept.** Skipped rows and mapping rows are saved when reading ends at `awaiting_approval`, in the same transaction as the staging rows and the figures in 11.1. An upload that stops at `needs_columns` saves none of them, so reading it again can't save them twice. One that ends at `failed` saves only its `error`. They're kept whatever happens to the upload next, so a rejected file can still be explained. Staging rows are deleted when an upload leaves `awaiting_approval` or fails.
 - **Trying again.** A failed or rejected file can be uploaded again as a new upload.
 
 **Tested by**
@@ -325,6 +328,8 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 - A second file for a report with an open upload is refused.
 - A user without **approve** can't commit, and the uploader can withdraw.
 - An upload stopped during reading leaves no staging rows and is later marked `failed`.
+- A file missing a required column stops at `needs_columns` with no rows and no figures saved, and a file that can't be read ends at `failed` with its `error`. Each writes its audit event.
+- Reading an upload that isn't at `reading` is refused, and changes nothing.
 - Reading an upload again after its columns are picked saves each skipped row and mapping row once.
 - A report's uploads are numbered 1, 2, 3 in the order they're created, failed and rejected ones included.
 
@@ -428,8 +433,11 @@ Reports never join the tables themselves. A database view, `posting_resolved`, j
 - A migration that changes or drops a column the view uses drops the view first and creates it again after, because PostgreSQL refuses to change a column a view depends on.
 - `sql/grants.sql` runs after every migration, so a view created again gets its revokes back (ENG-01, 6.3).
 
+**How the application reads it:** through `PostingResolved` in `ledger/models.py`, a model with `managed = False` and `db_table = "posting_resolved"`. Django never creates, changes or drops the view, and queries on it are built by the ORM, with every value passed as a parameter (ENG-01, 6.4). The model takes every column of `posting` from the abstract model that `Posting` and `StagingRow` share, and adds the mapping columns above. A migration that changes the view's columns changes the model in the same commit.
+
 **Tested by**
 
+- The fields of `PostingResolved` are exactly the view's columns.
 - In the sample file, `640200` shows no budget line, `650200` shows listed without a commitment item, and `3100` and `3200` show outside IDS.
 - In the sample file, the `640200` posting at `3200` shows both no budget line and outside IDS.
 - The view has exactly one row per posting that counts, and its total equals theirs.
@@ -445,7 +453,7 @@ Reconciliation proves the file was read completely: every amount in it is either
 - **From the file.** The total row (Section 5) on the spend sheet. Only a row below the last spend row qualifies, and if more than one does, the last is used. Any other row that looks like a total is an other row. `control_total_source` is `file`.
 - **Entered.** If the file has no total row, the uploader types the total shown in SAP for the same selection. `control_total_source` is `entered`, and the preview shows it as typed by hand.
 
-Excel adds tiny binary errors when it sums, such as `1234.5000000001`. So the difference (9.2) is worked out from the control total as read, before any rounding. The difference is then rounded to 3 decimal places, which removes only fractions of a baisa. A file with a skipped amount such as `12.3456` still reconciles. `control_total` is saved rounded the same way. Spend rows are never rounded (Section 5).
+Excel adds tiny binary errors when it sums, such as `1234.5000000001`. So the difference (9.2) is worked out from the control total as read, before any rounding. The difference is then rounded half up to 3 decimal places, which removes only fractions of a baisa. A file with a skipped amount such as `12.3456` still reconciles. `control_total` is saved rounded the same way. Spend rows are never rounded (Section 5).
 
 ### 9.2 The formula
 
@@ -458,6 +466,8 @@ The staged rows include every spend row, actual or not, because the file's total
 | minus duplicates already in the report | Staging rows marked `is_duplicate` (line-key mode only) |
 | minus skipped spend rows | Skipped rows that count in reconciliation (Section 5), with a readable amount |
 | **= Difference** | Saved as `upload.reconciliation_difference` |
+
+With no control total there's nothing to subtract from, so `reconciliation_difference` stays empty until one is entered (9.1).
 
 ### 9.3 When approval is blocked
 
@@ -476,6 +486,8 @@ Skipped rows count in reconciliation only to prove the file was read completely.
 **Tested by**
 
 - The sample file reconciles to `0.000`.
+- A total row read as `1234.5000000001` is saved as `1234.500`, and a difference of `0.0005` is saved as `0.001`.
+- A file with no total row is saved with no control total and no difference.
 - Changing one amount by `0.001` blocks approval.
 - A row with an unclassified value type blocks approval, and so does a mapping code listed with different values.
 - Of two rows reading Total below the last spend row, the last gives the control total and the other is an other row. A Total row above the last spend row is an other row.
@@ -549,6 +561,18 @@ The preview is the approver's whole view of a file before it counts. It's built 
 
 Each exception lists the rows it covers, by sheet and row number in the original file.
 
+**The row figures.** Every spend row read (Section 5) is in exactly one of `rows_new`, `rows_duplicate` and `rows_skipped`, so those three add up to `rows_read`.
+
+| Field | Counts | Its amount in `preview` |
+| --- | --- | --- |
+| `rows_read` | The spend sheet's spend rows |  |
+| `rows_new` | Staging rows not marked `is_duplicate`: the rows to commit | `to_commit` |
+| `rows_duplicate` | Staging rows marked `is_duplicate` (7.3) | `duplicates` |
+| `rows_skipped` | Skipped spend rows. A skipped mapping row isn't a spend row, so it's listed with the exceptions only (11.2) | `skipped`: the skipped rows that count in reconciliation, with a readable amount, as read (9.2) |
+| `rows_replaced` | Postings that count (10.2), dated in the file's months, which committing replaces in replace-by-period mode (7.3). None in a report with no committed upload, or in line-key mode | `replaced` |
+
+`preview` is a JSON object. Its `amounts` key holds the four amounts above, each a string holding the exact amount, such as `"12400.000"`, so reading it never passes through a float. The row figures, their amounts, the period, the control total and the difference are saved from Phase 1, because the commit checks them (10.1) and the Phase 1 gate test reads them (ENG-01, 4). The rest of the preview comes in Phase 2.
+
 ### 11.2 Exception types
 
 | Exception | Example | Blocks approval |
@@ -578,6 +602,8 @@ When the file has a value-type column, the preview lists each value type found, 
 - The sample file's preview shows exactly the exceptions its README describes: `640200`, `650200`, `3100` and `3200`, and its subtotal rows as other rows without a GL account or cost center (12.3).
 - Each exception type shows once, with the right rows, in a file built to cause it. The types that need an earlier upload (mapping change, duplicate with a different amount, a month with no rows) use a pair of files in a report of the right mode.
 - The preview of a rejected upload shows the same figures as before it was rejected.
+- In any file, `rows_new`, `rows_duplicate` and `rows_skipped` add up to `rows_read`, and a skipped mapping row counts in none of them.
+- A second file covering months already committed shows the number and amount of the postings it replaces. In line-key mode it shows none.
 
 ## 12. Testing
 
