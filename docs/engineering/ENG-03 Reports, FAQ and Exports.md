@@ -44,7 +44,9 @@ Every figure starts from the same rows:
 | Department | `dept_code` | From the cost center mapping in force | Outside IDS |
 | Month | Month of `posting_date` | `Mar 2026` | None |
 
-Every posting falls into exactly one group, so the groups on a screen always add up to its total. A code with no name in the mapping is shown as the code alone. Within one upload's mapping, each code has one name, the first one given (ENG-02, 5, Mapping rows).
+Every posting falls into exactly one group, so the groups on a screen always add up to its total. A code with no name in the mapping is shown as the code alone. Within one upload's mapping, each code has one name, the first one given (ENG-02, 5, Mapping rows). The `own_upload` rule (ENG-02, 8.1) can give one code names from different uploads' mappings, and the group then shows the name that sorts last, so it still has one row.
+
+**The functions.** `totals(report)` returns the actual spend in all, inside IDS and outside IDS, and its lines. `by_gl_account`, `by_budget_line`, `by_department` and `by_month` each return one group per key, in key order with the catch-all last: its key, the name shown, its actual spend and its lines. The catch-all's key is empty: `None`, never a code. Outside IDS is decided by `is_outside_ids` (ENG-02, 8.4), so a cost center inside IDS that its mapping gives no department code is a group of its own, never Outside IDS. Each function runs one query, with every sum and count done by PostgreSQL (Section 10).
 
 ### 2.4 Formats
 
@@ -64,7 +66,8 @@ Amounts are formatted on the server from `Decimal`. They're already exact to 3 d
 - On every grouped screen, the groups add up to the total exactly.
 - A rolled-back upload's postings appear nowhere.
 - A posting with `is_actual` false appears nowhere.
-- `report_totals` gives the same figures as the overview.
+- `report_totals` gives the same figures as the overview. For the sample file, its figures equal the expected result's actual spend and groups.
+- A report with no committed upload has every total at `0.000` and no groups.
 
 ## 3. Filters and the as-of line
 

@@ -110,7 +110,7 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 | Add up | In `reports/queries.py`: the total, inside and outside IDS, and the totals by GL account, budget line, department and month (ENG-03, 2.3). `manage.py report_totals` | Phase 3: filters, screens, drill-down, the FAQ and exports |
 
 - **The access check exists from Phase 1.** Until Phase 4 adds roles, the only users are fixed administrators, and they pass every check (6.2, rule 4).
-- **The Phase 1 gate test** sends the sample file through every step and compares every figure with its expected result. It then does the same with the semicolon file uploaded after it (ENG-02, 12.2). The real export follows the same path once it arrives.
+- **The Phase 1 gate test** sends the sample file through every step and compares every figure with its expected result. It then does the same with the semicolon file uploaded after it (ENG-02, 12.2). The real export follows the same path once it arrives. In Phase 1 it compares every figure the steps above build: the header row, the row figures, the period, the reconciliation, the actual spend and its groups, `report_totals`, the skipped rows, and the postings replaced. The exception lists by code are checked in `posting_resolved`'s tests (ENG-02, 8.4). The other rows are compared once the preview saves them, in Phase 2.
 
 **Tested by:** the Phase 1 gate test reaches the figures only through the `imports/` functions and `reports/queries.py`, never by calling `pipeline/` directly.
 
@@ -384,7 +384,7 @@ A backup always holds both the database and the uploads volume. Postings point t
 
 - **`db.dump`:** the database, from `pg_dump --format=custom`
 - **`uploads.tar`:** the uploads volume
-- **`totals.json`:** each report's overall total and GL totals, from `manage.py report_totals`
+- **`totals.json`:** every report's totals, from `manage.py report_totals`
 - **`SHA256SUMS`:** hashes of the three files above, used to detect damage
 
 **When and where**
@@ -401,6 +401,8 @@ A backup always holds both the database and the uploads volume. Postings point t
 4. Restores the uploads volume.
 5. Starts `app`.
 6. Runs `manage.py report_totals` and compares the result with `totals.json`. It reports success only if every total matches.
+
+**`manage.py report_totals`** prints JSON with one entry per report, in the order reports were created. Each entry holds the report's id and name, its actual spend in all, inside IDS and outside IDS, its number of lines, and its actual spend by GL account, budget line, department and month (ENG-03, 2.3), all under the default filters (ENG-03, 3.1). Amounts are strings with exactly three decimal places, so no figure passes through a float. The catch-all groups are named `none` and `outside` and months are written as `2026-03`, as in the golden files' expected results (ENG-02, 12.3). Keys are sorted, so the same data always prints the same text, and the restore compares the two files whole. The budget-line and department totals are included so a restore that brings back the mapping rows wrong is caught too.
 
 **Tested by:** the Phase 4 gate. The latest backup is restored into an empty database and an empty volume, and `restore.sh` reports that every total matches.
 

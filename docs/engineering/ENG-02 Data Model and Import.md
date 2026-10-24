@@ -438,7 +438,7 @@ Reports never join the tables themselves. A database view, `posting_resolved`, j
 **Tested by**
 
 - The fields of `PostingResolved` are exactly the view's columns.
-- In the sample file, `640200` shows no budget line, `650200` shows listed without a commitment item, and `3100` and `3200` show outside IDS.
+- In the sample file, `640200` shows no budget line, `650200` shows listed without a commitment item, and `3100` and `3200` show outside IDS, each with the amount and rows in its expected result (12.3).
 - In the sample file, the `640200` posting at `3200` shows both no budget line and outside IDS.
 - The view has exactly one row per posting that counts, and its total equals theirs.
 - A second file moving `610100` to another commitment item shows the move and its amount in the preview. After approval, every `610100` posting reports under the new item, and after rollback, under the old one.
