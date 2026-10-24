@@ -16,7 +16,9 @@ HEADER_NAMES: dict[str, list[str]] = {
     "line_item": ["Line Item", "Item"],
     "company_code": ["Company Code", "CoCd"],
     "value_type": ["Value Type"],
-    "currency": ["Currency", "Crcy"],
+    # The local currency, which the amount is in. A document-currency column,
+    # such as Currency or Crcy, isn't read (ENG-02 4.4).
+    "currency": ["Local Currency", "LCurr", "Company Code Currency"],
     "item_text": ["Item Text", "Description", "Text"],
     "ci_code": ["Commitment Item", "Cmmt Item"],
     "gl_name": ["G/L Account Name", "GL Name"],
@@ -31,8 +33,10 @@ HEADER_NAMES: dict[str, list[str]] = {
 DEFAULT_SETTINGS: dict = {
     "header_names": HEADER_NAMES,
     # None (JSON null): every row counts as actual spend, the plan's default.
+    # Otherwise {"actual": [...], "not_actual": [...]} (ENG-02 3).
     "actual_spend_rule": None,
     "date_order": "day_first",
+    "decimal_separator": ".",
     "currency": "OMR",
     "outside_ids_rule": "missing_from_cc_map",
     "mapping_rule": "latest",
