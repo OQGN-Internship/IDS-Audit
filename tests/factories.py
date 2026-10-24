@@ -16,13 +16,22 @@ from ids_audit.reports.models import Report, Ruleset
 FIRST_COMMIT = datetime.datetime(2026, 7, 1, 9, 0, tzinfo=datetime.UTC)
 
 
-def make_report(mapping_rule: str = "latest") -> Report:
-    """A report with its ruleset version 1, created by a new user."""
+def make_user() -> User:
+    """A new user, with a username no other test user has."""
     number = User.objects.count() + 1
-    user = User.objects.create(
+    return User.objects.create(
         username=f"user{number}", full_name=f"Test User {number}"
     )
-    report = Report.objects.create(name=f"Test report {number}", created_by=user)
+
+
+def make_report(mapping_rule: str = "latest") -> Report:
+    """A report with its ruleset version 1, created by a new user.
+
+    It's written row by row, not by create_report, so tests of other parts
+    don't depend on it.
+    """
+    user = make_user()
+    report = Report.objects.create(name=f"Report of {user.username}", created_by=user)
     Ruleset.objects.create(
         report=report,
         version=1,

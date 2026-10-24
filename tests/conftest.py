@@ -27,3 +27,15 @@ def django_db_setup(django_db_setup, django_db_blocker) -> None:
 def upload(db) -> Upload:
     """An upload, with the user, report and ruleset it needs."""
     return make_upload()
+
+
+@pytest.fixture
+def uploads_dir(settings, tmp_path: Path) -> Path:
+    """An empty folder for received files, set as UPLOADS_DIR (ENG-01 7.5).
+
+    tmp_path is a new folder for each test, so no file reaches the working copy.
+    """
+    folder = tmp_path / "uploads"
+    folder.mkdir()
+    settings.UPLOADS_DIR = str(folder)
+    return folder

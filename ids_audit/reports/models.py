@@ -2,6 +2,7 @@
 
 from django.conf import settings as django_settings
 from django.db import models
+from django.db.models.functions import Lower
 
 # Imported under another name because Ruleset has a field called settings,
 # which would hide django.conf.settings inside that class.
@@ -29,6 +30,12 @@ class Report(models.Model):
 
     class Meta:
         db_table = "report"
+        constraints = [
+            # Names that differ only in case look the same on screen (ENG-02 3).
+            models.UniqueConstraint(
+                Lower("name"), name="report_name_unique_ignoring_case"
+            )
+        ]
 
     def __str__(self):
         return self.name

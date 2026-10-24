@@ -53,6 +53,11 @@ DATABASES = {
     }
 }
 
+# Where received files are stored (ENG-01 7.5). It has no default, so no file
+# is ever stored in the working copy by accident: the tests point it at a
+# temporary folder, and from Phase 2 compose.yaml sets it to the uploads volume.
+UPLOADS_DIR = os.environ.get("UPLOADS_DIR", "")
+
 # Ids are bigint, as ENG-02 2 gives for posting.
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
