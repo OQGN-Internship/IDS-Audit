@@ -10,6 +10,13 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 
+def uploads_folder() -> Path:
+    """Return the folder UPLOADS_DIR names, or refuse if it isn't set."""
+    if not settings.UPLOADS_DIR:
+        raise ImproperlyConfigured("UPLOADS_DIR is not set (ENG-01 7.5).")
+    return Path(settings.UPLOADS_DIR)
+
+
 def store_file(file_sha256: str, data: bytes) -> Path:
     """Save the bytes as UPLOADS_DIR/<file_sha256>, and return its path.
 
@@ -17,9 +24,7 @@ def store_file(file_sha256: str, data: bytes) -> Path:
     a hash name is always complete. Storing the same bytes again writes the
     same file.
     """
-    if not settings.UPLOADS_DIR:
-        raise ImproperlyConfigured("UPLOADS_DIR is not set (ENG-01 7.5).")
-    folder = Path(settings.UPLOADS_DIR)
+    folder = uploads_folder()
     # A name no other request can be using, in the same folder, so the rename
     # below never moves the file to another disk.
     handle, temporary = tempfile.mkstemp(
@@ -34,3 +39,8 @@ def store_file(file_sha256: str, data: bytes) -> Path:
         Path(temporary).unlink(missing_ok=True)
         raise
     return folder / file_sha256
+
+
+def read_stored_file(file_sha256: str) -> bytes:
+    """Return the bytes stored under a file's hash."""
+    return (uploads_folder() / file_sha256).read_bytes()

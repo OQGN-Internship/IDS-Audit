@@ -35,6 +35,17 @@ def to_baisa(amount: Decimal) -> Decimal:
     return amount.quantize(BAISA, rounding=ROUND_HALF_UP)
 
 
+def amount_text(amount: Decimal) -> str:
+    """Write an amount exactly, with at least 3 decimal places, such as
+    "0.000" or "12.3456". JSON has no decimal type, so upload.preview and the
+    audit log keep amounts as text (ENG-02 11.1).
+    """
+    if amount.as_tuple().exponent > -3:
+        amount = amount.quantize(BAISA)
+    # "f" never uses an exponent, which str() does for 0.0000001.
+    return format(amount, "f")
+
+
 def reconcile(result: ReadResult) -> Reconciliation:
     """Work out a file's reconciliation (ENG-02 9.2).
 

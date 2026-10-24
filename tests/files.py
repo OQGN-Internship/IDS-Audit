@@ -46,6 +46,11 @@ def line(**changes: str) -> tuple:
     return tuple(cells)
 
 
+def total_row(amount: str | float) -> tuple:
+    """Return a total row for HEADER: Total in column A, the amount and OMR."""
+    return ("Total", "", "", "", "", "", "", "", amount, "OMR")
+
+
 def csv_file(*rows: tuple, header: tuple = HEADER) -> bytes:
     """Return a semicolon-separated UTF-8 file with the header on row 1."""
     lines = [";".join(map(str, row)) for row in (header, *rows)]

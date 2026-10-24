@@ -7,12 +7,7 @@ from decimal import Decimal
 import pytest
 
 from ids_audit.pipeline.reconciliation import Reconciliation, reconcile
-from tests.files import HEADER, LINE, csv_file, line, read, xlsx_file
-
-
-def total(amount: str | float) -> tuple:
-    """Return a total row: Total in column A, the amount and OMR."""
-    return ("Total", "", "", "", "", "", "", "", amount, "OMR")
+from tests.files import HEADER, LINE, csv_file, line, read, total_row, xlsx_file
 
 
 def test_a_file_whose_rows_add_up_to_its_total_reconciles() -> None:
@@ -20,7 +15,7 @@ def test_a_file_whose_rows_add_up_to_its_total_reconciles() -> None:
     total, leaving a difference of exactly 0.000.
     """
     credit = line(DocumentNo="5100000102", Amount_in_LC="250.500-")
-    result = reconcile(read(csv_file(LINE, credit, total("749.500"))))
+    result = reconcile(read(csv_file(LINE, credit, total_row("749.500"))))
     assert result == Reconciliation(
         control_total=Decimal("749.500"),
         staged=Decimal("749.500"),
@@ -35,7 +30,7 @@ def test_the_difference_is_worked_out_before_rounding() -> None:
     1000.000 and leaves a difference of 0.000 (ENG-02 9.1).
     """
     result = reconcile(
-        read(xlsx_file({"Spend": [HEADER, LINE, total(1000.0000000001)]}))
+        read(xlsx_file({"Spend": [HEADER, LINE, total_row(1000.0000000001)]}))
     )
     assert str(result.control_total) == "1000.000"
     assert str(result.difference) == "0.000"
@@ -53,7 +48,7 @@ def test_amounts_are_rounded_half_up(written, control_total, difference) -> None
     """Verify the control total and the difference are rounded half up to 3
     decimal places, away from zero, never half to even (ENG-02 9.1).
     """
-    result = reconcile(read(csv_file(LINE, total(written))))
+    result = reconcile(read(csv_file(LINE, total_row(written))))
     assert str(result.control_total) == control_total
     assert str(result.difference) == difference
 
@@ -69,7 +64,7 @@ def test_skipped_rows_count_only_with_a_readable_amount_in_omr() -> None:
         line(DocumentNo="5100000103", Amount_in_LC="50.000", LCurr="USD"),
         line(DocumentNo="5100000104", Amount_in_LC="12,34.5"),
     ]
-    result = reconcile(read(csv_file(*rows, total("1012.3455"))))
+    result = reconcile(read(csv_file(*rows, total_row("1012.3455"))))
     assert result.staged == Decimal("1000.000")
     assert str(result.skipped) == "12.3455"
     assert str(result.difference) == "0.000"
