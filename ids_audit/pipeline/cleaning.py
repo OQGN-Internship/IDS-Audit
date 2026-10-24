@@ -26,7 +26,7 @@ TOO_LARGE = Decimal(10) ** 15
 
 # Spaces that may separate thousands: a plain space, a no-break space and a
 # narrow no-break space, which Excel and SAP use in some notations.
-SPACES = "   "
+SPACES = " \u00a0\u202f"
 
 # The characters that may separate thousands, for each decimal separator.
 THOUSANDS = {".": "," + SPACES, ",": "." + SPACES}

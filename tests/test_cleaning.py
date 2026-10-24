@@ -105,7 +105,8 @@ def test_a_fiscal_year_that_isnt_a_whole_number_raises(cell) -> None:
         ("-45.5", "-45.5"),
         ("1,234,567,890.123", "1234567890.123"),
         ("1 234 567.890", "1234567.890"),
-        ("1 234.5", "1234.5"),
+        ("1\u00a0234.5", "1234.5"),
+        ("1\u202f234.5", "1234.5"),
         ("12.3456", "12.3456"),
     ],
 )
@@ -223,7 +224,7 @@ def sap_text(baisa: int, decimal_separator: str, grouping: str, sign: str, crcy:
 @given(
     BAISA_AMOUNTS,
     st.sampled_from([".", ","]),
-    st.sampled_from(["none", "separator", " ", " "]),
+    st.sampled_from(["none", "separator", " ", "\u00a0"]),
     st.sampled_from(["trailing", "leading", "brackets"]),
     st.sampled_from(["", "before", "after"]),
 )
