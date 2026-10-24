@@ -6,13 +6,18 @@ worked out here, not by the view.
 """
 
 import datetime
+import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from django.db import connection
 from django.db.utils import OperationalError
 
+from ids_audit.imports.commit import commit_upload
 from ids_audit.imports.models import Upload
+from ids_audit.imports.services import create_report, receive_file
+from ids_audit.imports.stage import stage_upload
 from ids_audit.ledger.models import Posting, PostingResolved
 from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
 from ids_audit.reports.models import Report, Ruleset
@@ -21,6 +26,7 @@ from tests.factories import (
     commit,
     make_report,
     make_upload,
+    make_user,
     map_cc,
     map_gl,
     roll_back,
@@ -337,6 +343,56 @@ def test_latest_takes_the_newest_mapping_whole() -> None:
 
 
 # The view's columns and rights (ENG-02 8.4, ENG-01 6.3)
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+MISSING = PostingResolved.CiStatus.MISSING_FROM_GL_MAP
+LISTED_WITHOUT_CI = PostingResolved.CiStatus.LISTED_WITHOUT_CI
+
+
+def test_the_sample_s_exceptions_show_in_the_view(uploads_dir: Path) -> None:
+    """Verify that in the sample file, committed through imports/, 640200 has
+    no budget line, 650200 is listed without a commitment item, and 3100 and
+    3200 are outside IDS, each with the amount and rows in its expected
+    result, and the 640200 posting at 3200 is in both lists (ENG-02 8.4).
+    """
+    user = make_user()
+    report = create_report("IDS 2026", user)
+    data = (FIXTURES_DIR / "sample.xlsx").read_bytes()
+    commit_upload(stage_upload(receive_file(report, user, "s.xlsx", data), user), user)
+
+    found: dict[str, dict] = {
+        "missing_from_gl_mapping": {},
+        "listed_without_ci": {},
+        "outside_ids": {},
+    }
+
+    def note(kind: str, code: str, row: PostingResolved) -> None:
+        listed = found[kind].setdefault(code, {"amount": Decimal(0), "rows": []})
+        listed["amount"] += row.amount
+        listed["rows"].append(row.row_number)
+
+    rows = PostingResolved.objects.filter(report=report, is_actual=True)
+    for row in rows.order_by("row_number"):
+        if row.ci_status == MISSING:
+            note("missing_from_gl_mapping", row.gl_code, row)
+        elif row.ci_status == LISTED_WITHOUT_CI:
+            note("listed_without_ci", row.gl_code, row)
+        if row.is_outside_ids:
+            note("outside_ids", row.cost_center_code, row)
+    shown = {
+        kind: {
+            code: {"amount": f"{listed['amount']:.3f}", "rows": listed["rows"]}
+            for code, listed in codes.items()
+        }
+        for kind, codes in found.items()
+    }
+    with open(FIXTURES_DIR / "sample.expected.json", encoding="utf-8") as file:
+        exceptions = json.load(file)["exceptions"]
+    del exceptions["other_rows"]
+    assert shown == exceptions
+    both = rows.get(gl_code="640200", cost_center_code="3200")
+    assert (both.ci_status, both.is_outside_ids) == (MISSING, True)
+
 
 MAPPING_COLUMNS = [
     ("gl_name", "text"),
