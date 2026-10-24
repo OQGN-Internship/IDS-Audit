@@ -75,7 +75,7 @@ An upload changes only through the state changes in Section 6, and each change w
 
 | Table | Holds |
 | --- | --- |
-| `report` | `id`, `name`, `duplicate_mode` (`replace_by_period` or `line_key`, fixed by the first committed upload and empty until then, Section 7), `created_by`, `created_at` |
+| `report` | `id`, `name` (unique ignoring case, Section 3), `duplicate_mode` (`replace_by_period` or `line_key`, fixed by the first committed upload and empty until then, Section 7), `created_by`, `created_at` |
 | `ruleset` | `report_id`, `version`, `settings` (JSON), `created_by`, `created_at`. One row per report and version |
 | `staging_row` | The same fields as `posting`, plus `is_duplicate`. Rows exist only while an upload awaits approval |
 | `skipped_row` | `upload_id`, `sheet`, `row_number`, `reason`, `amount` (if it could be read, stored exactly as read in plain `numeric`, ENG-01, 4 rule 5), and `raw_values`: the row's cells as JSON |
@@ -83,6 +83,8 @@ An upload changes only through the state changes in Section 6, and each change w
 ## 3. Reports and rulesets
 
 A report is a separate set of uploads with its own totals and its own user access. Fixed administrators create reports, following the plan's default for its open question on report creation.
+
+**Creating a report.** One transaction creates the `report` row, its ruleset version 1 and a `report_created` audit event (ENG-01, 6.3), so none of them exists without the others. The name is trimmed and can't be empty, and no two reports' names may differ only in case: once `IDS 2026` exists, `ids 2026 ` is refused. A unique constraint on the lower-cased name enforces this in the database.
 
 Each report has a **ruleset**: the settings that decide how its files are read and what counts. Every upload records the ruleset version it was read with, so any upload can be explained later exactly as it was processed.
 
@@ -111,7 +113,9 @@ The first four settings act while a file is read, so their effect is stored in i
 
 **Tested by**
 
+- Creating a report writes the report, its ruleset version 1 and exactly one `report_created` event. A failure part-way through leaves none of them.
 - A new report's ruleset version 1 holds exactly `DEFAULT_SETTINGS`.
+- Once `IDS 2026` exists, a report named `ids 2026 ` is refused, and so is an empty name.
 - A new version with a setting missing, or with a value outside its form, such as `mapping_rule` set to `fiscal_year`, is refused.
 - Changing `mapping_rule` or `outside_ids_rule` is refused while the report has an open or a committed upload. On a report with neither, it creates a new ruleset version and leaves the old one unchanged.
 - After `date_order` changes, a committed upload's postings keep their dates, and the next upload is read with the new order.

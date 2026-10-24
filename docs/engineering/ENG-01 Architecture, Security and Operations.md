@@ -102,7 +102,7 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 
 | Step | Phase 1 builds | Added later |
 | --- | --- | --- |
-| Receive | Creating a report with ruleset version 1. Hashing and storing a file, and creating its upload at `reading` (5.1) | Phase 2: the upload screen, the refusals before an upload exists, and one open upload per report (ENG-02, 6) |
+| Receive | Creating a report with ruleset version 1. Hashing and storing a file, and creating its upload at `reading` (5.1) | Phase 2: the upload screen, the screen for creating a report, the refusals before an upload exists, and one open upload per report (ENG-02, 6) |
 | Read and clean | `pipeline/`: reading (ENG-02, 4), cleaning (ENG-02, 5) and the actual-spend rule (ENG-02, 3) | Phase 2: picking columns at `needs_columns` |
 | Stage | Staging rows, skipped rows and mapping rows, the upload's period, and the count and total the commit checks | Phase 2: duplicates (ENG-02, 7), reconciliation that blocks approval (ENG-02, 9.3) and the preview screen (ENG-02, 11) |
 | Commit | ENG-02, 10.1, writing its audit event through `audit.record()` | Phase 2: sign-in, the approve and reject screens, and rollback. Phase 4: roles and per-report access |
@@ -119,7 +119,10 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 ### 5.1 An upload, from file to committed rows
 
 1. The browser sends the file to `imports/`. Django checks that the user has Upload on the chosen report, that the file is within the size limit, and that its first bytes match an accepted format (see 6.4).
-2. The application computes the file's SHA-256 hash. A file whose hash matches a committed upload in the same report is refused here, before an upload exists (ENG-02, 7.1). So is any file sent while the report has an open upload (ENG-02, 6). Otherwise the application saves the file to the uploads volume under its hash and creates the upload at `reading`.
+2. The application computes the file's SHA-256 hash. A file whose hash matches a committed upload in the same report is refused here, before an upload exists (ENG-02, 7.1). So is any file sent while the report has an open upload (ENG-02, 6). Otherwise:
+   1. The application saves the file under its hash, in the folder `UPLOADS_DIR` names (7.5). It writes the file under a temporary name and then renames it, so a file under a hash name is always complete.
+   2. One transaction then locks the report's row, gives the upload the report's next number (ENG-02, 2), creates it at `reading` and writes `upload_received`. The lock makes a second file for the same report wait, so two uploads never read the same highest number.
+   3. If the transaction fails, the stored file stays. Another upload may share it, since the same bytes always have the same name, and a new try writes the same bytes again.
 3. `pipeline/` reads the sheets, finds the header rows and columns, and cleans every row. It returns clean rows, skipped rows with their reasons, and the file's mapping sheets. If a required column isn't found, the upload stops at `needs_columns` until the uploader picks it. If the file can't be read, it ends at `failed` (ENG-02, 6).
 4. In one transaction, the clean rows are bulk-loaded with `COPY` into a staging table, and the skipped rows and the file's mapping rows are saved, all tagged with the upload's ID. Duplicate detection and reconciliation run against the staged rows, and the upload moves to `awaiting_approval`.
 5. The preview shows rows read, rows skipped, new rows, duplicates, exceptions and the reconciliation result. ENG-02 defines each figure.
@@ -133,6 +136,11 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 7. If the user rejects instead, the upload becomes `rejected`, its staging rows are deleted, and the audit log records the rejection. The original file stays in the file store.
 
 Steps 3 and 4 run inside the web request. If files turn out to be too large for that, they move to the background worker and the page checks the upload's status every few seconds (see Section 8).
+
+**Tested by**
+
+- The stored file is byte-identical to the file received, and its name and `upload.file_sha256` are the SHA-256 of its bytes.
+- A failure inside step 2's transaction leaves no upload and no event, and the stored file stays.
 
 ### 5.2 A report view, from filter click to page
 
@@ -239,6 +247,15 @@ Every event is one row in `audit_event`, written only through `audit.record()`.
 
 The `upload_` actions match the state changes in ENG-02, Section 6, one action for each. `upload_received` is the upload being created at `reading`.
 
+**Writing an event.** `audit.record(action, *, user=None, report=None, upload=None, details=None)`, in `ids_audit/audit/__init__.py`, writes one event and returns it.
+
+- Everything after `action` is passed by name, so a report can't take an upload's place.
+- It refuses an action that isn't in the list above.
+- It runs inside its caller's transaction, so an action and its event are saved together or not at all.
+- `at` is set when the row is saved, so no event can be backdated.
+
+**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `report_created` keeps the report's `name`. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`. Each other action's `details` are set when it's built.
+
 **Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way:
 
 - **`ids_owner`** owns the application database and its tables. The migration job connects as it, and so does Django on the developer's machine, for the tests and `manage.py` (7.5). It has `CREATEDB`, so pytest-django can create the test database. It's also a member of `ids_app`, so a grant test can switch to `ids_app` with `SET ROLE`.
@@ -255,6 +272,8 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 - An `UPDATE`, a `DELETE` and a `TRUNCATE` as `ids_app` each fail on every insert-only table.
 - An `INSERT`, an `UPDATE` and a `DELETE` through `posting_resolved` as `ids_app` each fail, and `posting` is unchanged. `ids_app` holds only `SELECT` on every view.
 - Each action in the list writes exactly one event, with one test per action.
+- `audit.record()` refuses an action that isn't in the list.
+- `report_created` and `upload_received` keep the `details` given above.
 - A Viewer can't open the audit log.
 
 ### 6.4 Data protection
@@ -427,7 +446,7 @@ During the build, Python runs on the developer's machine and only the database r
 - **The database:** `compose.yaml` starts with only the `db` service from 7.1. It publishes PostgreSQL on `127.0.0.1:${DB_PORT}`, so Django on this machine reaches it at `DB_HOST` and `DB_PORT`, and no other machine can.
 - **Settings:** Django reads `.env` itself, through python-dotenv, when it runs outside Docker. A setting already in the environment wins, and a missing `.env` is not an error. `manage.py` uses `config.settings.dev`. pytest uses `config.settings.test`, named in `pyproject.toml`.
 - **Role:** Django on this machine connects as `ids_owner`, for the tests, `migrate`, `makemigrations` and the shell (6.3). Nothing connects to the development database as `ids_app` during Phase 1, so it needs no grants yet.
-- **Uploaded files:** during Phase 1, files are uploaded only by the tests (4, Build order), which store them in pytest's temporary folder. From Phase 2, the application stores them in the `uploads` volume (7.1).
+- **Uploaded files:** files are stored in the folder the `UPLOADS_DIR` setting names. It has no default, so no file is ever stored in the working copy by accident (6.4). During Phase 1, files are uploaded only by the tests (4, Build order), which point `UPLOADS_DIR` at pytest's temporary folder. From Phase 2, `compose.yaml` sets it to `/uploads`, where the `uploads` volume is mounted in `app` (7.1).
 
 **From Phase 2 (Day 3)**
 
@@ -456,6 +475,7 @@ uv run pytest
 - With Docker stopped, the tests that don't use the database pass.
 - With `db` running, `uv run pytest` passes on a clean checkout.
 - Removing one `REVOKE` from `sql/grants.sql` makes the matching grant test fail.
+- With `UPLOADS_DIR` unset, receiving a file is refused, and nothing is stored or written.
 
 ## 8. Open technical decisions
 
