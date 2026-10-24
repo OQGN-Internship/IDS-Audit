@@ -13,7 +13,7 @@ from django.db import connection
 from django.db.utils import OperationalError
 
 from ids_audit.imports.models import Upload
-from ids_audit.ledger.models import Posting
+from ids_audit.ledger.models import Posting, PostingResolved
 from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
 from ids_audit.reports.models import Report, Ruleset
 from tests.factories import (
@@ -366,6 +366,41 @@ def test_the_view_has_every_posting_column_then_the_mapping_columns() -> None:
     eight mapping columns of ENG-02 8.4.
     """
     assert columns("posting_resolved") == columns("posting") + MAPPING_COLUMNS
+
+
+def test_the_model_s_fields_are_the_view_s_columns() -> None:
+    """Verify PostingResolved has exactly the view's columns, so the ORM reads
+    every one and asks for none the view lacks (ENG-02 8.4).
+    """
+    fields = [field.column for field in PostingResolved._meta.concrete_fields]
+    assert sorted(fields) == sorted(name for name, _ in columns("posting_resolved"))
+
+
+def test_the_model_reads_a_posting_with_its_mapping_in_force() -> None:
+    """Verify a posting that counts reads back through PostingResolved with
+    every posting field, its mapping in force, and its amount a Decimal.
+    """
+    report = make_report()
+    upload = make_upload(report)
+    map_gl(upload, "610100", "2101")
+    map_cc(upload, "4510", "APP")
+    posting = add_posting(upload, JAN, "3456.789")
+    commit(upload, minute=1)
+    row = PostingResolved.objects.get()
+    assert (row.pk, row.report, row.upload) == (posting.pk, report, upload)
+    assert (row.posting_date, row.gl_code, row.cost_center_code) == (
+        JAN,
+        "610100",
+        "4510",
+    )
+    assert row.amount == Decimal("3456.789")
+    assert isinstance(row.amount, Decimal)
+    assert (row.ci_code, row.ci_status, row.dept_code, row.is_outside_ids) == (
+        "2101",
+        PostingResolved.CiStatus.MAPPED,
+        "APP",
+        False,
+    )
 
 
 def test_ids_app_can_read_the_view(upload: Upload) -> None:

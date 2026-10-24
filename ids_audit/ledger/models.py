@@ -61,6 +61,38 @@ class Posting(SpendLine):
         db_table = "posting"
 
 
+class PostingResolved(SpendLine):
+    """A posting that counts, with its mapping in force: one row of the
+    posting_resolved view (ENG-02 8.4). Every report figure is read from here.
+
+    managed = False: migration 0002 creates the view in SQL, so Django never
+    creates, changes or drops it. ids_app can only read it (ENG-01 6.3).
+    """
+
+    class CiStatus(models.TextChoices):
+        """Why a posting has the budget line it has (ENG-02 8.2)."""
+
+        MAPPED = "mapped"
+        MISSING_FROM_GL_MAP = "missing_from_gl_map"
+        LISTED_WITHOUT_CI = "listed_without_ci"
+
+    # From the GL mapping in force. ci_code and ci_name are empty unless mapped.
+    gl_name = models.TextField()
+    ci_code = models.TextField()
+    ci_name = models.TextField()
+    ci_status = models.TextField(choices=CiStatus.choices)
+    # From the cost center mapping in force. dept_code and dept_name are empty
+    # outside IDS.
+    cc_name = models.TextField()
+    dept_code = models.TextField()
+    dept_name = models.TextField()
+    is_outside_ids = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = "posting_resolved"
+
+
 class GlCiMap(models.Model):
     """A GL account and its budget line, as one upload gave them (ENG-02 8)."""
 
