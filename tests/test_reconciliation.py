@@ -26,13 +26,12 @@ def test_a_file_whose_rows_add_up_to_its_total_reconciles() -> None:
 
 
 def test_the_difference_is_worked_out_before_rounding() -> None:
-    """Verify a total with Excel's binary error, 1000.0000000001, is saved as
-    1000.000 and leaves a difference of 0.000 (ENG-02 9.1).
+    """Verify a total with Excel's binary error, 1234.5000000001, is saved as
+    1234.500 and leaves a difference of 0.000 (ENG-02 9.1).
     """
-    result = reconcile(
-        read(xlsx_file({"Spend": [HEADER, LINE, total_row(1000.0000000001)]}))
-    )
-    assert str(result.control_total) == "1000.000"
+    rows = [HEADER, line(Amount_in_LC="1,234.500"), total_row(1234.5000000001)]
+    result = reconcile(read(xlsx_file({"Spend": rows})))
+    assert str(result.control_total) == "1234.500"
     assert str(result.difference) == "0.000"
 
 
