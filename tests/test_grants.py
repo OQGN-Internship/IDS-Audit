@@ -6,12 +6,10 @@ a matching test that an allowed statement works, so a refusal can't come
 from missing grants.
 """
 
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 
 import pytest
-from django.db import connection, models, transaction
-from django.db.backends.utils import CursorWrapper
+from django.db import connection, models
 from django.db.utils import DataError, ProgrammingError
 
 from ids_audit.audit.models import AuditEvent
@@ -19,24 +17,7 @@ from ids_audit.imports.models import SkippedRow, StagingRow, Upload
 from ids_audit.ledger.models import CcDeptMap, GlCiMap, Posting
 from ids_audit.reports.models import Ruleset
 from tests.factories import spend_line
-
-# PostgreSQL's code for "permission denied". Checking it means a test can't
-# pass because of some other error, such as a typo in the SQL.
-INSUFFICIENT_PRIVILEGE = "42501"
-
-
-@contextmanager
-def as_app() -> Iterator[CursorWrapper]:
-    """Run the statements inside as ids_app, in a savepoint of their own.
-
-    If a statement is refused, rolling back the savepoint also undoes the role
-    switch. If not, RESET ROLE switches back to ids_owner.
-    """
-    with transaction.atomic(), connection.cursor() as cursor:
-        cursor.execute("SET LOCAL ROLE ids_app")
-        yield cursor
-        cursor.execute("RESET ROLE")
-
+from tests.roles import INSUFFICIENT_PRIVILEGE, as_app
 
 # An unsaved row for each insert-only table, linked to the upload.
 NEW_ROW: dict[str, Callable[[Upload], models.Model]] = {

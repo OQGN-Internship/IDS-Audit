@@ -53,12 +53,18 @@ def test_every_model_change_has_a_migration() -> None:
 @pytest.mark.django_db
 def test_every_table_has_its_name_from_eng_02() -> None:
     """Verify the migrated test database has every table named in ENG-02 2,
-    and the custom user in place of Django's own (ENG-01 6.1).
+    the custom user in place of Django's own (ENG-01 6.1), and one view,
+    posting_resolved (ENG-02 8.4).
     """
     tables = connection.introspection.table_names()
     assert [table for table in ENG_02_TABLES if table not in tables] == []
     assert "accounts_user" in tables
     assert "auth_user" not in tables
+    with connection.cursor() as cursor:
+        everything = connection.introspection.get_table_list(cursor)
+    assert [info.name for info in everything if info.type == "v"] == [
+        "posting_resolved"
+    ]
 
 
 # Amounts
@@ -69,6 +75,8 @@ AMOUNT_COLUMNS = {
     "staging_row.amount": ("numeric", 18, 3),
     "upload.control_total": ("numeric", 18, 3),
     "upload.reconciliation_difference": ("numeric", 18, 3),
+    # The view passes posting.amount through unchanged (ENG-02 8.4).
+    "posting_resolved.amount": ("numeric", 18, 3),
     # The one exception to rule 5: kept exactly as read.
     "skipped_row.amount": ("numeric", None, None),
 }
