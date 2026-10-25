@@ -124,7 +124,7 @@ Every screen except Uploads and the Audit log also exports to Excel, at its own 
 | Overview | `overview` | Total actual spend, split into IDS and outside IDS, and the number of lines. The 10 largest GL accounts and one row for all the others, as a table and a chart. The running total by month, as a table and a chart | **view** |
 | GL accounts | `gl` | Each GL account with its name, budget line, actual spend, share, lines and number of cost centers | **view** |
 | GL account | `gl/<code>` | Its budget line, its spend by cost center and department, and its spend by month with the running total | **view** |
-| Departments | `departments` | Each department's actual spend, share and lines, with Outside IDS as its own row | **view** |
+| Departments | `departments` | Each department's actual spend, share and lines, with No department and Outside IDS as rows of their own (2.3) | **view** |
 | Department | `departments/<code>` | Its spend by GL account and by cost center, and its spend by month with the running total | **view** |
 | Budget lines | `budget-lines` | Each commitment item with its GL accounts and actual spend, with No budget line as its own row | **view** |
 | Budget line | `budget-lines/<code>` | Its GL accounts and their spend | **view** |
