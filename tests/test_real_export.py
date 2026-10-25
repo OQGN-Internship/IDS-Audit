@@ -7,6 +7,7 @@ the real export is never in the repository.
 
 import json
 import shutil
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,26 @@ def test_the_real_export_gives_its_expected_figures(expected_path) -> None:
     if expected_path is None:
         real_export.skip_or_fail(real_export.REAL_EXPORT_DIR)
     assert real_export.check(expected_path) == []
+
+
+def test_an_empty_folder_still_runs_the_test_to_skip_it(monkeypatch, tmp_path) -> None:
+    """Verify a folder with no expected result gives the test one run, which
+    skips with its reason, rather than no run at all, which pytest wouldn't
+    mention.
+    """
+    monkeypatch.setattr(real_export, "REAL_EXPORT_DIR", tmp_path)
+    (param,) = real_exports()
+    assert param.values == (None,)
+
+
+def test_pytest_prints_why_a_test_was_skipped() -> None:
+    """Verify pytest's options print skip reasons, so the real-export test's
+    reason shows in every run (ENG-02 12.2).
+    """
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with open(pyproject, "rb") as file:
+        options = tomllib.load(file)["tool"]["pytest"]["ini_options"]["addopts"]
+    assert "-rs" in options.split()
 
 
 def test_every_real_export_has_its_expected_result() -> None:
