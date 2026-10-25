@@ -283,7 +283,8 @@ def test_an_export_past_the_row_limit_is_refused_with_no_event(
 ) -> None:
     """Verify an export with more rows than the limit is refused with its
     message, sends no file and writes no event (ENG-03 9.4). The limit is
-    lowered, since a million rows would take minutes.
+    lowered, since a million rows would take minutes. The refusal's page
+    has its screen's crumbs, naming the report (ENG-03 4).
     """
     monkeypatch.setattr(export, "MAX_DATA_ROWS", 34)
     response = client.get(reverse("rows_export", args=[sample_report.pk]))
@@ -291,6 +292,8 @@ def test_an_export_past_the_row_limit_is_refused_with_no_event(
     assert "Content-Disposition" not in response
     text = response.content.decode()
     assert "This export has 35 rows, more than Excel" in text
+    home = reverse("overview", args=[sample_report.pk])
+    assert f'<li><a href="{home}">{sample_report.name}</a></li>' in text
     assert not AuditEvent.objects.filter(action="export_downloaded").exists()
     monkeypatch.setattr(export, "MAX_DATA_ROWS", 35)
     download(client, "rows", sample_report)
