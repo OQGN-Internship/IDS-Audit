@@ -313,21 +313,23 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 
 **Rules**
 
-- **Refused before an upload exists.** A file is refused at the request, and no upload is created, when the user lacks **upload**, the file is over `MAX_UPLOAD_MB`, its first bytes aren't an accepted format (4.1), it matches a committed upload (7.1), or the report has an open upload.
+- **Refused before an upload exists.** A file is refused at the request, and no upload is created, when the user lacks **upload**, the file is over `MAX_UPLOAD_MB` (ENG-01, 6.4), its first bytes aren't an accepted format (4.1), it matches a committed upload (7.1), or the report has an open upload. They're checked in that order, and the first that applies gives the message. The last two are checked with the report's row locked (ENG-01, 5.1), so two files sent at once can't both pass. Every refusal but the first writes an `upload_refused` event with the user, the report and the reason (ENG-01, 6.3), so a refused file is on record although no upload exists. A user without **upload** gets 403 or 404 from the access check (ENG-01, 6.2), which isn't logged, like any other address a user can't open.
 - **One open upload per report.** While an upload is at `reading`, `needs_columns` or `awaiting_approval`, a new file for the same report is refused with a message naming the open one. A preview's duplicate and replacement figures are worked out against the committed postings, and a second commit would make them wrong.
 - **No rollback during an open upload.** A rollback is refused while the report has an open upload, for the same reason.
 - **Rejecting and withdrawing need a reason.** It's kept in the audit event.
 - **Approving your own upload.** A fixed administrator, or a user whose role holds both **upload** and **approve**, can approve their own upload. Who holds both is decided by the permissions an administrator gives (ENG-01, 6.2), and the audit log records both actions.
-- **An interrupted read.** If the app stops while a file is being read, nothing is staged, because reading runs in one transaction. The upload stays at `reading`, and any upload at `reading` for more than 10 minutes is marked `failed`, with the error "Reading was interrupted", the next time the report's uploads page opens.
+- **An interrupted read.** If the app stops while a file is being read, nothing is staged, because reading runs in one transaction. The upload stays at `reading`, and any upload at `reading` more than 10 minutes after it was received is marked `failed`, with the error "Reading was interrupted". This runs whenever the report's uploads page opens, and before a new file or a rollback checks for an open upload, so an interrupted read never blocks the report. A read that's still running keeps its upload's row locked, and is left alone. The application makes this change on its own, so its `upload_failed` event has no user (ENG-01, 6.3).
 - **What's kept.** Skipped rows and mapping rows are saved when reading ends at `awaiting_approval`, in the same transaction as the staging rows and the figures in 11.1. An upload that stops at `needs_columns` saves none of them, so reading it again can't save them twice. One that ends at `failed` saves only its `error`. They're kept whatever happens to the upload next, so a rejected file can still be explained. Staging rows are deleted when an upload leaves `awaiting_approval` or fails.
 - **Trying again.** A failed or rejected file can be uploaded again as a new upload.
 
 **Tested by**
 
 - Every change in the table works, and every other change is refused, such as `rejected` to `committed`.
-- A second file for a report with an open upload is refused.
+- A second file for a report with an open upload is refused, naming the open one, and so is a file of unknown type. Each refusal creates no upload, stores nothing and writes one `upload_refused` event with its reason.
+- Of two files sent at once to a report with no open upload, one is received and the other is refused.
 - A user without **approve** can't commit, and the uploader can withdraw.
-- An upload stopped during reading leaves no staging rows and is later marked `failed`.
+- An upload stopped during reading leaves no staging rows and is later marked `failed`, with an event that has no user.
+- A new file for a report whose only open upload was received more than 10 minutes ago and never read marks that upload `failed`, and is received. One received less than 10 minutes ago, or whose read is still running, stays at `reading`, and the new file is refused.
 - A file missing a required column stops at `needs_columns` with no rows and no figures saved, and a file that can't be read ends at `failed` with its `error`. Each writes its audit event.
 - Reading an upload that isn't at `reading` is refused, and changes nothing.
 - Reading an upload again after its columns are picked saves each skipped row and mapping row once.
@@ -339,7 +341,7 @@ The same spend must never count twice. Duplicates are caught at three levels.
 
 ### 7.1 The same file twice
 
-A file whose `file_sha256` matches a committed upload in the same report is refused before an upload is created, with the message "This file was already committed on *date* as upload *n*." The same file can go into a different report, and a file whose upload was rolled back can be uploaded again.
+A file whose `file_sha256` matches a committed upload in the same report is refused before an upload is created, with the message "This file was already committed on *date* as upload *n*.", where the date is the upload's `decided_at` in Muscat time. The refusal is kept in the audit log (Section 6). The same file can go into a different report, and a file whose upload was rolled back, rejected or failed can be uploaded again.
 
 ### 7.2 The same line twice in one file
 
@@ -366,7 +368,7 @@ In line-key mode, a duplicate whose amount differs from the posting already in t
 
 **Tested by**
 
-- The same file twice in one report is refused, and accepted in another report.
+- The same file twice in one report is refused, and accepted in another report, or in the same report once its upload is rolled back.
 - In replace-by-period mode, a September year-to-date file followed by an October one leaves exactly the October file's postings for January to October.
 - In line-key mode, a second file overlapping the first adds only its new lines.
 - A line repeated in one file is skipped once, and the file still reconciles.

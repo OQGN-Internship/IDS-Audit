@@ -119,10 +119,13 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 ### 5.1 An upload, from file to committed rows
 
 1. The browser sends the file to `imports/`. Django checks that the user has Upload on the chosen report, that the file is within the size limit, and that its first bytes match an accepted format (see 6.4).
-2. The application computes the file's SHA-256 hash. A file whose hash matches a committed upload in the same report is refused here, before an upload exists (ENG-02, 7.1). So is any file sent while the report has an open upload (ENG-02, 6). Otherwise:
-   1. The application saves the file under its hash, in the folder `UPLOADS_DIR` names (7.5). It writes the file under a temporary name and then renames it, so a file under a hash name is always complete.
-   2. One transaction then locks the report's row, gives the upload the report's next number (ENG-02, 2), creates it at `reading` and writes `upload_received`. The lock makes a second file for the same report wait, so two uploads never read the same highest number.
-   3. If the transaction fails, the stored file stays. Another upload may share it, since the same bytes always have the same name, and a new try writes the same bytes again.
+2. Any interrupted read in the report is marked `failed` (ENG-02, 6). The application then computes the file's SHA-256 hash, and one transaction:
+   1. locks the report's row, so a second file for the same report waits until this one is received or refused
+   2. refuses the file if its hash matches a committed upload in the same report (ENG-02, 7.1), or if the report has an open upload (ENG-02, 6). Nothing is stored and no upload is created
+   3. saves the file under its hash, in the folder `UPLOADS_DIR` names (7.5). It writes the file under a temporary name and then renames it, so a file under a hash name is always complete
+   4. gives the upload the report's next number (ENG-02, 2), creates it at `reading` and writes `upload_received`. The lock means two uploads never read the same highest number
+
+   A refused file writes `upload_refused` once the transaction is undone (6.3), so the attempt stays on record. If the transaction fails after the file is saved, the stored file stays. Another upload may share it, since the same bytes always have the same name, and a new try writes the same bytes again.
 3. `pipeline/` reads the sheets, finds the header rows and columns, and cleans every row. It returns clean rows, skipped rows with their reasons, and the file's mapping sheets. If a required column isn't found, the upload stops at `needs_columns` until the uploader picks it. If the file can't be read, it ends at `failed` (ENG-02, 6).
 4. In one transaction, the clean rows are bulk-loaded with `COPY` into a staging table, and the skipped rows and the file's mapping rows are saved, all tagged with the upload's ID. Reconciliation is worked out from the rows read, the same rows that are staged (ENG-02, 9), duplicate detection runs against the postings already in the report (ENG-02, 7.3), and the upload moves to `awaiting_approval`.
 5. The preview shows rows read, rows skipped, new rows, duplicates, exceptions and the reconciliation result. ENG-02 defines each figure.
@@ -243,9 +246,9 @@ Every event is one row in `audit_event`, written only through `audit.record()`.
 | `upload` | The upload concerned, if any |
 | `details` | Structured data such as the username tried, the role granted, the file hash, or the filters used in an export |
 
-**Actions recorded:** `sign_in`, `sign_out`, `sign_in_failed`, `account_locked`, `user_created`, `user_disabled`, `password_reset`, `role_created`, `role_changed`, `role_removed`, `access_granted`, `access_changed`, `access_removed`, `report_created`, `ruleset_changed`, `upload_received`, `upload_needs_columns`, `upload_columns_picked`, `upload_awaiting_approval`, `upload_failed`, `upload_approved`, `upload_rejected`, `upload_withdrawn`, `upload_rolled_back`, `export_downloaded`.
+**Actions recorded:** `sign_in`, `sign_out`, `sign_in_failed`, `account_locked`, `user_created`, `user_disabled`, `password_reset`, `role_created`, `role_changed`, `role_removed`, `access_granted`, `access_changed`, `access_removed`, `report_created`, `ruleset_changed`, `upload_refused`, `upload_received`, `upload_needs_columns`, `upload_columns_picked`, `upload_awaiting_approval`, `upload_failed`, `upload_approved`, `upload_rejected`, `upload_withdrawn`, `upload_rolled_back`, `export_downloaded`.
 
-The `upload_` actions match the state changes in ENG-02, Section 6, one action for each. `upload_received` is the upload being created at `reading`.
+The `upload_` actions match the state changes in ENG-02, Section 6, one action for each. `upload_received` is the upload being created at `reading`. `upload_refused` is the one that changes nothing: a file refused before an upload exists (ENG-02, 6), so the plan's Phase 2 gate can show the same file sent twice in the audit log.
 
 **Writing an event.** `audit.record(action, *, user=None, report=None, upload=None, details=None)`, in `ids_audit/audit/__init__.py`, writes one event and returns it.
 
@@ -254,7 +257,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 - It runs inside its caller's transaction, so an action and its event are saved together or not at all.
 - `at` is set when the row is saved, so no event can be backdated.
 
-**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `report_created` keeps the report's `name`. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`. `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_approved` keeps the number and total of the postings written and, on the report's first commit, the duplicate mode (ENG-02, 10.1). Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
+**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `report_created` keeps the report's `name`. `upload_refused` keeps the `reason`, which is `too_large`, `unknown_format`, `already_committed` or `open_upload`, the file's `original_name` and `size_bytes`, its `file_sha256` once it's been hashed, and for the last two reasons the `number` of the upload it matches or that's open. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`. `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_approved` keeps the number and total of the postings written and, on the report's first commit, the duplicate mode (ENG-02, 10.1). Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
 
 **Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way:
 
@@ -280,7 +283,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 
 | Risk | Protection |
 | --- | --- |
-| Oversized or wrong files | A size limit, `MAX_UPLOAD_MB`, set to 50 by default. The file type is identified from its first bytes, not its name. ENG-02 lists the accepted formats |
+| Oversized or wrong files | A size limit, `MAX_UPLOAD_MB`, set to 50 by default, where a megabyte is 1,048,576 bytes. It's checked on the file's size before the file is hashed, stored or read. Django has already received the file by then, but no part of the application has opened it. The file type is identified from its first bytes, not its name. ENG-02 lists the accepted formats |
 | An uploaded file used against the application | Files are opened only by the Excel and CSV readers and are never executed. They are stored outside any folder the web server serves, under their hash, not their original name |
 | Cross-site request forgery | Django's CSRF token is on every form. HTMX doesn't send it on its own, so the base template sets `hx-headers` on `<body>` with the token, and every HTMX request carries it |
 | Cross-site scripting | Templates escape every value by default, and no user data is ever marked as safe |
@@ -298,7 +301,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 **Tested by**
 
 - An HTML file renamed to `.xlsx` is refused.
-- A file over the limit is refused before it is read.
+- A file over the limit is refused before it is hashed, stored or read, and one of exactly the limit is received.
 - A form sent without a CSRF token is refused.
 - An HTMX request from a button outside a form succeeds with the token header, and is refused without it.
 - A description containing `<script>` displays as plain text.
