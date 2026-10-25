@@ -373,6 +373,8 @@ These are the plan's eight questions, in its order. They came from the client.
 | 7 | How has spending built up over time? | "Spending reached 1,250,400.000 OMR by the end of September 2026." | Month, spend in the month, and running total | Pivot amount by posting month, and add a running total |
 | 8 | What couldn't be matched to a budget line or an IDS department? | "12,400.000 OMR has no budget line, and 3,900.000 OMR is outside IDS. 870.000 OMR is in both, so 15,430.000 OMR couldn't be matched in all." | The three lists from the exceptions screen: GL accounts with no budget line, cost centers outside IDS, and cost centers inside IDS with no department | Add up the GL accounts missing from the GL mapping or listed there without a commitment item. Then, separately, add up the cost centers missing from the cost center mapping, and those listed there without a department code. Add up the rows in both once, and take them from the sum of the two |
 
+Each hand check leaves out the rows its upload's preview lists as skipped (ENG-02, 11.2), since a skipped row is in no figure (ENG-02, 9.3). SAP's own totals include them, so any skipped amount is a difference the validator checks, as the plan's open question on rows that can't be read says.
+
 The figures in the answers above are only examples of the sentence pattern. A part of a sentence with nothing to say is left out:
 
 - Q1 leaves out the outside IDS part when it's excluded, as shown.

@@ -409,6 +409,8 @@ The GL mapping and the cost center mapping are resolved separately, by the rules
 
 Rolled-back uploads are never used. Mapping values taken from the spend sheet itself (4.2) count as part of that upload's mapping.
 
+The plan's open question also offers the mapping for each posting's fiscal year. It isn't built, since nothing yet shows OQGN's mappings change by year. If the client chooses it, it's added as a third `mapping_rule`, `fiscal_year`: each posting takes its year from `fiscal_year`, or else from its posting date, and uses the mapping of the most recently committed upload whose postings include that year, or the `latest` rule when none does. The screens already show a GL account counted under several budget lines (ENG-03, 2.3).
+
 ### 8.2 What a posting gets
 
 | Case | Budget line shown | Department shown | In the sample file |
@@ -840,10 +842,14 @@ Every assumption the rules above depend on is listed here, including each one ma
 | 6 | Credits are negative amounts in the amount column | 5 | Opening the file | Read SAP's debit and credit column (S or H), and make H amounts negative |
 | 7 | Dates are day first, or real date cells | 5 | Opening the file | Change `date_order` |
 | 8 | The fiscal year is the calendar year, if there's no date column | 5 | The client, by Day 2 | Map periods to the fiscal calendar |
-| 9 | Which value-type values mean actual spend, and which don't | 3, 5 | The client, by Day 2 | Set `actual_spend_rule` |
-| 10 | Each export is year-to-date, or covers whole months | 7.3 | The client, by Day 3 | Use line-key mode, if item 4 allows it |
+| 9 | Which postings count as actual spend, and which column and values mark them | 3, 5 | The client, by Day 2 | Set `actual_spend_rule`. If another column marks them, such as the document type (`KR` for an invoice, `SA` for a journal), add its header to `header_names`' `value_type`, so it's read as the value type |
+| 10 | Each export is year-to-date, or covers whole months, and is SAP's complete selection for them, taken after the period closes | 7.3 | The client, by Day 3, and before acceptance for split and early exports | Use line-key mode, if item 4 allows it. If it doesn't, the parts of a split export are put into one file before it's uploaded |
 | 11 | The spend sheet has a total row | 9.1 | Opening the file, and the client by Day 3 | The uploader types the total from SAP |
 | 12 | The date, document number and line item columns hold SAP's posting date, accounting document number and its line item, not the document date, the reference or a purchasing item | 4.4 | Opening the file | Point those fields at the right columns in `header_names` |
 | 13 | The export is SAP's G/L line item report (FAGLL03), laid out like the sample file | 4.4, 12.2 | The client, before acceptance | Add the real report's header names to `header_names`, and update the sample file to match |
 | 14 | A text export is in UTF-8, or in UTF-16 with its byte-order mark | 4.1 | Opening the file, if it's text | Add a `text_encoding` setting to the ruleset (Section 3) |
 | 15 | Amounts in a text export use a point for decimals, such as `12,400.000` | 3, 5 | Opening the file, if it's text | Set `decimal_separator` to `","` |
+| 16 | Every spend line has a cost center. A line with a GL account, a date and an amount but no cost center is an other row (Section 5), so its file can't reconcile | 5 | Opening the file, and the client before acceptance | Read such a line as spend, in the group the client names, which changes Section 5 and ENG-03, 2.3 |
+| 17 | Each file's mapping sheets list every GL account and every IDS cost center, and the validator supplies them | 8.1 | The client, before acceptance | Resolve `latest` code by code: each code takes its row from the most recently committed upload that lists it |
+| 18 | The mapping sheet, not a commitment item on each spend line, decides the budget line | 4.2, 8.1 | The client, before acceptance | Keep each line's commitment item on `posting`, and use it before the mapping |
+| 19 | No spend row in the real export is skipped | 5, 9.3 | The real-export test (12.2) | Fix the reading rule each skipped row shows. A row the client agrees to leave out is listed in the export's expected result, whose totals then leave it out too (12.2) |

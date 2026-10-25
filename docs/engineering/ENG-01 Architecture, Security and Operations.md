@@ -345,6 +345,7 @@ The account actions cover the plan's "every change to accounts or access". `pass
 | Client data in Git | The real export, and anything taken from it, stays in `real-export/`. Backups stay in `backups/`. Git ignores both folders except the README in each, and `.dockerignore` keeps them and `.env` out of the application image |
 | Client data in cloud-synced folders | The working copy holds `.env`, `real-export/` and `backups/`, so it must sit outside any cloud-synced folder such as OneDrive. `pgdata` and `uploads` stay Docker named volumes, never folders in the working copy |
 | Access from other machines | The application's port and the database's port are published on 127.0.0.1 only |
+| Other people at the developer's machine | Until the client decides where the application runs, users and the validator use it on the developer's machine, with the developer there (the plan's open questions). The machine's Windows session reaches Docker, `.env`, the database and the real exports, the boundary 6.1 relies on, so nobody else is left alone at it unlocked. The developer locks it whenever they leave it, and each user signs out of the application when they finish |
 | Client data on the developer's machine | Full-disk encryption must be on, because the machine holds the client's real exports. Backups go to encrypted storage (see 7.2) |
 | Calls to outside services | None. The JavaScript libraries are in the repository, and nothing is sent out |
 | Error pages exposing details | `DEBUG` is off, so errors never show code or settings |
