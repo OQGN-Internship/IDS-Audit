@@ -47,7 +47,7 @@ class User(AbstractUser):
         away the flag. manage.py disable_admin is the only way to disable one,
         and it doesn't go through here.
         """
-        if self.pk is not None and not (self.is_fixed_admin and self.is_active):
+        if self.pk is not None:
             stored = User.objects.filter(pk=self.pk, is_fixed_admin=True).first()
             if stored is not None and (
                 not self.is_fixed_admin or (stored.is_active and not self.is_active)
