@@ -1,10 +1,10 @@
 """The FAQ pages: one entry per agreed question, fixed in code (ENG-03 7).
 
-Until the client's final list arrives, these are the plan's eight default
-questions. Each entry's query builds the tables behind its answer from
-reports/queries.py, and its answer sentence is filled from those tables'
-own figures, never typed. A part of a sentence with nothing to say is left
-out (ENG-03 7.2).
+These are the plan's eight questions, which came from the client; more
+are added here when the client needs them. Each entry's query builds the
+tables behind its answer from reports/queries.py, and its answer sentence
+is filled from those tables' own figures, never typed. A part of a
+sentence with nothing to say is left out (ENG-03 7.2).
 """
 
 from collections.abc import Callable

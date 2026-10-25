@@ -420,7 +420,7 @@ def sums(key: Callable[[Posting], str], postings: list[Posting]) -> dict[str, De
 
 
 def faq_answers(postings: list[Posting], outside_excluded: bool) -> dict[str, str]:
-    """The answer sentence of each default question for these postings, with
+    """The answer sentence of each FAQ question for these postings, with
     the default picks: the largest GL account and the largest department.
     """
     total = sum((p.amount for p in postings), Decimal("0.000"))
