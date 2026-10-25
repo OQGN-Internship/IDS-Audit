@@ -16,6 +16,7 @@ from django.urls import reverse
 
 from ids_audit.accounts import access
 from ids_audit.audit.models import AuditEvent
+from ids_audit.imports.models import Upload
 from ids_audit.ledger.models import GlCiMap, Posting
 from ids_audit.reports import export, faq, screens
 from ids_audit.reports.models import Report
@@ -210,7 +211,9 @@ def test_a_formula_and_a_long_number_stay_text(client) -> None:
         upload=upload, report=report, gl_code="610100", gl_name="=1+1", ci_code="2101"
     )
     posting = add_posting(upload, JUL, "1.000")
-    Posting.objects.filter(pk=posting.pk).update(document_number="5100000123")
+    Posting.objects.filter(pk=posting.pk).update(
+        document_number="5100000123", item_text="https://example.test/invoice"
+    )
     commit(upload, minute=1)
     _, workbook = download(client, "gl_accounts", report)
     name = workbook["GL accounts"]["B2"]
@@ -218,6 +221,8 @@ def test_a_formula_and_a_long_number_stay_text(client) -> None:
     _, workbook = download(client, "rows", report)
     number = workbook["Source rows"]["G2"]
     assert (number.value, number.data_type) == ("5100000123", "s")
+    link = workbook["Source rows"]["F2"]
+    assert (link.value, link.hyperlink) == ("https://example.test/invoice", None)
 
 
 def test_cells_have_their_formats(client, sample_report) -> None:
@@ -260,6 +265,7 @@ def test_the_file_name_is_the_report_view_and_time(client, sample_report) -> Non
     only letters, digits, hyphens and underscores (ENG-03 9.4).
     """
     response, _ = download(client, "department", sample_report, "outside")
+    assert response["Content-Disposition"].startswith("attachment;")
     name = re.search(r'filename="([^"]+)"', response["Content-Disposition"])[1]
     assert re.fullmatch(r"Sample_departments-outside_\d{8}-\d{4}\.xlsx", name)
     when = datetime.datetime(2026, 4, 3, 10, 5, tzinfo=datetime.UTC)
@@ -373,3 +379,39 @@ def test_an_export_address_refuses_what_its_screen_refuses(
     ]:
         url = reverse(name, args=[sample_report.pk, *args]) + query
         assert client.get(url).status_code == 400, name
+
+
+def test_the_row_limit_is_excel_s_less_the_header_and_total() -> None:
+    """Verify the limit is Excel's 1,048,576 rows, less the header and total
+    rows (ENG-03 9.4).
+    """
+    assert export.MAX_DATA_ROWS == 1_048_576 - 2
+
+
+def test_the_exceptions_export_says_the_outside_filter_doesn_t_apply(
+    client, sample_report
+) -> None:
+    """Verify the exceptions screen's export says outside IDS isn't filtered
+    there, and counts every committed upload's lines with it included, as
+    the screen does (ENG-03 8).
+    """
+    _, workbook = download(
+        client, "exceptions", sample_report, query="?exclude_outside=1"
+    )
+    assert source_facts(workbook)["Filters"] == (
+        "Year: all. Outside IDS: included, since this filter doesn't apply here."
+    )
+    rows = sheet_rows(workbook["Source"])
+    (upload,) = [row for row in rows if row and row[0] == 1]
+    assert upload[7] == 35
+
+
+def test_the_source_sheet_names_an_upload_awaiting_approval(
+    client, sample_report
+) -> None:
+    """Verify the Source sheet says an upload awaiting approval isn't included,
+    as the as-of line does (ENG-03 3.2).
+    """
+    make_upload(sample_report, status=Upload.Status.AWAITING_APPROVAL)
+    _, workbook = download(client, "overview", sample_report)
+    assert source_facts(workbook)["Awaiting approval"] == "Upload 2 isn't included."
