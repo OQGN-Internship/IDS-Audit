@@ -17,7 +17,11 @@ REVOKE UPDATE, DELETE
     ON audit_event, posting, gl_ci_map, cc_dept_map, skipped_row, ruleset
     FROM ids_app;
 
--- 3. Every view. A simple view passes a write through to its table, with the
+-- 3. Users are changed but never deleted, so their history stays linked
+--    (ENG-01 6.1).
+REVOKE DELETE ON accounts_user FROM ids_app;
+
+-- 4. Every view. A simple view passes a write through to its table, with the
 --    rights of the view's owner, ids_owner, so ids_app may only read it.
 DO $$
 DECLARE

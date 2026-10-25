@@ -1,4 +1,5 @@
-"""ids_app's rights on the insert-only tables (ENG-01 6.3, Tested by).
+"""ids_app's rights on the insert-only tables and the user table (ENG-01 6.3,
+Tested by).
 
 Each test switches to ids_app with SET LOCAL ROLE, so the database refuses a
 statement as it would refuse the application (ENG-01 7.5). Every refusal has
@@ -12,11 +13,12 @@ import pytest
 from django.db import connection, models
 from django.db.utils import DataError, ProgrammingError
 
+from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import SkippedRow, StagingRow, Upload
 from ids_audit.ledger.models import CcDeptMap, GlCiMap, Posting
 from ids_audit.reports.models import Ruleset
-from tests.factories import spend_line
+from tests.factories import make_user, spend_line
 from tests.roles import INSUFFICIENT_PRIVILEGE, as_app
 
 # An unsaved row for each insert-only table, linked to the upload.
@@ -81,6 +83,23 @@ def test_ids_app_can_delete_staging_rows(upload: Upload) -> None:
     with as_app() as cursor:
         cursor.execute("DELETE FROM staging_row WHERE upload_id = %s", [upload.pk])
     assert not StagingRow.objects.exists()
+
+
+def test_ids_app_can_update_a_user_but_never_delete_one(db) -> None:
+    """Verify ids_app can change a user, and the database refuses to delete
+    one, so a user's history stays linked to them (ENG-01 6.1 and 6.3).
+    """
+    user = make_user(fixed_admin=False)
+    with as_app() as cursor:
+        cursor.execute(
+            "UPDATE accounts_user SET full_name = 'Changed' WHERE id = %s", [user.pk]
+        )
+    user.refresh_from_db()
+    assert user.full_name == "Changed"
+    with pytest.raises(ProgrammingError) as refused, as_app() as cursor:
+        cursor.execute("DELETE FROM accounts_user WHERE id = %s", [user.pk])
+    assert refused.value.__cause__.sqlstate == INSUFFICIENT_PRIVILEGE
+    assert User.objects.filter(pk=user.pk).exists()
 
 
 def test_as_app_switches_to_ids_app_and_back(db) -> None:

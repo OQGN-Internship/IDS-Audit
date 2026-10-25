@@ -10,6 +10,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, resolve_url
 from django.urls import reverse
+from django.utils.cache import add_never_cache_headers
 
 
 def is_htmx(request: HttpRequest) -> bool:
@@ -62,3 +63,18 @@ class PasswordChangeRequired:
         if request.resolver_match.url_name in self.OPEN:
             return None
         return page_redirect(request, reverse("password_change"))
+
+
+class NoStore:
+    """Tell the browser to keep no copy of any page, so a report can't be
+    shown again from the browser's cache once its user has signed out
+    (ENG-01 6.4).
+    """
+
+    def __init__(self, get_response) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        add_never_cache_headers(response)
+        return response

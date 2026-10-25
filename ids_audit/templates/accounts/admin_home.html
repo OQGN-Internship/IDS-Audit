@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Administration · IDS Spend Audit{% endblock %}
+{% block content %}
+<h1>Administration</h1>
+<ul class="questions">
+  <li><a href="{% url 'admin_users' %}">Users</a>: create accounts, reset passwords, disable accounts, and give each user a role on each report</li>
+  <li><a href="{% url 'admin_roles' %}">Roles</a>: the named sets of permissions you give users</li>
+</ul>
+{% endblock %}

@@ -158,3 +158,21 @@ def test_a_panel_after_the_session_ends_moves_the_whole_page_to_sign_in(
     page.get_by_label("Password").fill(PASSWORD)
     page.get_by_role("button", name="Sign in").click()
     expect(page).to_have_url(address)
+
+
+def test_going_back_after_signing_out_shows_sign_in_not_the_report(
+    page: Page, live_server
+) -> None:
+    """Verify that after signing out, the browser's Back button asks the
+    server again, which sends it to the sign-in page, so the next person at
+    the machine can't see the report (ENG-01 6.4).
+    """
+    admin, report = make_admin(), make_report()
+    sign_in(page, live_server, admin.username)
+    page.goto(f"{live_server.url}/reports/{report.pk}/overview")
+    expect(page.get_by_role("heading", name="Overview")).to_be_visible()
+    page.get_by_role("button", name="Sign out").click()
+    expect(page).to_have_url(re.compile(r"/sign-in$"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"/sign-in\?next=/reports/\d+/overview$"))
+    expect(page.get_by_role("heading", name="Overview")).to_have_count(0)

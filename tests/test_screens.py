@@ -775,6 +775,24 @@ def test_a_name_with_a_script_shows_as_text(signed_in) -> None:
         assert "&lt;script&gt;alert(1)&lt;/script&gt;" in text
 
 
+def test_no_page_is_kept_in_the_browser(signed_in, report) -> None:
+    """Verify a report page, its panel and the sign-in page each say
+    no-store, the base template turns HTMX's history cache off, and signing
+    out asks the browser to clear what it stored (ENG-01 6.4).
+    """
+    overview = reverse("overview", args=[report.pk])
+    for response in (
+        signed_in.get(overview),
+        signed_in.get(overview, headers={"HX-Request": "true"}),
+        Client().get(reverse("sign_in")),
+    ):
+        assert "no-store" in response["Cache-Control"]
+    meta = """<meta name="htmx-config" content='{"historyCacheSize": 0}'>"""
+    assert meta in page(signed_in, "reports")
+    response = signed_in.post(reverse("sign_out"))
+    assert response["Clear-Site-Data"] == '"cache", "storage"'
+
+
 def test_every_page_refuses_to_be_framed(signed_in) -> None:
     """Verify a response carries X-Frame-Options: DENY (ENG-01 6.4)."""
     assert signed_in.get(reverse("reports"))["X-Frame-Options"] == "DENY"

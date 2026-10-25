@@ -10,6 +10,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 
+from ids_audit.accounts.forms import NewPasswordForm
 from ids_audit.accounts.services import password_was_changed
 
 
@@ -21,13 +22,22 @@ class SignIn(auth_views.LoginView):
 
 
 class SignOut(auth_views.LogoutView):
-    """Signing out, which only a form's POST can do."""
+    """Signing out, which only a form's POST can do. The answer asks the
+    browser to forget what it stored for the application, so the next person
+    at this machine finds no copy of a report (ENG-01 6.4).
+    """
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        response["Clear-Site-Data"] = '"cache", "storage"'
+        return response
 
 
 class PasswordChange(auth_views.PasswordChangeView):
     """Choosing a new password: the temporary one, then the new one twice."""
 
     template_name = "accounts/password_change.html"
+    form_class = NewPasswordForm
     success_url = reverse_lazy("home")
 
     def form_valid(self, form):

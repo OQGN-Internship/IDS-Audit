@@ -6,35 +6,17 @@ function checks that again itself. A change the rules refuse is a
 ValidationError, whose message the screen shows, and nothing is saved.
 """
 
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from ids_audit import audit
 from ids_audit.accounts.models import ReportAccess, Role, User
 from ids_audit.accounts.permissions import in_order
+from ids_audit.accounts.services import changes, require_fixed_admin
 from ids_audit.audit.models import AuditEvent
 from ids_audit.reports.models import Report
 
 Action = AuditEvent.Action
-
-
-def require_fixed_admin(user: User) -> None:
-    """Refuse anyone but an active fixed administrator, who alone creates
-    accounts and roles and grants access (the plan, Administrators).
-    """
-    if not (user.is_active and user.is_fixed_admin):
-        raise PermissionDenied
-
-
-def changes(before: dict, after: dict) -> dict:
-    """Return each field whose value differs, with its value before and after,
-    as an event keeps it under "changed" (ENG-01 6.3).
-    """
-    return {
-        field: {"before": before[field], "after": after[field]}
-        for field in before
-        if before[field] != after[field]
-    }
 
 
 def create_role(by: User, name: str, permissions) -> Role:

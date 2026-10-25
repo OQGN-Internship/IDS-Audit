@@ -57,6 +57,8 @@ MIDDLEWARE = [
     "ids_audit.accounts.middleware.PasswordChangeRequired",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # No page is kept in the browser's cache (ENG-01 6.4).
+    "ids_audit.accounts.middleware.NoStore",
     # Last, as django-axes asks, so it can answer a locked-out sign-in.
     "axes.middleware.AxesMiddleware",
 ]
