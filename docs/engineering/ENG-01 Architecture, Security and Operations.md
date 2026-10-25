@@ -42,7 +42,6 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | Database | PostgreSQL | 17 | Exact `NUMERIC` amounts, transactions, views, `COPY` for bulk loading, and role permissions | SQLite: weak with concurrent writes, and no role permissions |
 | Database driver | psycopg | 3 | Supports `COPY` from Python | psycopg2, the older driver |
 | Page updates | HTMX | 2, in the repository | The server renders HTML and HTMX swaps parts of the page, so there is no second front-end codebase | React, which needs a separate app and an API |
-| Small behaviours | Alpine.js | 3, in the repository | Dropdowns and "click again to confirm" without custom JavaScript | Plain JavaScript |
 | Charts | Apache ECharts | Pinned, in the repository | Fast with long series, with built-in tooltips | Chart.js, which is weaker with large data |
 | Excel reading | python-calamine, with openpyxl as a fallback | Pinned | calamine is fast. openpyxl handles unusual files | pandas, which turns amounts into floats by default |
 | Excel writing | XlsxWriter | Pinned | Cell formats, frozen headers, and a memory-saving mode for large exports | openpyxl, which is slower for large exports |
@@ -58,6 +57,7 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | --- | --- | --- |
 | Background worker (Procrastinate, which uses PostgreSQL as its queue) | Files are large enough that users would wait too long during import | The plan's open question on rows per file |
 | Nginx with HTTPS | The application moves off the developer's machine | The plan's open question on where it runs after sign-off |
+| Alpine.js 3, in the repository, for small behaviours on a page | A screen needs a behaviour that HTMX, HTML and CSS can't give. None does: the sidebar, the narrow bar and long tables need no JavaScript, and every action is a form (ENG-03, 4) | ENG-03, 4 |
 
 ## 4. Code structure
 
@@ -74,7 +74,7 @@ IDS-Audit/
 │   ├── reports/       reports, report screens, FAQ queries, chart data, Excel exports
 │   ├── audit/         the append-only audit log
 │   ├── templates/     pages and the partial templates HTMX swaps in
-│   └── static/        CSS, OQGN's logo, and the HTMX, Alpine.js and ECharts files
+│   └── static/        CSS, OQGN's logo, the icons, and the HTMX and ECharts files
 ├── sql/               database roles and grants
 ├── tests/             unit, golden-file, permission and browser tests
 │   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)
