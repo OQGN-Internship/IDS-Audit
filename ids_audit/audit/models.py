@@ -36,6 +36,7 @@ class AuditEvent(models.Model):
         ACCESS_GRANTED = "access_granted"
         ACCESS_CHANGED = "access_changed"
         ACCESS_REMOVED = "access_removed"
+        DATABASE_RESTORED = "database_restored"
         REPORT_CREATED = "report_created"
         RULESET_CHANGED = "ruleset_changed"
         UPLOAD_REFUSED = "upload_refused"

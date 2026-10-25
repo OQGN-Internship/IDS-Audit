@@ -43,6 +43,10 @@ select = [
 testpaths = ["tests"]
 # pytest-django loads these settings before any test runs (ENG-01 7.5)
 DJANGO_SETTINGS_MODULE = "config.settings.test"
+# The backup and restore gate builds the image and runs a second Compose
+# project, so it runs only with uv run pytest -m docker (ENG-01 7.5).
+markers = ["docker: needs Docker and Git Bash, and takes minutes"]
+addopts = '-m "not docker"'
 
 [dependency-groups]
 dev = [

@@ -230,3 +230,13 @@ def test_the_image_is_built_with_the_shell_s_version_tag(compose, tmp_path) -> N
     assert tagged["app"]["build"]["args"] == {"APP_VERSION": "v1.0.0"}
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "ARG APP_VERSION=dev\nENV APP_VERSION=$APP_VERSION\n" in dockerfile
+
+
+def test_the_image_is_named_after_the_compose_project(compose, tmp_path) -> None:
+    """Verify migrate and app share an image named after the project, so the
+    backup and restore gate's project builds its own and never replaces the
+    live one (ENG-01 7.2).
+    """
+    assert compose["app"]["image"] == compose["migrate"]["image"] == "ids-audit-app"
+    gate = compose_config(tmp_path, COMPOSE_PROJECT_NAME="ids-audit-gate")
+    assert gate["app"]["image"] == gate["migrate"]["image"] == "ids-audit-gate-app"
