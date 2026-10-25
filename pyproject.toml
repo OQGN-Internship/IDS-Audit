@@ -46,7 +46,9 @@ DJANGO_SETTINGS_MODULE = "config.settings.test"
 # The backup and restore gate builds the image and runs a second Compose
 # project, so it runs only with uv run pytest -m docker (ENG-01 7.5).
 markers = ["docker: needs Docker and Git Bash, and takes minutes"]
-addopts = '-m "not docker"'
+# -rs prints why a test was skipped, so a real-export test skipped for want of
+# its expected result says so (ENG-02 12.2).
+addopts = '-m "not docker" -rs'
 
 [dependency-groups]
 dev = [
