@@ -65,7 +65,7 @@ The repository is `IDS-Audit`, and the application code lives in the Python pack
 
 ```text
 IDS-Audit/
-├── config/            Django settings (base, dev, test, production), URLs, WSGI entry point
+├── config/            Django settings (base, dev, test, production, migrate), URLs, WSGI entry point, Gunicorn's settings
 ├── ids_audit/
 │   ├── pipeline/      plain Python: reading files, cleaning rows, reconciliation, duplicate rules
 │   ├── accounts/      users, roles, report access, sign-in rules, the access check
@@ -342,8 +342,10 @@ The account actions cover the plan's "every change to accounts or access". `pass
 | Service | Image | What it does |
 | --- | --- | --- |
 | `db` | `postgres:17` | Stores its data in the `pgdata` volume. On first start, `sql/init-roles.sh` creates `ids_owner` and `ids_app` as 6.3 describes, creates the `DB_NAME` database owned by `ids_owner`, and sets the default privileges in 6.3. Compose publishes PostgreSQL as `127.0.0.1:${DB_PORT}:5432`, so only this machine can reach it (7.5). A health check (`pg_isready`) tells the other services when it's ready |
-| `migrate` | The application image | Waits until `db` is healthy. Then it runs migrations as `ids_owner`, applies `sql/grants.sql`, and exits |
-| `app` | The application image | Starts only after `migrate` finishes successfully. Runs Gunicorn on port 8000 of every interface inside the container, connects as `ids_app`, and mounts the `uploads` volume. Compose publishes the port as `127.0.0.1:${APP_PORT}:8000`, so only this machine can reach it |
+| `migrate` | The application image | Waits until `db` is healthy. Then it runs migrations as `ids_owner`, applies `sql/grants.sql` with `manage.py apply_grants`, and exits. It uses `config.settings.migrate`, and it's the only service given `DB_OWNER_PASSWORD` |
+| `app` | The application image | Starts only after `migrate` finishes successfully. Runs Gunicorn on port 8000 of every interface inside the container, with the settings in `config/gunicorn.py`. It connects as `ids_app`, with `config.settings.production`, which has WhiteNoise serve the CSS and JavaScript. It mounts the `uploads` volume at `/uploads`, which `UPLOADS_DIR` names. Compose publishes the port as `127.0.0.1:${APP_PORT}:8000`, so only this machine can reach it |
+
+**The application image** is built from the `Dockerfile`: Python 3.12 with the dependencies `uv.lock` pins, without the development tools, and the collected CSS and JavaScript. It runs as a user that isn't root. `.dockerignore` keeps `.env`, `real-export/` and `backups/` out of it (6.4), so every setting and password comes from `compose.yaml`, which reads them from `.env`.
 
 **First-time setup**
 
@@ -380,6 +382,7 @@ Then open `http://localhost:8000` and sign in as that administrator, with the in
 | `LOCKOUT_ATTEMPTS` | Failed sign-ins before an account locks | `5` |
 | `LOCKOUT_MINUTES` | How long a lock-out lasts | `15` |
 | `GUNICORN_WORKERS` | How many application processes run | `3` |
+| `GUNICORN_TIMEOUT` | How many seconds a request may run before Gunicorn stops it. Files of the plan's size are read in seconds, and five minutes leaves room for the openpyxl fallback and files near `MAX_UPLOAD_MB`. It must stay below the 10 minutes after which a read counts as interrupted (ENG-02, 6), so a read Gunicorn stops is over before the sweep can clear it | `300` |
 | `TIME_ZONE` | The time zone for displayed times | `Asia/Muscat` |
 | `DEBUG` | Shows developer error pages | `False` |
 
@@ -390,6 +393,9 @@ The session and lock-out defaults are rules in the plan. Changing them changes w
 - On a clean machine, the first-time steps reach a working sign-in page.
 - `docker compose ps --all migrate` shows that `migrate` exited with code 0.
 - A request from another machine on the same network can't reach the application or the database.
+- `compose.yaml` publishes the application's and the database's ports on 127.0.0.1 only, gives `app` only `ids_app`'s password and `migrate` only `ids_owner`'s, starts `app` only once `migrate` has succeeded, and sets `UPLOADS_DIR` to `/uploads` on the `uploads` volume.
+- The production settings connect as `ids_app` with `DEBUG` off, the migrate settings as `ids_owner`, and Gunicorn's timeout defaults to 300 seconds, below the 10 minutes of ENG-02, 6.
+- `.dockerignore` keeps `.env`, `real-export/` and `backups/` out of the image.
 
 ### 7.2 Backup and restore
 
@@ -449,6 +455,7 @@ Run `manage.py` commands as `docker compose exec app python manage.py <command>`
 | `app` never starts | `migrate` failed | Read `docker compose logs migrate`, fix the cause, then run `docker compose up -d` |
 | "Bad Request (400)" | The address isn't in `ALLOWED_HOSTS` | Add it in `.env`, then run `docker compose up -d` |
 | An upload is refused as too large | It's over `MAX_UPLOAD_MB` | Raise the limit in `.env` and restart, or export a shorter period |
+| An upload fails after a long wait, and the next file is refused because the upload is still open | Reading took longer than `GUNICORN_TIMEOUT`, so Gunicorn stopped the request | Export a shorter period. The upload is marked `failed` 10 minutes after it was received, when Uploads opens. If files are often this large, it's the trigger for the background worker (Section 8) |
 | An upload is refused as an unknown type | The file isn't in a format ENG-02 accepts, such as a PDF renamed to `.xls` | Export again from SAP in an accepted format |
 | A user is locked out | Five failed sign-ins | Wait 15 minutes, or run `axes_reset_username <username>` |
 | A fixed administrator forgot their password | Only the command line can reset it | Run `changepassword <username>` |
@@ -469,7 +476,7 @@ During the build, Python runs on the developer's machine and only the database r
 
 **From Phase 2 (Day 3)**
 
-As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production`, and the `migrate` and `app` services from 7.1 are added. From then on, the application runs in Docker every day as `ids_app`, and `migrate` applies `sql/grants.sql` to the development database after each migration. Phase 4 completes the packaging and meets its gate.
+As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production` and `config.settings.migrate`, and the `migrate` and `app` services from 7.1 are added. From then on, the application runs in Docker every day as `ids_app`, and `migrate` applies `sql/grants.sql` to the development database after each migration. The tests apply it to the test database with the same command, `manage.py apply_grants`. Phase 4 completes the packaging and meets its gate.
 
 **Tests and the database**
 
