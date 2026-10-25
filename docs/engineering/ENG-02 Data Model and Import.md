@@ -544,6 +544,8 @@ A posting counts when both are true:
 - The commit takes `decided_at` from the application's clock after it locks the report's row (10.1, step 1). PostgreSQL's `now()` isn't used: it's the time the transaction started, so a commit that waited for the lock could get an earlier time than the commit it waited for.
 - `number` alone isn't used. It follows the order uploads were created, which matches the order of commits only while the report has one open upload at a time (Section 6).
 
+**A committed upload** is one at `committed`. A rolled-back upload is never one. An upload whose postings a later upload has all replaced is still a committed upload: its mapping may still be in force (8.1), and its mapping rows and skipped rows are still part of the report. ENG-03 lists the committed uploads on its exceptions screen and on an export's Source sheet, with what each still counts.
+
 **Actual spend** is the postings that count with `is_actual` true. Whether a posting counts is never stored. It's worked out by `posting_resolved` (8.4) from the uploads' states and order, so a rollback changes it without touching a posting.
 
 ### 10.3 Rollback

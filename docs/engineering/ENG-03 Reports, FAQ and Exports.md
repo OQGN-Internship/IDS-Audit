@@ -31,8 +31,10 @@ Every figure starts from the same rows:
 | --- | --- |
 | Actual spend | The sum of `amount` over the rows above |
 | Lines | The number of those rows |
-| Share | A group's actual spend divided by the total under the same filters, rounded half up to one decimal place. Shares aren't adjusted to add up to exactly 100.0% |
-| Running total | Actual spend added up month by month, in posting-date order |
+| Share | A group's actual spend divided by the total under the same filters, rounded half up to one decimal place. Shares aren't adjusted to add up to exactly 100.0%. When that total is zero or negative, there's no share: the screen shows `–` and the export leaves the cell empty, since a share of a total that isn't spend would mislead |
+| Running total | Actual spend added up month by month, in posting-date order, from the first month the filters include |
+
+A sum over no rows is `0.000`, never empty. Each share is worked out in `reports/queries.py` from the two sums PostgreSQL returns, with `Decimal`, so no screen or template divides.
 
 ### 2.3 Groups
 
@@ -41,12 +43,14 @@ Every figure starts from the same rows:
 | GL account | `gl_code` | From the GL mapping in force (ENG-02, 8.1) | None: every posting has a GL account |
 | Budget line | `ci_code` | From the GL mapping in force | No budget line |
 | Cost center | `cost_center_code` | From the cost center mapping in force | None: every posting has a cost center |
-| Department | `dept_code` | From the cost center mapping in force | Outside IDS |
+| Department | `dept_code` | From the cost center mapping in force | No department, for a cost center inside IDS that its mapping row gives no department code (ENG-02, 5 keeps such a row). Outside IDS, for a cost center outside IDS |
 | Month | Month of `posting_date` | `Mar 2026` | None |
 
 Every posting falls into exactly one group, so the groups on a screen always add up to its total. A code with no name in the mapping is shown as the code alone. Within one upload's mapping, each code has one name, the first one given (ENG-02, 5, Mapping rows). The `own_upload` rule (ENG-02, 8.1) can give one code names from different uploads' mappings, and the group then shows the name that sorts last, so it still has one row.
 
-**The functions.** `totals(report)` returns the actual spend in all, inside IDS and outside IDS, and its lines. `by_gl_account`, `by_budget_line`, `by_department` and `by_month` each return one group per key, in key order with the catch-all last: its key, the name shown, its actual spend and its lines. The catch-all's key is empty: `None`, never a code. Outside IDS is decided by `is_outside_ids` (ENG-02, 8.4), so a cost center inside IDS that its mapping gives no department code is a group of its own, never Outside IDS. Each function runs one query, with every sum and count done by PostgreSQL (Section 10).
+**Several in force at once.** Under `own_upload`, one GL account's postings can also get different budget lines, and one cost center's different departments, from different uploads' mappings. A list of GL accounts then shows "Several (*n*)" as that account's budget line, and the GL account screen splits its spend by budget line, one row each. A list that shows a cost center with its department gives each pair a row of its own. Under the default `latest` rule, each code has one budget line or department, so this never shows.
+
+**The functions.** Every function takes the report and the filters (Section 3), and the detail screens' functions also take the keys of 6.1, so a figure and its drill-down count the same rows. `totals` returns the actual spend in all, inside IDS and outside IDS, and its lines. `by_gl_account`, `by_budget_line`, `by_department` and `by_month` each return one group per key: its key, the name shown, its actual spend and its lines. A catch-all's key is the value its address uses (6.1): `none` for No budget line and for No department, and `outside` for Outside IDS. A clean code is never lower case (ENG-02, 5), so a catch-all is never taken for a code. Groups come in key order with the catch-alls last, and a screen sorts them as Section 4 says. Outside IDS is decided by `is_outside_ids` (ENG-02, 8.4), so a cost center inside IDS with no department code is in No department, never Outside IDS. Each function runs one query, with every sum and count done by PostgreSQL (Section 10).
 
 ### 2.4 Formats
 
@@ -68,6 +72,9 @@ Amounts are formatted on the server from `Decimal`. They're already exact to 3 d
 - A posting with `is_actual` false appears nowhere.
 - `report_totals` gives the same figures as the overview. For the sample file, its figures equal the expected result's actual spend and groups.
 - A report with no committed upload has every total at `0.000` and no groups.
+- A share is empty when the total under its filters is zero or negative, and is rounded half up otherwise.
+- A cost center inside IDS whose mapping row has no department code is in No department, and its postings are in neither Outside IDS nor any department.
+- Under `own_upload`, a GL account whose postings get two budget lines shows "Several (2)" on the GL accounts screen, and its screen splits its spend between the two.
 
 ## 3. Filters and the as-of line
 
@@ -77,18 +84,20 @@ There are two filters, as the plan's Phase 3 lists. They apply to every screen, 
 
 | Filter | In the address | Values | Default |
 | --- | --- | --- | --- |
-| Year | `year` | A calendar year of the posting date, or `all` | `all`, since the goal is cumulative spend |
+| Year | `year` | A calendar year of the posting date, as four digits such as `2026`, or `all` | `all`, since the goal is cumulative spend |
 | Outside IDS | `exclude_outside` | `0`: included and flagged. `1`: excluded | `0`, as the plan's scope says: flagged, with an option to exclude |
 
-- **In the address.** Filters are part of the address (ENG-01, 5.2), so a view can be bookmarked, and its export uses exactly the filters on screen.
-- **Always shown.** Every screen states the filters in words above the figures, for example "Year: 2026. Outside IDS: excluded." An export states them on its Source sheet (9.2).
-- **Refused when wrong.** A value outside the table returns 400 Bad Request. The app only builds valid addresses, so a wrong one has been typed or edited.
+- **In the address.** Filters are part of the address (ENG-01, 5.2), so a view can be bookmarked, and its export uses exactly the filters on screen. A filter left out of the address takes its default.
+- **Always shown.** Every screen states the filters in words above the figures, for example "Year: 2026. Outside IDS: excluded." or "Year: all. Outside IDS: included." An export states them on its Source sheet (9.2).
+- **The choices offered.** The year list offers All years and each year in which the report has actual spend, newest first.
+- **Refused when wrong.** A value outside the table returns 400 Bad Request, and so does a key given twice, or a key the screen doesn't take. A screen takes the two filters, and its own keys where this document gives it some: the source rows' keys (6.1) and the FAQ pickers (7.2). The app only builds valid addresses, so a wrong one has been typed or edited.
+- **Nothing matched.** A year with no postings is still a valid filter. When the report has a committed upload but the filters match no actual spend, the screen says "No actual spend for these filters." in place of its figures, rather than zeros that read like a finding. An export of it has each sheet's header and total rows only.
 
 ### 3.2 The as-of line
 
 Every screen, FAQ page and export says which data it shows:
 
-- "Figures as of upload *n*, *file name*, approved by *user* on *date and time*." This names the most recently committed upload that counts.
+- "Figures as of upload *n*, *file name*, approved by *user* on *date and time*." This names the most recently committed upload: the last committed upload in the order of commits (ENG-02, 10.2). It depends on no filter.
 - If an upload is awaiting approval, a second line says: "Upload *n* is awaiting approval and isn't included."
 - A report with no committed upload shows "No approved uploads yet" in place of figures, and a link to Uploads for users with **upload**.
 
@@ -98,7 +107,8 @@ Every screen, FAQ page and export says which data it shows:
 - With `exclude_outside=1`, cost centers `3100` and `3200` disappear from the sample, and the total falls by exactly their amount.
 - The export of a filtered view states the same filters.
 - After a rollback, the as-of line names the upload before it.
-- `year=abc` returns 400.
+- `year=abc`, `year=26`, `exclude_outside=2`, a key given twice and an unknown key each return 400.
+- A year with no postings shows "No actual spend for these filters.", and the year list offers only the years with actual spend.
 
 ## 4. Screens
 
@@ -148,7 +158,8 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 **Rules**
 
 - Every amount links to its source rows (Section 6).
-- Lists are sorted by actual spend, highest first, then by code, so the order never changes between visits. Month lists run oldest first instead, so the running total reads in order.
+- Lists are sorted by actual spend, highest first, then by code, so the order never changes between visits. The catch-all rows come last whatever their amount, No budget line, No department, then Outside IDS, so none is read as one of the codes. Month lists run oldest first instead, so the running total reads in order.
+- The overview's row for all the other GL accounts appears only when there are more than 10, and names how many it covers, such as "All other GL accounts (2)". PostgreSQL adds its amount over every posting outside the 10 largest, so it's a sum like any other figure.
 - Every list ends with a total row, equal to the figure the list breaks down. For a list of the whole report, that's the overview total under the same filters. For a detail list, it's the amount of the GL account, department or budget line the list is about. For an exceptions list, it's the sum of its own rows.
 - The Export button appears only for users with **export**. The export address checks **view** and **export** again (ENG-01, 6.2).
 - Screens are in English. Names and item text are shown exactly as written, Arabic included.
@@ -206,13 +217,15 @@ The source rows screen takes the filters (Section 3) plus the keys of the group 
 | `gl` | A GL account |  |
 | `ci` | A budget line | `none`: No budget line |
 | `cc` | A cost center |  |
-| `dept` | A department | `outside`: Outside IDS |
+| `dept` | A department | `outside`: Outside IDS. `none`: No department |
 | `month` | A month, as `2026-03` |  |
 | `through` | Every month up to and including this one, as `2026-03`, for a running total |  |
-| `upload` | The postings of one upload that count, by its number |  |
+| `upload` | The postings of one committed upload that count, by its number |  |
 | `page` | Which page of 100 rows to show, from `1` |  |
 
-Any other key, or a value in the wrong form, returns 400 Bad Request.
+A code is given as cleaned (ENG-02, 5), and `upload` and `page` as whole numbers from `1`. Any other key, a value in the wrong form, a key given twice, or `month` and `through` together returns 400 Bad Request. A page past the last returns 404 Not Found.
+
+The detail screens' addresses take the same values: `gl/<code>`, `departments/<code>`, `departments/outside`, `departments/none`, `budget-lines/<code>` and `budget-lines/none`. A code in the right form with no actual spend under the filters opens its screen with "No actual spend for these filters.", since it may have spend in another year.
 
 ### 6.2 What it shows
 
@@ -225,8 +238,8 @@ Any other key, or a value in the wrong form, returns 400 Bad Request.
 
 **Rules**
 
-- Above the rows, the screen shows their count and total. The total covers every page, and equals the figure that was clicked.
-- Rows are shown 100 to a page, sorted by posting date, then upload, then row number.
+- Above the rows, the screen says in words which keys chose them, such as "GL account 610100, cost center 4510", and shows their count and total. The total covers every page, and equals the figure that was clicked.
+- Rows are shown 100 to a page, sorted by posting date, then upload number, then sheet and row number.
 - The bar and the table row for "all the others" on the overview open the GL accounts screen instead, since they cover many accounts.
 - Item text is shown with its direction set automatically, so Arabic reads right to left.
 
@@ -235,8 +248,9 @@ Any other key, or a value in the wrong form, returns 400 Bad Request.
 - For every amount on the overview, GL accounts and departments screens of the sample file, except the "all the others" row, the source rows add up to that amount.
 - A row's sheet and row number point to the same values in the original file.
 - `ci=none` lists exactly the postings for `640200` and `650200`.
-- `dept=outside` lists exactly the postings for `3100` and `3200`.
+- `dept=outside` lists exactly the postings for `3100` and `3200`, and `dept=none` exactly those of the cost centers inside IDS with no department code.
 - An Arabic item text displays right to left, unchanged.
+- `gl=0610100`, `month=2026-3`, `page=0`, and `month` with `through` each return 400, and a page past the last returns 404.
 
 ## 7. FAQ pages
 
@@ -262,23 +276,31 @@ These are the plan's eight questions, in its order.
 
 | # | Question | Answer, for example | Table on the page | How to check it by hand, in the original export |
 | --- | --- | --- | --- | --- |
-| 1 | How much has IDS spent in total? | "IDS has spent 1,250,400.000 OMR across 412 lines." | Total, IDS and outside IDS | Keep only actual-spend rows, then add up the amount column |
-| 2 | Which GL accounts has IDS spent the most on? | "The largest is Software licenses (610100), with 182,300.500 OMR, 14.6% of the total." | GL accounts, highest first | A pivot table of amount by GL account, sorted largest first |
-| 3 | Which budget line does each GL account belong to? | "14 GL accounts map to 6 budget lines. 2 have no budget line." | GL account and budget line | Look up each GL account in the GL mapping sheet |
-| 4 | Which cost centers and departments used a GL account? | "610100 was used by 6 cost centers in 4 departments." | Cost center, department and spend, for one GL account | Filter on the GL account, then pivot amount by cost center |
-| 5 | How much has each department spent? | "The largest is Applications, with 402,100.000 OMR." | Departments, with Outside IDS as its own row | Add each row's department from the cost center mapping sheet, then pivot by department |
-| 6 | What has a department spent its money on? | "Applications spent most on Software licenses: 96,200.000 OMR." | GL accounts and spend, for one department | Filter on the department's cost centers, then pivot by GL account |
+| 1 | How much has IDS spent in total? | "Actual spend is 1,250,400.000 OMR across 412 lines: 1,246,500.000 OMR on IDS cost centers and 3,900.000 OMR outside IDS." With outside IDS excluded: "Actual spend on IDS cost centers is 1,246,500.000 OMR across 405 lines. Cost centers outside IDS are excluded." | Total, IDS and outside IDS | Keep only actual-spend rows, then add up the amount column |
+| 2 | Which GL accounts has IDS spent the most on? | "The largest is Software licenses (610100), with 182,300.500 OMR, 14.6% of the total shown." | GL accounts, highest first | A pivot table of amount by GL account, sorted largest first |
+| 3 | Which budget line does each GL account belong to? | "12 GL accounts map to 6 budget lines, and 2 have no budget line." | Each GL account with its budget line, one row for each budget line it's counted under | Look up each GL account in the GL mapping sheet |
+| 4 | Which cost centers and departments used a GL account? | "Software licenses (610100) was used by 6 cost centers in 4 departments, and by 1 cost center outside IDS." | Cost center, department and spend, for one GL account | Filter on the GL account, then pivot amount by cost center |
+| 5 | How much has each department spent? | "The largest is Applications (APP), with 402,100.000 OMR." | Departments, with No department and Outside IDS as rows of their own | Add each row's department from the cost center mapping sheet, then pivot by department |
+| 6 | What has a department spent its money on? | "Applications (APP) spent most on Software licenses (610100): 96,200.000 OMR." | GL accounts and spend, for one department | Filter on the department's cost centers, then pivot by GL account |
 | 7 | How has spending built up over time? | "Spending reached 1,250,400.000 OMR by the end of September 2026." | Month, spend in the month, and running total | Pivot amount by posting month, and add a running total |
-| 8 | What couldn't be matched to a budget line or an IDS department? | "12,400.000 OMR has no budget line, and 3,900.000 OMR is outside IDS." | The two lists from the exceptions screen | Add up the GL accounts missing from the GL mapping or listed there without a commitment item. Then, separately, add up the cost centers missing from the cost center mapping |
+| 8 | What couldn't be matched to a budget line or an IDS department? | "12,400.000 OMR has no budget line, and 3,900.000 OMR is outside IDS. 870.000 OMR is in both, so 15,430.000 OMR couldn't be matched in all." | The three lists from the exceptions screen: GL accounts with no budget line, cost centers outside IDS, and cost centers inside IDS with no department | Add up the GL accounts missing from the GL mapping or listed there without a commitment item. Then, separately, add up the cost centers missing from the cost center mapping, and those listed there without a department code. Add up the rows in both once, and take them from the sum of the two |
 
-The figures in the answers above are only examples of the sentence pattern.
+The figures in the answers above are only examples of the sentence pattern. A part of a sentence with nothing to say is left out:
 
-Pages 4 and 6 have a picker for the GL account or department. The choice goes in the address, as `gl` or `dept`, and the largest one is shown first.
+- Q1 leaves out the outside IDS part when it's excluded, as shown.
+- Q2 leaves out the share when there isn't one (2.2).
+- Q3 adds "*k* GL accounts have more than one budget line." when `own_upload` gives some several (2.3), and leaves out "and 0 have no budget line".
+- Q4 leaves out the outside IDS part when no cost center outside IDS used the account.
+- Q8 adds "*x* OMR is on IDS cost centers with no department." when there is any, and leaves out the "in both" part when nothing is in both.
+
+Q3 counts GL accounts and budget lines among the table's rows: a budget line once however many GL accounts share it, and No budget line as none. Q4 counts the table's cost centers inside IDS, the different departments among them, and its cost centers outside IDS. Q8's "in both" is the actual spend with no budget line that is also outside IDS or in no department, and "in all" is the actual spend in any of the three lists, counted once. PostgreSQL adds both, as every figure (Section 10).
+
+Pages 4 and 6 have a picker for the GL account or department. The choice goes in the address, as `gl` or `dept`, and the largest one is shown first. Page 6 offers every row of the Departments screen, No department and Outside IDS included, with the same keys as 6.1. A value in the wrong form returns 400, and a code in the right form with no actual spend shows "No actual spend for these filters."
 
 **Rules**
 
 - An answer sentence is filled from its table's figures, never typed.
-- With no data, the page says "No approved uploads yet", never a zero that reads like a finding.
+- With no data, the page says "No approved uploads yet", never a zero that reads like a finding. With data that the filters don't match, it says "No actual spend for these filters." (3.1).
 - Each page shows the filter line and the as-of line, and exports like any other view.
 - The hand checks are written for a report built from one file. Every amount check counts only actual-spend rows, so the total row and subtotals stay out (ENG-02, 5). It also leaves out the skipped rows, since they're never in the report (ENG-02, 9.3). Each upload's preview, linked from the exceptions screen (Section 8), lists them by sheet and row (ENG-02, 11).
 - With several files, check against the latest file for each month in replace-by-period mode (ENG-02, 7.3). In line-key mode, check against every committed file, counting each line once, with its amount from the first committed file that has it. Budget lines and departments come from the mapping in force (ENG-02, 8.1). By default, the GL mapping and the cost center mapping each come from the latest committed file that has one.
@@ -286,34 +308,40 @@ Pages 4 and 6 have a picker for the GL account or department. The choice goes in
 **Tested by**
 
 - For the sample file, every answer equals the expected result.
-- Each figure in an answer sentence equals the figure it comes from in its table. For Q1, that's the total and its lines. For Q2, Q5 and Q6, it's the top row. For Q3 and Q4, it's a count of rows, or of the different budget lines or departments in them. For Q7, it's the last running total, and for Q8, each list's total.
+- Each figure in an answer sentence equals the figure it comes from in its table. For Q1, that's the total, its lines, and the IDS and outside IDS rows, which add up to the total. For Q2, Q5 and Q6, it's the top row. For Q3 and Q4, it's a count of rows, or of the different budget lines or departments in them. For Q7, it's the last running total, and for Q8, each list's total, with "in all" equal to the lists' totals less "in both".
+- Each part a sentence leaves out is left out only when the rule above says, for example Q2's share when the total shown is zero.
 - Every entry in `faq.py` has a page, an export and a test of its own.
 
 ## 8. Exceptions screen
 
-The exceptions screen shows what's wrong or unmatched in the report as it stands now, across every upload that counts. The preview's exceptions (ENG-02, 11) cover one upload before approval, and this screen covers the report after it.
+The exceptions screen shows what's wrong or unmatched in the report as it stands now, across its committed uploads (ENG-02, 10.2). The preview's exceptions (ENG-02, 11) cover one upload before approval, and this screen covers the report after it.
 
 | List | Shows | Built from |
 | --- | --- | --- |
 | GL accounts with no budget line | Code, name if known, actual spend and lines, split into missing from the GL mapping and listed without a commitment item | `posting_resolved` |
 | Cost centers outside IDS | Code, actual spend, lines, and the GL accounts they used | `posting_resolved` |
-| Budget-line changes between files | Each GL account whose commitment item differs between committed uploads: each upload, the item it gave, and that upload's spend that still counts | Mapping rows of the uploads that count (ENG-02, 8.3) |
-| Department changes between files | The same for each cost center whose department differs | Mapping rows of the uploads that count |
-| Skipped rows | For each upload that counts: the number and amount skipped, by reason | `skipped_row` (ENG-02, 5) |
+| Cost centers with no department | Each cost center inside IDS whose mapping row gives no department code: code, name, actual spend and lines | `posting_resolved` |
+| Budget-line changes between files | Each GL account whose commitment item differs between the GL mappings of committed uploads: each committed upload whose mapping lists it, the item it gave, and that upload's actual spend on the account that still counts. That's `0.000` for an upload whose months a later file replaced, which is still listed, since its mapping is part of the report's history | Mapping rows of the committed uploads (ENG-02, 8.3), and `posting_resolved` for the spend |
+| Department changes between files | The same for each cost center whose department differs | Mapping rows of the committed uploads, and `posting_resolved` |
+| Skipped rows | For each committed upload: the number and amount skipped, by reason. A year-to-date file can skip a row that an earlier file skipped too, and each is listed under its own upload | `skipped_row` (ENG-02, 5) |
+
+A committed upload is one at `committed`, never a rolled-back one (ENG-02, 10.2). One whose postings a later file replaced still counts as committed, so a change between files stays listed until one of the two uploads is rolled back.
 
 **Rules**
 
 - Every amount links to its source rows, with the `upload` key for an upload's spend, or for skipped rows, to the upload's preview.
-- The year filter applies to the first two lists, and to the spend shown in the changes between files. The skipped rows and the changes themselves have no posting date, so they're listed for every upload that counts, whatever the year. The screen says so.
+- The year filter applies to the first three lists, and to the spend shown in the changes between files. The skipped rows and the changes themselves have no posting date, so they're listed for every committed upload, whatever the year. The screen says so.
 - The outside IDS filter doesn't apply on this screen or on the question 8 FAQ page, since excluding outside IDS would empty its own list. The screen and the page say so.
 - Links to source rows from this screen and the question 8 FAQ page always use `exclude_outside=0`, so the rows add up to the amount clicked (6.2).
 - A list with nothing in it says "None", so an empty list can't be mistaken for one that failed to load.
-- The plan's question 8 is answered from the first two lists.
+- The plan's question 8 is answered from the first three lists.
 
 **Tested by**
 
-- In the sample file, `640200` shows as missing from the GL mapping, `650200` as listed without a commitment item, and `3100` and `3200` as outside IDS, each with its expected amount.
-- A second file that moves `610100` to another budget line appears in the budget-line changes. After a rollback, it's gone.
+- In the sample file, `640200` shows as missing from the GL mapping, `650200` as listed without a commitment item, and `3100` and `3200` as outside IDS, each with its expected amount. The list of cost centers with no department says "None".
+- A cost center listed in the mapping with no department code shows in its own list, and in no other.
+- A second file that moves `610100` to another budget line appears in the budget-line changes, with both uploads. After a rollback, it's gone.
+- A second year-to-date file that replaces every month of the first, and moves `610100`, lists the first upload in the change with `0.000` still counting.
 - The skipped rows for each upload match its preview.
 - With `exclude_outside=1`, the `3100` amount on the exceptions screen opens source rows that add up to it.
 
@@ -330,7 +358,7 @@ Every screen in Section 4 except Uploads and the Audit log: the overview, the li
 | Sheet | Holds |
 | --- | --- |
 | One data sheet per table on the screen | A frozen header row, one row per line on screen, and a total row at the bottom. Each sheet has a fixed name of at most 31 characters, such as *GL accounts*, *By month* or *Skipped rows*, never one built from a code, a name or a question |
-| Source | The report, the view, the filters in words, and the as-of line. Every upload that counts: its number, file name, SHA-256, rows, who approved it and when, and its ruleset version. Who exported it and when, in Muscat time, and the app's version tag. An FAQ export adds the question and the answer sentence |
+| Source | The report, the view, the filters in words, and the as-of line. Every committed upload (ENG-02, 10.2), in the order of commits: its number, file name, SHA-256, rows read, who approved it and when, its ruleset version, and the lines and actual spend it still counts under the export's filters. An upload whose postings a later file replaced is listed with `0` lines, since its mapping may still be in force. Who exported it and when, in Muscat time, and the app's version tag. An FAQ export adds the question and the answer sentence |
 
 ### 9.3 Cells
 
@@ -357,7 +385,7 @@ Excel holds 15 significant digits, so amounts below 1,000,000,000,000 OMR keep e
 **Tested by**
 
 - Every export, read back with openpyxl, has the same rows, order and totals as its screen.
-- The Source sheet lists the filters and every upload that counts.
+- The Source sheet lists the filters and every committed upload, and the lines and actual spend it gives add up to the overview's under the same filters.
 - A cell holding `=1+1` opens as text.
 - A 10-digit document number opens as text, unchanged.
 - Each export writes exactly one `export_downloaded` event.
@@ -383,7 +411,7 @@ The plan's default is files of up to tens of thousands of rows. The speed test b
 | `posting` | `(upload_id)` | Deciding which postings count (ENG-02, 10.2) |
 | `gl_ci_map` | `(upload_id, gl_code)`, unique (ENG-02, 2) | The GL mapping in force |
 | `cc_dept_map` | `(upload_id, cc_code)`, unique (ENG-02, 2) | The cost center mapping in force |
-| `upload` | `(report_id, status, decided_at)` | Finding the uploads that count, in order |
+| `upload` | `(report_id, status, decided_at)` | Finding the committed uploads, in order |
 
 **If it's still too slow.** `posting_resolved` becomes a materialized view, refreshed inside the commit and rollback transactions (ENG-02, 10), so it's never out of date. This is done only if the speed test fails. The refresh runs as `ids_app`, and PostgreSQL 17 lets only the owner or a role with the `MAINTAIN` privilege refresh a materialized view, so `sql/grants.sql` then grants `MAINTAIN` on it to `ids_app`.
 
