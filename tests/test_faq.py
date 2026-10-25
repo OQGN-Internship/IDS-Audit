@@ -272,6 +272,9 @@ def test_an_faq_page_with_no_data_or_no_match_shows_no_figures(
 @pytest.mark.parametrize(
     ("slug", "query", "status"),
     [
+        ("", "?year=abc", 400),
+        ("", "?year=2025", 200),
+        ("", "?gl=610100", 400),
         ("no-such-question", "", 404),
         ("total-spend", "?gl=610100", 400),
         ("gl-account-cost-centers", "?dept=APP", 400),
@@ -283,10 +286,13 @@ def test_an_faq_page_with_no_data_or_no_match_shows_no_figures(
 def test_an_faq_address_takes_only_its_own_pick(
     client, sample_report, slug, query, status
 ) -> None:
-    """Verify an unknown question is 404, and a page refuses a key it doesn't
-    take or a pick in the wrong form with 400.
+    """Verify an unknown question is 404, and a page, or the FAQ list, refuses
+    a key it doesn't take, a filter or a pick in the wrong form with 400.
     """
-    url = reverse("faq_page", args=[sample_report.pk, slug]) + query
+    if slug:
+        url = reverse("faq_page", args=[sample_report.pk, slug]) + query
+    else:
+        url = reverse("faq", args=[sample_report.pk]) + query
     assert client.get(url).status_code == status
 
 

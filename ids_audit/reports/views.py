@@ -340,8 +340,10 @@ def exceptions(request, report: Report, to_excel: bool = False):
 
 @report_permission(VIEW)
 def faq_index(request, report: Report):
-    """The FAQ questions in order, each linking to its page (ENG-03 7.1)."""
-    addresses.read(request.GET)
+    """The FAQ questions in order, each linking to its page (ENG-03 7.1). It
+    takes the filters like any screen, and refuses a wrong one (3.1).
+    """
+    filters_only(request)
     return render(
         request, "reports/faq_index.html", {"report": report, "entries": faq.ENTRIES}
     )
