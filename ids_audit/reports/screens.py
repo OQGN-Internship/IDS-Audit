@@ -51,12 +51,29 @@ class Column:
     kind: str
 
 
+@dataclass(frozen=True)
+class Chart:
+    """A picture of one column of a table (ENG-03 5): for each row, its label,
+    its amount as text for drawing, the amount written for the tooltip, the
+    amount's link, and whether the row is Outside IDS.
+    """
+
+    id: str
+    kind: str
+    title: str
+    points: list[dict]
+
+    @property
+    def has_outside(self) -> bool:
+        return any(point["outside"] for point in self.points)
+
+
 @dataclass
 class Table:
     """A table on a screen, which is also a sheet of its export (ENG-03 9.2):
-    its heading, the sheet's fixed name, its columns, its rows and its total
-    row. rows is any iterable, so an export can write every source row
-    without holding them all.
+    its heading, the sheet's fixed name, its columns, its rows, its total row
+    and the charts that picture it. rows is any iterable, so an export can
+    write every source row without holding them all.
     """
 
     title: str
@@ -64,6 +81,19 @@ class Table:
     columns: list[Column]
     rows: Iterable[list[Cell]]
     total: list[Cell] | None = None
+    charts: list[Chart] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class Picker:
+    """An FAQ page's choice of GL account or department (ENG-03 7.2): its key
+    in the address, its label, its (value, label) options and the one chosen.
+    """
+
+    key: str
+    label: str
+    options: list[tuple[str, str]]
+    chosen: str
 
 
 @dataclass
@@ -85,6 +115,11 @@ class Screen:
     outside_applies: bool = True
     # The pages of source rows: (label, address) pairs.
     pager: list[tuple[str, str]] = field(default_factory=list)
+    # An FAQ page's answer, what it counted, and how to check it (ENG-03 7).
+    answer: str = ""
+    counted: str = ""
+    check: str = ""
+    picker: Picker | None = None
 
 
 # Cells
@@ -167,6 +202,38 @@ def total_row(
     return cells
 
 
+def picture(
+    table: Table,
+    chart_id: str,
+    kind: str,
+    title: str,
+    label: int,
+    value: int,
+    name: int | None = None,
+) -> Chart:
+    """Picture one amount column of a table, so the chart and the table can't
+    differ (ENG-03 5). Each row is labelled from its label column, with the
+    name from its name column for the tooltip, or, with no code, such as a
+    catch-all, by its name alone.
+    """
+    points = []
+    for row in table.rows:
+        named = str(row[name].value) if name is not None else ""
+        shown = str(row[label].value) or named
+        figure = row[value]
+        points.append(
+            {
+                "label": shown,
+                "name": named if row[label].value else "",
+                "value": str(figure.value),
+                "text": figures.amount(figure.value),
+                "link": figure.link,
+                "outside": not row[label].value and named == OUTSIDE_IDS,
+            }
+        )
+    return Chart(chart_id, kind, title, points)
+
+
 MONTH_COLUMNS = [
     Column("Month", "month"),
     Column("Actual spend", "amount"),
@@ -176,9 +243,16 @@ MONTH_COLUMNS = [
 
 
 def month_table(
-    links: Links, months: list[Group], totals: queries.Totals, keys: Keys = NO_KEYS
+    links: Links,
+    months: list[Group],
+    totals: queries.Totals,
+    keys: Keys = NO_KEYS,
+    monthly: bool = True,
 ) -> Table:
-    """The spend by month with its running total, oldest first (ENG-03 4)."""
+    """The spend by month with its running total, oldest first (ENG-03 4),
+    pictured as the running total, and unless monthly is False as one column
+    per month (ENG-03 5).
+    """
     rows = [
         [
             Cell(m.name, "month"),
@@ -189,9 +263,15 @@ def month_table(
         for m in months
     ]
     total = [text("Total"), amount(totals.total, links.rows(keys)), BLANK]
-    return Table(
+    table = Table(
         "By month", "By month", MONTH_COLUMNS, rows, [*total, count(totals.lines)]
     )
+    table.charts.append(picture(table, "chart-running", "line", "Running total", 0, 2))
+    if monthly:
+        table.charts.append(
+            picture(table, "chart-monthly", "columns", "Spend by month", 0, 1)
+        )
+    return table
 
 
 # The screens (ENG-03 4)
@@ -203,6 +283,20 @@ def overview(report: Report, filters: Filters) -> Screen:
     """
     links = Links(report, filters)
     totals = queries.totals(report, filters)
+    months = month_table(
+        links, queries.by_month(report, filters), totals, monthly=False
+    )
+    tables = [
+        spend_table(report, filters, totals),
+        largest_table(report, filters, totals),
+        months,
+    ]
+    return Screen("Overview", "overview", tables, totals.lines)
+
+
+def spend_table(report: Report, filters: Filters, totals: queries.Totals) -> Table:
+    """Actual spend on IDS cost centers, outside IDS, and in all (Q1)."""
+    links = Links(report, filters)
     ids_only = Filters(year=filters.year, exclude_outside=True)
     ids = queries.totals(report, ids_only)
     columns = [
@@ -226,7 +320,7 @@ def overview(report: Report, filters: Filters) -> Screen:
                 count(outside.lines),
             ]
         )
-    spend = Table(
+    return Table(
         "Actual spend",
         "Actual spend",
         columns,
@@ -234,6 +328,12 @@ def overview(report: Report, filters: Filters) -> Screen:
         total_row(columns, totals.total, totals.lines, links.rows()),
     )
 
+
+def largest_table(report: Report, filters: Filters, totals: queries.Totals) -> Table:
+    """The 10 largest GL accounts and one row for the others, pictured as
+    bars (ENG-03 4 and 5).
+    """
+    links = Links(report, filters)
     top = queries.top_gl_accounts(report, filters)
     columns = [
         Column("GL account", "code"),
@@ -264,23 +364,33 @@ def overview(report: Report, filters: Filters) -> Screen:
                 count(top.others.lines),
             ]
         )
-    largest = Table(
+    table = Table(
         "Largest GL accounts",
         "Largest GL accounts",
         columns,
         rows,
         total_row(columns, totals.total, totals.lines, links.rows()),
     )
-    months = month_table(links, queries.by_month(report, filters), totals)
-    return Screen("Overview", "overview", [spend, largest, months], totals.lines)
+    table.charts.append(
+        picture(table, "chart-gl", "bars", "Spend by GL account", 0, 2, 1)
+    )
+    return table
 
 
 def gl_accounts(report: Report, filters: Filters) -> Screen:
     """Each GL account with its budget line, actual spend, share, lines and
     number of cost centers.
     """
-    links = Links(report, filters)
     totals = queries.totals(report, filters)
+    table = gl_accounts_table(report, filters, totals)
+    return Screen("GL accounts", "gl", [table], totals.lines)
+
+
+def gl_accounts_table(
+    report: Report, filters: Filters, totals: queries.Totals
+) -> Table:
+    """The GL accounts screen's table (Q2)."""
+    links = Links(report, filters)
     columns = [
         Column("GL account", "code"),
         Column("Name", "text"),
@@ -314,8 +424,7 @@ def gl_accounts(report: Report, filters: Filters) -> Screen:
         )
     total = total_row(columns, totals.total, None, links.rows())
     total[6] = count(totals.lines)
-    table = Table("GL accounts", "GL accounts", columns, rows, total)
-    return Screen("GL accounts", "gl", [table], totals.lines)
+    return Table("GL accounts", "GL accounts", columns, rows, total)
 
 
 def gl_account(report: Report, filters: Filters, gl: str) -> Screen:
@@ -349,6 +458,18 @@ def gl_account(report: Report, filters: Filters, gl: str) -> Screen:
         total_row(columns, totals.total, totals.lines, links.rows(keys)),
     )
 
+    centers = gl_cost_centers_table(report, filters, gl, totals)
+    months = month_table(links, queries.by_month(report, filters, keys), totals, keys)
+    title = f"GL account {gl}: {name}" if name else f"GL account {gl}"
+    return Screen(title, f"gl/{gl}", [budget, centers, months], totals.lines)
+
+
+def gl_cost_centers_table(
+    report: Report, filters: Filters, gl: str, totals: queries.Totals
+) -> Table:
+    """A GL account's spend by cost center and department (Q4)."""
+    links = Links(report, filters)
+    keys = Keys(gl=gl)
     columns = [
         Column("Cost center", "code"),
         Column("Name", "text"),
@@ -367,16 +488,13 @@ def gl_account(report: Report, filters: Filters, gl: str) -> Screen:
         ]
         for c in queries.by_cost_center(report, filters, keys)
     ]
-    centers = Table(
+    return Table(
         "Cost centers",
         "Cost centers",
         columns,
         rows,
         total_row(columns, totals.total, totals.lines, links.rows(keys)),
     )
-    months = month_table(links, queries.by_month(report, filters, keys), totals, keys)
-    title = f"GL account {gl}: {name}" if name else f"GL account {gl}"
-    return Screen(title, f"gl/{gl}", [budget, centers, months], totals.lines)
 
 
 GROUP_COLUMNS = [
@@ -391,8 +509,16 @@ def departments(report: Report, filters: Filters) -> Screen:
     """Each department's actual spend, share and lines, with No department
     and Outside IDS as rows of their own.
     """
-    links = Links(report, filters)
     totals = queries.totals(report, filters)
+    table = departments_table(report, filters, totals)
+    return Screen("Departments", "departments", [table], totals.lines)
+
+
+def departments_table(
+    report: Report, filters: Filters, totals: queries.Totals
+) -> Table:
+    """The departments screen's table, pictured as bars (Q5)."""
+    links = Links(report, filters)
     columns = [Column("Department", "code"), *GROUP_COLUMNS]
     rows = [
         [
@@ -410,7 +536,10 @@ def departments(report: Report, filters: Filters) -> Screen:
         rows,
         total_row(columns, totals.total, totals.lines, links.rows()),
     )
-    return Screen("Departments", "departments", [table], totals.lines)
+    table.charts.append(
+        picture(table, "chart-departments", "bars", "Spend by department", 0, 2, 1)
+    )
+    return table
 
 
 def department_title(key: str, name: str) -> str:
@@ -429,28 +558,7 @@ def department(report: Report, filters: Filters, key: str) -> Screen:
     links = Links(report, filters)
     keys = Keys(dept=key)
     totals = queries.totals(report, filters, keys)
-    columns = [
-        Column("GL account", "code"),
-        Column("Name", "text"),
-        Column("Actual spend", "amount"),
-        Column("Lines", "count"),
-    ]
-    rows = [
-        [
-            code(g.key, links.gl(g.key)),
-            text(g.name),
-            amount(g.amount, links.rows(Keys(dept=key, gl=g.key))),
-            count(g.lines),
-        ]
-        for g in queries.highest_first(queries.by_gl_account(report, filters, keys))
-    ]
-    gls = Table(
-        "GL accounts",
-        "GL accounts",
-        columns,
-        rows,
-        total_row(columns, totals.total, totals.lines, links.rows(keys)),
-    )
+    gls = department_gl_table(report, filters, key, totals)
     columns = [
         Column("Cost center", "code"),
         Column("Name", "text"),
@@ -480,6 +588,36 @@ def department(report: Report, filters: Filters, key: str) -> Screen:
         f"departments/{key}",
         [gls, centers, months],
         totals.lines,
+    )
+
+
+def department_gl_table(
+    report: Report, filters: Filters, key: str, totals: queries.Totals
+) -> Table:
+    """A department's spend by GL account (Q6)."""
+    links = Links(report, filters)
+    keys = Keys(dept=key)
+    columns = [
+        Column("GL account", "code"),
+        Column("Name", "text"),
+        Column("Actual spend", "amount"),
+        Column("Lines", "count"),
+    ]
+    rows = [
+        [
+            code(g.key, links.gl(g.key)),
+            text(g.name),
+            amount(g.amount, links.rows(Keys(dept=key, gl=g.key))),
+            count(g.lines),
+        ]
+        for g in queries.highest_first(queries.by_gl_account(report, filters, keys))
+    ]
+    return Table(
+        "GL accounts",
+        "GL accounts",
+        columns,
+        rows,
+        total_row(columns, totals.total, totals.lines, links.rows(keys)),
     )
 
 
@@ -648,6 +786,56 @@ def exceptions(report: Report, filters: Filters) -> Screen:
     """
     chosen = Filters(year=filters.year)
     links = Links(report, chosen)
+    tables, _ = unmatched_tables(report, chosen)
+    for spec, title, sheet, what, empty in (
+        (
+            queries.GL_MAP,
+            "Budget-line changes between files",
+            "Budget-line changes",
+            ("GL account", "Commitment item"),
+            "No commitment item",
+        ),
+        (
+            queries.CC_MAP,
+            "Department changes between files",
+            "Department changes",
+            ("Cost center", "Department"),
+            queries.NO_DEPARTMENT,
+        ),
+    ):
+        tables.append(
+            change_table(report, links, chosen, spec, title, sheet, what, empty)
+        )
+    tables.append(skipped_table(report))
+    return Screen(
+        "Exceptions",
+        "exceptions",
+        tables,
+        notes=[
+            "The year filter applies to the first three lists, and to the spend "
+            "in the changes between files. The changes and the skipped rows have "
+            "no posting date, so they're listed for every committed upload, "
+            "whatever the year.",
+            OUTSIDE_NOTE,
+        ],
+        outside_applies=False,
+    )
+
+
+OUTSIDE_NOTE = (
+    "The outside IDS filter doesn't apply here, since excluding outside IDS "
+    "would empty its own list."
+)
+
+
+def unmatched_tables(
+    report: Report, chosen: Filters
+) -> tuple[list[Table], queries.UnmatchedTotals]:
+    """The lists of GL accounts with no budget line, cost centers outside IDS
+    and cost centers with no department, and their totals (ENG-03 8, Q8).
+    chosen never excludes outside IDS, so each list's links add up.
+    """
+    links = Links(report, chosen)
     unmatched = queries.unmatched_totals(report, chosen)
 
     columns = [
@@ -721,41 +909,7 @@ def exceptions(report: Report, filters: Filters) -> Screen:
         total_row(columns, unmatched.no_department, None, links.rows(Keys(dept=NONE))),
     )
 
-    tables = [no_ci, outside, no_dept]
-    for spec, title, sheet, what, empty in (
-        (
-            queries.GL_MAP,
-            "Budget-line changes between files",
-            "Budget-line changes",
-            ("GL account", "Commitment item"),
-            "No commitment item",
-        ),
-        (
-            queries.CC_MAP,
-            "Department changes between files",
-            "Department changes",
-            ("Cost center", "Department"),
-            queries.NO_DEPARTMENT,
-        ),
-    ):
-        tables.append(
-            change_table(report, links, chosen, spec, title, sheet, what, empty)
-        )
-    tables.append(skipped_table(report))
-    return Screen(
-        "Exceptions",
-        "exceptions",
-        tables,
-        notes=[
-            "The year filter applies to the first three lists, and to the spend "
-            "in the changes between files. The changes and the skipped rows have "
-            "no posting date, so they're listed for every committed upload, "
-            "whatever the year.",
-            "The outside IDS filter doesn't apply on this screen, since excluding "
-            "outside IDS would empty its own list.",
-        ],
-        outside_applies=False,
-    )
+    return [no_ci, outside, no_dept], unmatched
 
 
 def change_table(

@@ -203,7 +203,8 @@ def test_lists_run_highest_first_with_the_catch_alls_last(
     Outside IDS last whatever its amount (ENG-03 4).
     """
     page = text(get(client, "departments", sample_report))
-    order = [m for m in re.findall(r">(APP|INF|SEC|GOV|Outside IDS)<", page)]
+    body = re.search(r"<tbody>(.*?)</tbody>", page, re.S)[1]
+    order = [m for m in re.findall(r">(APP|INF|SEC|GOV|Outside IDS)<", body)]
     assert order == ["APP", "INF", "SEC", "GOV", "Outside IDS"]
     # A catch-all has no code, so its name links to its screen.
     outside = reverse("department", args=[sample_report.pk, "outside"])
@@ -458,7 +459,8 @@ def test_an_htmx_request_gets_the_panel_with_the_new_filters(
             headers={"HX-Request": "true"},
         )
     )
-    assert "<html" not in panel and "<form" not in panel
+    assert "<html" not in panel
+    assert '<option value="2026" selected>2026</option>' in panel
     assert "Year: 2026. Outside IDS: included." in panel
     assert all("year=2026" in url for url, _ in ROWS_LINK.findall(panel))
 

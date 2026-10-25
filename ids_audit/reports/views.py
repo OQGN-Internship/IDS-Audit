@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
 from django.db.models.functions import Lower
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from ids_audit.accounts.access import (
@@ -26,8 +26,8 @@ from ids_audit.accounts.access import (
 )
 from ids_audit.accounts.middleware import is_htmx
 from ids_audit.imports.services import create_report
+from ids_audit.reports import faq, queries, screens
 from ids_audit.reports import filters as addresses
-from ids_audit.reports import queries, screens
 from ids_audit.reports.models import Report
 from ids_audit.reports.queries import NONE, OUTSIDE, Filters
 
@@ -123,6 +123,7 @@ def show(
         "years": years,
         "can_upload": allowed(request.user, report, UPLOAD),
         "can_export": allowed(request.user, report, VIEW, EXPORT),
+        "has_charts": bool(screen) and any(t.charts for t in screen.tables),
     }
     template = "reports/_panel.html" if panel_only(request) else "reports/screen.html"
     return render(request, template, context)
@@ -241,4 +242,36 @@ def exceptions(request, report: Report):
         filters,
         "Exceptions",
         lambda: screens.exceptions(report, filters),
+    )
+
+
+@report_permission(VIEW)
+def faq_index(request, report: Report):
+    """The FAQ questions in order, each linking to its page (ENG-03 7.1)."""
+    addresses.read(request.GET)
+    return render(
+        request, "reports/faq_index.html", {"report": report, "entries": faq.ENTRIES}
+    )
+
+
+@report_permission(VIEW)
+def faq_page(request, report: Report, slug: str):
+    """One FAQ page. Pages 4 and 6 take their pick, gl or dept, in the
+    address, and show the largest without one (ENG-03 7.2).
+    """
+    entry = faq.BY_SLUG.get(slug)
+    if entry is None:
+        raise Http404("There's no such question.")
+    values = addresses.read(request.GET, (entry.pick,) if entry.pick else ())
+    filters = addresses.filters_from(values)
+    pick = values.get(entry.pick) if entry.pick else None
+    if pick is not None:
+        catch_alls = (NONE, OUTSIDE) if entry.pick == "dept" else ()
+        pick = addresses.code(pick, catch_alls)
+    return show(
+        request,
+        report,
+        filters,
+        entry.question,
+        lambda: faq.page(report, filters, entry, pick),
     )

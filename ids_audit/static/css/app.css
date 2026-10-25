@@ -11,6 +11,10 @@
   --bad-band: #fbeceb;
   --good: #1f6b3a;
   --good-band: #e9f5ed;
+  /* Chart colours, which charts.js reads (ENG-03 5). */
+  --chart-bar: #4a7bb7;
+  --chart-line: #0b5cad;
+  --chart-outside: #c06a2b;
 }
 
 * { box-sizing: border-box; }
@@ -119,3 +123,14 @@ td.share, th.share, td.count, th.count, td.exact, th.exact {
 td.code, td.date { white-space: nowrap; }
 tfoot tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
 .pager { display: flex; gap: 1rem; }
+
+/* Charts and FAQ pages (ENG-03 5 and 7). */
+.chart-box { margin: 0.4rem 0 1rem; }
+.chart-box figcaption { color: var(--muted); font-size: 0.9rem; }
+.chart { height: 22rem; max-width: 56rem; }
+.legend { margin: 0.2rem 0; font-size: 0.9rem; color: var(--muted); }
+.swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-right: 0.4rem; border-radius: 2px; vertical-align: -0.1rem; }
+.swatch.outside { background: var(--chart-outside); }
+.answer { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0; }
+.counted { color: var(--muted); }
+.questions li { margin: 0.3rem 0; }

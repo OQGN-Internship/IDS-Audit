@@ -697,6 +697,8 @@ def addresses(report: Report) -> list[tuple[str, str]]:
         ("get", reverse("budget_line", args=[*base, "none"])),
         ("get", reverse("rows", args=base)),
         ("get", reverse("exceptions", args=base)),
+        ("get", reverse("faq", args=base)),
+        ("get", reverse("faq_page", args=[*base, "total-spend"])),
         ("get", reverse("uploads", args=base)),
         ("get", reverse("new_upload", args=base)),
         ("get", reverse("upload", args=one)),

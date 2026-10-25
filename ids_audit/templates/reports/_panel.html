@@ -1,5 +1,28 @@
 {% load figures %}
-{# Everything the filters change is in this panel, so nothing keeps the old filters after a change (ENG-03 4). #}
+{# Everything the filters change is in this panel, the form included, so nothing keeps the old filters after a change (ENG-03 4). Changing a field swaps the panel and updates the address (ENG-01 5.2). Without JavaScript, Show loads the page. #}
+<form method="get" action="{{ request.path }}" class="filters" hx-get="{{ request.path }}" hx-target="#panel" hx-push-url="true" hx-trigger="change">
+  {% for key, value in hidden.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  {% if screen.picker %}
+    <label>{{ screen.picker.label }}
+      <select name="{{ screen.picker.key }}">
+        {% for value, label in screen.picker.options %}<option value="{{ value }}"{% if value == screen.picker.chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+  {% endif %}
+  <label>Year
+    <select name="year">
+      <option value="all">All years</option>
+      {% for year in years %}<option value="{{ year }}"{% if filters.year == year %} selected{% endif %}>{{ year }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Outside IDS
+    <select name="exclude_outside">
+      <option value="0">Included</option>
+      <option value="1"{% if filters.exclude_outside %} selected{% endif %}>Excluded</option>
+    </select>
+  </label>
+  <button type="submit" class="quiet">Show</button>
+</form>
 <p class="filter-line">{{ filter_line }}</p>
 {% if latest %}
   <p class="as-of">Figures as of upload {{ latest.number }}, {{ latest.original_name }}, approved by {{ latest.decided_by }} on {{ latest.decided_at|moment }}.</p>
@@ -10,7 +33,10 @@
 {% elif screen.lines == 0 %}
   <p class="empty">No actual spend for these filters.</p>
 {% else %}
+  {% if screen.answer %}<p class="answer">{{ screen.answer }}</p>{% endif %}
   {% for note in screen.notes %}<p class="hint">{{ note }}</p>{% endfor %}
   {% for table in screen.tables %}{% include "reports/_table.html" %}{% endfor %}
   {% if screen.pager %}<p class="pager">{% for label, url in screen.pager %}<a href="{{ url }}">{{ label }}</a>{% endfor %}</p>{% endif %}
+  {% if screen.counted %}<p class="counted">{{ screen.counted }}</p>{% endif %}
+  {% if screen.check %}<h2>How to check it by hand</h2><p>{{ screen.check }}</p>{% endif %}
 {% endif %}

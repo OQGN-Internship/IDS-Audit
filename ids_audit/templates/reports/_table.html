@@ -1,5 +1,14 @@
 {% load figures %}
 <h2>{{ table.title }}</h2>
+{% for chart in table.charts %}
+  {# The chart's data, which charts.js reads with JSON.parse, never as code (ENG-03 5). #}
+  {{ chart.points|json_script:chart.id }}
+  <figure class="chart-box">
+    <figcaption>{{ chart.title }}</figcaption>
+    <div class="chart {{ chart.kind }}" data-chart="{{ chart.id }}" data-kind="{{ chart.kind }}"></div>
+    {% if chart.has_outside %}<p class="legend"><span class="swatch outside"></span>Outside IDS</p>{% endif %}
+  </figure>
+{% endfor %}
 {% if table.rows %}
   <div class="table-wrap">
   <table class="figures-table">

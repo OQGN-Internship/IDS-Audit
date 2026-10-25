@@ -25,4 +25,6 @@ urlpatterns = [
     ),
     path("<int:report_id>/rows", views.source_rows, name="rows"),
     path("<int:report_id>/exceptions", views.exceptions, name="exceptions"),
+    path("<int:report_id>/faq", views.faq_index, name="faq"),
+    path("<int:report_id>/faq/<slug:slug>", views.faq_page, name="faq_page"),
 ]

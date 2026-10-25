@@ -6,6 +6,7 @@
   <title>{% block title %}IDS Spend Audit{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/htmx-2.0.4.min.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
 </head>
 {# Every HTMX request carries the CSRF token in a header (ENG-01 6.4). #}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
@@ -29,6 +30,7 @@
       <a href="{% url 'departments' report.pk %}">Departments</a>
       <a href="{% url 'budget_lines' report.pk %}">Budget lines</a>
       <a href="{% url 'exceptions' report.pk %}">Exceptions</a>
+      <a href="{% url 'faq' report.pk %}">FAQ</a>
       <a href="{% url 'uploads' report.pk %}">Uploads</a>
     </nav>
   {% endif %}
