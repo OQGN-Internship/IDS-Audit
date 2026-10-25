@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}IDS Spend Audit{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'js/htmx-2.0.4.min.js' %}" defer></script>
 </head>
-<body>
+{# Every HTMX request carries the CSRF token in a header (ENG-01 6.4). #}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <header class="top">
     <a class="brand" href="{% url 'home' %}">IDS Spend Audit</a>
     {% if user.is_authenticated %}
+      <a href="{% url 'reports' %}">Reports</a>
       <span class="who">{{ user }}</span>
       <form method="post" action="{% url 'sign_out' %}" class="inline">
         {% csrf_token %}

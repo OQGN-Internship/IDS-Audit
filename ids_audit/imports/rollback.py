@@ -40,23 +40,7 @@ def roll_back_upload(upload: Upload, user: User, reason: str) -> Upload:
     # So a read that was interrupted doesn't count as an open upload.
     fail_interrupted_reads(upload.report)
     with transaction.atomic():
-        # Locks the report's row, as a commit and a new file do, so neither
-        # can change the order of commits meanwhile.
-        report = Report.objects.select_for_update().get(pk=upload.report_id)
-        still_open = open_upload(report)
-        if still_open is not None:
-            raise RollbackRefused(
-                f"Upload {still_open.number} is still open "
-                f"({still_open.get_status_display().lower()}). A rollback waits "
-                "until it's approved, rejected or withdrawn."
-            )
-        upload = lock_upload(upload, Status.COMMITTED)
-        latest = latest_committed(report)
-        if latest.pk != upload.pk:
-            raise RollbackRefused(
-                f"Only upload {latest.number}, the most recently approved, can be "
-                "rolled back. Roll back the newer uploads first, newest first."
-            )
+        upload = locked_for_rollback(upload)
         upload.rolled_back_by = user
         upload.rolled_back_at = timezone.now()
         move(
@@ -67,6 +51,43 @@ def roll_back_upload(upload: Upload, user: User, reason: str) -> Upload:
             {"reason": reason},
         )
     return upload
+
+
+def locked_for_rollback(upload: Upload) -> Upload:
+    """Lock the report's row and the upload's, and return the upload as
+    stored, refusing a rollback that can't happen now (ENG-02 10.3). Must run
+    inside a transaction.
+
+    The report's row is locked as a commit and a new file lock it, so neither
+    can change the order of commits meanwhile.
+    """
+    report = Report.objects.select_for_update().get(pk=upload.report_id)
+    still_open = open_upload(report)
+    if still_open is not None:
+        raise RollbackRefused(
+            f"Upload {still_open.number} is still open "
+            f"({still_open.get_status_display().lower()}). A rollback waits "
+            "until it's approved, rejected or withdrawn."
+        )
+    upload = lock_upload(upload, Status.COMMITTED)
+    latest = latest_committed(report)
+    if latest.pk != upload.pk:
+        raise RollbackRefused(
+            f"Only upload {latest.number}, the most recently approved, can be "
+            "rolled back. Roll back the newer uploads first, newest first."
+        )
+    return upload
+
+
+def check_rollback(upload: Upload) -> None:
+    """Refuse, as roll_back_upload would, a rollback that can't happen now,
+    so the confirmation screen says why before anyone is asked to confirm
+    (ENG-02 10.3). Nothing changes, except that an interrupted read is
+    cleared first, as the rollback itself does.
+    """
+    fail_interrupted_reads(upload.report)
+    with transaction.atomic():
+        locked_for_rollback(upload)
 
 
 def latest_committed(report: Report) -> Upload | None:

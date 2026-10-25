@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load figures %}
+{% block title %}Reports · IDS Spend Audit{% endblock %}
+{% block content %}
+<h1>Reports</h1>
+{% if can_create %}<p><a href="{% url 'new_report' %}">New report</a></p>{% endif %}
+{% if reports %}
+  <table>
+    <thead><tr><th>Report</th><th>Created by</th><th>Created</th></tr></thead>
+    <tbody>
+      {% for report in reports %}
+        <tr>
+          <td><a href="{% url 'uploads' report.pk %}">{{ report.name }}</a></td>
+          <td>{{ report.created_by }}</td>
+          <td>{{ report.created_at|moment }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>There are no reports you can open.</p>
+{% endif %}
+{% endblock %}

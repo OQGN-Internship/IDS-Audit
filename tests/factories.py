@@ -17,7 +17,8 @@ FIRST_COMMIT = datetime.datetime(2026, 7, 1, 9, 0, tzinfo=datetime.UTC)
 
 
 def make_user(fixed_admin: bool = True) -> User:
-    """A new user, with a username no other test user has.
+    """A new user, with a username no other test user has, who has already
+    chosen their own password.
 
     A fixed administrator unless fixed_admin is False, since until Phase 4
     adds roles nobody else can act on a report (ENG-01 6.2).
@@ -27,6 +28,7 @@ def make_user(fixed_admin: bool = True) -> User:
         username=f"user{number}",
         full_name=f"Test User {number}",
         is_fixed_admin=fixed_admin,
+        must_change_password=False,
     )
 
 

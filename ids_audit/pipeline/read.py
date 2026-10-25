@@ -27,10 +27,12 @@ from ids_audit.pipeline.cleaning import (
 from ids_audit.pipeline.columns import (
     CC_MAP,
     GL_MAP,
+    HEADER_SEARCH_ROWS,
     SPEND,
     Choice,
     Layout,
     find_layouts,
+    header_text,
 )
 from ids_audit.pipeline.formats import TEXT, detect_format
 from ids_audit.pipeline.mappings import (
@@ -60,6 +62,7 @@ from ids_audit.pipeline.results import (
     OtherRow,
     ReadResult,
     SkippedRow,
+    raw_values,
     repeats_row,
 )
 
@@ -381,4 +384,47 @@ def add_entry(
             sheet=clean.sheet,
             row_number=clean.row_number,
         )
+    )
+
+
+@dataclass(frozen=True)
+class SheetRows:
+    """A sheet's header row and the rows after it, for picking columns
+    (ENG-02 4.5). Each row is its number and its cells as text, every row as
+    wide as the widest.
+    """
+
+    header_row: int
+    rows: tuple[tuple[int, tuple[str, ...]], ...]
+
+
+def first_rows(
+    data: bytes, sheet: str, header: Sequence[str], count: int = 5
+) -> SheetRows:
+    """Return the header row of the named sheet and the count rows after it.
+
+    The header row is the first of the sheet's first 25 rows whose text is
+    exactly header, as the column problems keep it, or row 1 if none is. A
+    delimited text file's one sheet is named "".
+    """
+    sheets = read_sheets(data, detect_format(data))
+    found = next((s for s in sheets if s.name == sheet), None)
+    if found is None:
+        raise ValueError(f"The file has no sheet named {sheet!r}.")
+    start = next(
+        (
+            index
+            for index, row in enumerate(found.rows[:HEADER_SEARCH_ROWS])
+            if header_text(row) == tuple(header)
+        ),
+        0,
+    )
+    texts = [raw_values(row) for row in found.rows[start : start + count + 1]]
+    width = max((len(cells) for cells in texts), default=0)
+    return SheetRows(
+        start + 1,
+        tuple(
+            (start + 1 + offset, tuple(cells + [""] * (width - len(cells))))
+            for offset, cells in enumerate(texts)
+        ),
     )

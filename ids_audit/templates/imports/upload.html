@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load figures %}
+{% block title %}Upload {{ upload.number }} · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / <a href="{% url 'uploads' report.pk %}">{{ report.name }}</a></p>
+<h1>Upload {{ upload.number }}: {{ upload.original_name }}</h1>
+
+<table class="facts">
+  <tr><th>State</th><td><span class="state">{{ upload.get_status_display }}</span></td></tr>
+  <tr><th>File</th><td>{{ upload.original_name }}, {{ upload.size_bytes }} bytes. SHA-256 {{ upload.file_sha256 }}</td></tr>
+  <tr><th>Uploaded</th><td>By {{ upload.uploaded_by }} on {{ upload.uploaded_at|moment }}, read with ruleset version {{ upload.ruleset.version }}</td></tr>
+  {% if upload.decided_by %}
+    <tr>
+      <th>{% if upload.status == "committed" or upload.status == "rolled_back" %}Approved{% else %}{{ closing.label }}{% endif %}</th>
+      <td>By {{ upload.decided_by }} on {{ upload.decided_at|moment }}{% if upload.status == "rejected" %}. Reason: {{ closing.reason }}{% endif %}</td>
+    </tr>
+  {% endif %}
+  {% if upload.rolled_back_by %}
+    <tr><th>Rolled back</th><td>By {{ upload.rolled_back_by }} on {{ upload.rolled_back_at|moment }}. Reason: {{ closing.reason }}</td></tr>
+  {% endif %}
+  {% if upload.error %}<tr><th>Error</th><td class="error">{{ upload.error }}</td></tr>{% endif %}
+</table>
+
+{% if problems %}
+  <h2>Columns to pick</h2>
+  <ul>{% for problem in problems %}<li>{{ problem.text }}</li>{% endfor %}</ul>
+{% endif %}
+
+{% if can_approve or can_reject or can_withdraw or can_pick or can_roll_back %}
+<h2>Actions</h2>
+<div class="actions">
+  {% if can_pick %}
+    <p><a href="{% url 'columns' report.pk upload.number %}">Pick the columns</a></p>
+  {% endif %}
+  {% if can_approve %}
+    <form method="post" action="{% url 'approve' report.pk upload.number %}">
+      {% csrf_token %}
+      {% if blocking %}
+        <p class="error">Approval is blocked by: {{ blocking|join:", " }}. Approving is refused, and the attempt is kept in the audit log.</p>
+      {% endif %}
+      {% if first_upload %}
+        <fieldset>
+          <legend>Duplicate mode for this report, fixed by this approval</legend>
+          <label><input type="radio" name="duplicate_mode" value="replace_by_period" checked> Replace by period: postings in this file's months replace those already in the report</label>
+          <label><input type="radio" name="duplicate_mode" value="line_key"{% if not preview.line_key_offered %} disabled{% endif %}> Line key: only lines not already in the report are added</label>
+          {% if not preview.line_key_offered %}<p class="hint">Line key isn't offered: some rows have no company code, fiscal year, document number or line item.</p>{% endif %}
+        </fieldset>
+      {% endif %}
+      <button type="submit">Approve upload {{ upload.number }}</button>
+    </form>
+  {% endif %}
+  {% if can_reject %}
+    <form method="post" action="{% url 'reject' report.pk upload.number %}">
+      {% csrf_token %}
+      <label for="reject-reason">Reason for rejecting</label>
+      <textarea id="reject-reason" name="reason" rows="2"></textarea>
+      <button type="submit" class="danger">Reject upload {{ upload.number }}</button>
+    </form>
+  {% endif %}
+  {% if can_withdraw %}
+    <form method="post" action="{% url 'withdraw' report.pk upload.number %}">
+      {% csrf_token %}
+      <label for="withdraw-reason">Reason for withdrawing</label>
+      <textarea id="withdraw-reason" name="reason" rows="2"></textarea>
+      <button type="submit" class="quiet">Withdraw upload {{ upload.number }}</button>
+    </form>
+  {% endif %}
+  {% if can_roll_back %}
+    <p><a href="{% url 'roll_back' report.pk upload.number %}">Roll back upload {{ upload.number }}</a></p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if preview %}{% include "imports/_preview.html" %}{% endif %}
+{% endblock %}

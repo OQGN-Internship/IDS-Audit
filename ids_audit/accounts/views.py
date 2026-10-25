@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import transaction
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 
@@ -68,5 +68,5 @@ def locked_out(request, original_response=None, credentials=None):
 
 
 def home(request):
-    """The page a user lands on once signed in."""
-    return render(request, "home.html")
+    """The page a user lands on once signed in: the report list."""
+    return redirect("reports")

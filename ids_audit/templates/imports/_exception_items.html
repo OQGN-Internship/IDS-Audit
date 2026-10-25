@@ -1,0 +1,21 @@
+{% load figures %}
+<table class="items">
+  <thead>
+    <tr>
+      {% for column in columns %}<th{% if column.is_amount %} class="amount"{% endif %}>{{ column.heading }}</th>{% endfor %}
+      <th>Rows in the file</th>
+      <th class="amount">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+      <tr>
+        {% for cell in item.cells %}
+          {% if cell.is_amount %}<td class="amount">{{ cell.value|amount }}</td>{% else %}<td>{{ cell.value }}</td>{% endif %}
+        {% endfor %}
+        <td>{{ item.rows|places }}</td>
+        <td class="amount">{{ item.amount|amount }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

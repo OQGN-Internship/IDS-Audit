@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load figures %}
+{% block title %}Uploads · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / {{ report.name }}</p>
+<h1>Uploads</h1>
+{% if can_upload %}<p><a href="{% url 'new_upload' report.pk %}">Upload a file</a></p>{% endif %}
+{% if uploads %}
+  <table>
+    <thead>
+      <tr><th>Upload</th><th>File</th><th>State</th><th>Uploaded</th><th>Decided</th></tr>
+    </thead>
+    <tbody>
+      {% for upload in uploads %}
+        <tr>
+          <td><a href="{% url 'upload' report.pk upload.number %}">Upload {{ upload.number }}</a></td>
+          <td>{{ upload.original_name }}</td>
+          <td><span class="state">{{ upload.get_status_display }}</span></td>
+          <td>{{ upload.uploaded_by }}<br>{{ upload.uploaded_at|moment }}</td>
+          <td>{% if upload.decided_by %}{{ upload.decided_by }}<br>{{ upload.decided_at|moment }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No uploads yet.</p>
+{% endif %}
+{% endblock %}
