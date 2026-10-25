@@ -92,7 +92,7 @@ Each report has a **ruleset**: the settings that decide how its files are read a
 
 | Setting | What it decides | Form | Version 1 |
 | --- | --- | --- | --- |
-| `header_names` | The header names recognised for each field (Section 4) | An object from each field's key to its list of header names (4.4) | The built-in list in 4.4 |
+| `header_names` | The header names recognised for each field (Section 4) | An object from each field's key to its list of header names (4.4). Each name holds a letter or a digit, and no name, once cleaned up as in 4.4, is under two fields, since a column would then match both | The built-in list in 4.4 |
 | `actual_spend_rule` | Which value-type values count as actual spend, and which don't | `null`, or an object with two lists of value-type values, such as `{"actual": ["Actual"], "not_actual": ["Commitment"]}`. With an object, a row is actual spend when its value type matches a value in `actual`, isn't when it matches one in `not_actual`, and is unclassified when it matches neither (Section 5). The value-type column is then required (4.4). No value may be in both lists | `null`: every row counts, whether or not the file has a value-type column. This is the plan's default |
 | `date_order` | How a date such as `03.04.2026` is read | `"day_first"` or `"month_first"`. A `yyyy-mm-dd` date is always read as written (Section 5) | `"day_first"`: 3 April 2026 |
 | `decimal_separator` | Which character separates the decimals in an amount written as text (Section 5) | `"."` or `","` | `"."`: `12,400.000` is twelve thousand four hundred |
@@ -114,6 +114,7 @@ The first five settings act while a file is read, so their effect is stored in i
 - To apply new rules to old data, create a new report and upload the files again.
 - Every change writes a `ruleset_changed` audit event (ENG-01, 6.3).
 - A change that leaves every setting as it was is refused, so no version repeats the one before it.
+- The report's row is locked while a change is checked and written, as it is while a file is received (ENG-01, 5.1), so no upload can open during a change to `outside_ids_rule` or `mapping_rule`.
 
 **From the command line.** A ruleset is changed with `manage.py change_ruleset <report> --by <username>`, run as the fixed administrators' commands are (ENG-01, 6.1). `<report>` is the report's name, matched ignoring case, and `--by` names the active fixed administrator making the change, whom the new version and its event record. Anyone else is refused. The command reads a JSON object from standard input, holding only the settings that change, such as `{"date_order": "month_first"}`. Each setting given replaces the latest version's whole, except `header_names`, where each field given replaces that field's list and the other fields keep theirs, so adding a header name needs only that field. The command prints the new version's number. `manage.py show_ruleset <report>` prints the latest version's number and settings as JSON, so a change can be written from it. A screen was the alternative, and isn't built: a change is rare, made with the validator when the real export needs one (Section 13), and a JSON object is the plainest way to write header names and the actual-spend rule.
 
@@ -128,6 +129,8 @@ The first five settings act while a file is read, so their effect is stored in i
 - A user who isn't a fixed administrator is refused when changing a ruleset, and so is a disabled one.
 - A change naming one field of `header_names` changes only that field's list, and writes one `ruleset_changed` event with the new version and each setting changed, before and after. A change that changes nothing, or names a setting that doesn't exist, is refused and writes nothing.
 - `show_ruleset` prints the latest version, and `change_ruleset` reads its change from standard input.
+- A change to `mapping_rule` made while a file is being received waits for it, and is then refused.
+- A header name under two fields, or with no letter or digit, is refused.
 
 ## 4. Reading the file
 
