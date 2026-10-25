@@ -11,6 +11,16 @@ from tests.factories import make_upload
 GRANTS_SQL = Path(__file__).resolve().parents[1] / "sql" / "grants.sql"
 
 
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Run the browser tests last, keeping every other test's order.
+
+    Playwright keeps an event loop running in the main thread from its first
+    test to the end of the session, and Django refuses database work in a
+    thread with one, so a database test after it would fail.
+    """
+    items.sort(key=lambda item: "page" in getattr(item, "fixturenames", ()))
+
+
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_setup, django_db_blocker) -> None:
     """Apply sql/grants.sql to the test database, once it's migrated.
