@@ -58,10 +58,6 @@ VALUE_TYPE_CLASSES = {
     "unclassified": "Unclassified",
 }
 
-Status = Upload.Status
-# The states whose upload has been read in full, so it has a preview.
-READ = (Status.AWAITING_APPROVAL, Status.COMMITTED, Status.ROLLED_BACK)
-
 
 @dataclass(frozen=True)
 class Column:
@@ -106,7 +102,10 @@ def item_rows(exception: dict) -> list[dict]:
     return [
         {
             "cells": [
-                {"value": item.get(c.key) if c.is_amount else cell(item, c), **vars(c)}
+                {
+                    "value": item.get(c.key) if c.is_amount else cell(item, c),
+                    "is_amount": c.is_amount,
+                }
                 for c in columns
             ],
             "rows": item["rows"],
@@ -118,7 +117,7 @@ def item_rows(exception: dict) -> list[dict]:
 
 def exception_summary(preview: dict) -> list[dict]:
     """Return each exception in the preview with its name and row count, in
-    ENG-02 11.2's order (ENG-02 11.2).
+    ENG-02 11.2's order.
     """
     return [
         {
