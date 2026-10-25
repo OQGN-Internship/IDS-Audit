@@ -38,6 +38,14 @@ def moment(value: datetime.datetime | None) -> str:
 
 
 @register.filter
+def stamp(value: datetime.datetime | None) -> str:
+    """Write a time to the second in Muscat time, as the audit log shows it,
+    since several events can share a minute: 03.04.2026 14:05:31.
+    """
+    return "" if value is None else f"{timezone.localtime(value):%d.%m.%Y %H:%M:%S}"
+
+
+@register.filter
 def month(value: str) -> str:
     """Write a month kept as 2026-03 as Mar 2026 (ENG-03 2.3)."""
     return f"{datetime.date.fromisoformat(value + '-01'):%b %Y}"

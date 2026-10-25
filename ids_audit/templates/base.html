@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static access %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -35,6 +35,7 @@
       <a href="{% url 'exceptions' report.pk %}">Exceptions</a>
       <a href="{% url 'faq' report.pk %}">FAQ</a>
       <a href="{% url 'uploads' report.pk %}">Uploads</a>
+      {% may "view_audit_log" as can_see_log %}{% if can_see_log %}<a href="{% url 'audit' report.pk %}">Audit log</a>{% endif %}
     </nav>
   {% endif %}
   <main>

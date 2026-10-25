@@ -135,3 +135,7 @@ tfoot tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
 .counted { color: var(--muted); }
 .questions li { margin: 0.3rem 0; }
 .export { margin: 0.4rem 0; }
+
+/* The audit log (ENG-03 4). */
+table.log td { font-size: 0.9rem; }
+.detail { display: block; overflow-wrap: anywhere; }

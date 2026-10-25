@@ -45,6 +45,7 @@ EXPORT = Needs(("view", "export"))
 UPLOAD = Needs(("upload",))
 APPROVE = Needs(("approve",))
 ROLL_BACK = Needs(("roll_back",))
+AUDIT_LOG = Needs(("view_audit_log",))
 # An upload never committed, and its exception items (ENG-03 4).
 OPEN_PREVIEW = Needs(("view",), any_of=("upload", "approve"))
 AS_UPLOADER = Needs(("upload",), uploader=True)
@@ -102,6 +103,7 @@ def addresses(report: Report, kind: str) -> list[tuple[str, str, Needs]]:
         ("post", reverse("columns", args=waiting), AS_UPLOADER),
         ("get", reverse("roll_back", args=done), ROLL_BACK),
         ("post", reverse("roll_back", args=done), ROLL_BACK),
+        ("get", reverse("audit", args=base), AUDIT_LOG),
     ]
     return found
 
