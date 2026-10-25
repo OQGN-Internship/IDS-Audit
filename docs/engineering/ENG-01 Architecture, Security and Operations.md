@@ -50,7 +50,7 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | Password hashing | Argon2, through argon2-cffi | Pinned | Django's recommended hasher | PBKDF2, Django's default |
 | Settings file | python-dotenv | Pinned | Django reads `.env` itself when it runs outside Docker, so `manage.py`, pytest and the editor's test button all see the same settings (7.5) | uv's `--env-file` option, which every command would have to repeat, and which stops with an error when `.env` is missing |
 | Packaging | Docker Compose | Current | One command starts the application and database the same way on any machine | Installing Python and PostgreSQL by hand |
-| Development tools | uv, ruff, pytest, pytest-django, Hypothesis, Playwright | Pinned | Locked dependencies, linting, and unit, property and browser tests | None |
+| Development tools | uv, ruff, pytest, pytest-django, Hypothesis, Playwright, time-machine | Pinned | Locked dependencies, linting, and unit, property and browser tests. time-machine moves the clock for the tests of lock-outs, idle sessions and interrupted reads, for Django and django-axes alike, so no test waits | freezegun, which is slower because it patches every loaded module. Mocking `timezone.now`, which misses code that reads the clock another way |
 
 **Optional components.** Each is added only when its trigger happens.
 
@@ -167,29 +167,32 @@ The application uses a custom user model from its first migration, as Django rec
 | --- | --- |
 | Own accounts, created only by administrators | There is no sign-up page. Accounts are created in the administration screens at `/admin/`, which only fixed administrators can open |
 | Username and password, stored hashed | Django sign-in, with Argon2 as the first entry in `PASSWORD_HASHERS` |
-| Passwords of at least 12 characters | Django's password validators: minimum length 12, plus the common-password, all-numeric and similar-to-username checks |
-| New users change their temporary password at first sign-in | Creating a user requires a temporary password and turns on `must_change_password`. Until the user changes it, every page redirects to the change-password page |
+| Passwords of at least 12 characters | Django's password validators: minimum length 12, plus the common-password, all-numeric and similar-to-username checks. The last compares the password with the username, the full name and the email |
+| New users change their temporary password at first sign-in | Creating a user requires a temporary password and turns on `must_change_password`. Until the user changes it, every page redirects to the change-password page, which asks for the temporary password and the new one twice. Changing it turns `must_change_password` off and writes `password_changed` |
 | Reset by an administrator, with a new password chosen at next sign-in | A reset sets a new temporary password and turns `must_change_password` on again |
-| Locked for 15 minutes after 5 failed attempts | django-axes, with `AXES_FAILURE_LIMIT = LOCKOUT_ATTEMPTS`, `AXES_COOLOFF_TIME = timedelta(minutes=LOCKOUT_MINUTES)`, `AXES_LOCKOUT_PARAMETERS = ["username"]` and `AXES_RESET_ON_SUCCESS = True`. None of these is django-axes' default. Lock-out is by username because every user signs in from the same machine, so a lock-out by address would lock everyone. A successful sign-in resets the count |
+| Locked for 15 minutes after 5 failed attempts | django-axes, with `AXES_FAILURE_LIMIT = LOCKOUT_ATTEMPTS`, `AXES_COOLOFF_TIME = timedelta(minutes=LOCKOUT_MINUTES)`, `AXES_LOCKOUT_PARAMETERS = ["username"]` and `AXES_RESET_ON_SUCCESS = True` and `AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False`. None of these is django-axes' default. Lock-out is by username because every user signs in from the same machine, so a lock-out by address would lock everyone. A successful sign-in resets the count. The lock lasts 15 minutes from the failure that started it, as the plan says, however often someone tries meanwhile: django-axes' default would start the 15 minutes again at every try. While it lasts, the sign-in page says the account is locked and for how long |
 | Session ends after 30 minutes without activity, or at sign-out | `SESSION_COOKIE_AGE = SESSION_IDLE_MINUTES * 60`, and `SESSION_SAVE_EVERY_REQUEST = True`, so each request restarts the 30 minutes. Session cookies are HttpOnly and SameSite=Lax |
 | Disabling keeps the history | Disabling sets `is_active = False`. Users are never deleted, so their audit history stays linked |
-| Sign-ins and failures are logged | Django's `user_logged_in`, `user_logged_out` and `user_login_failed` signals each write an audit event |
+| Sign-ins and failures are logged | Django's `user_logged_in`, `user_logged_out` and `user_login_failed` signals write `sign_in`, `sign_out` and `sign_in_failed`. django-axes' `user_locked_out` signal writes `account_locked`, once, for the failure that locks the account (6.3). A session that times out writes nothing, since nothing signals it, so `sign_out` always means the user signed out |
+
+**Every page needs sign-in.** Every address except the sign-in page needs a signed-in user, through Django's `LoginRequiredMiddleware`, so every action is recorded against a named user from Phase 2 (the plan, Phase 2). Anyone else is sent to the sign-in page, and back to the page they asked for once signed in.
 
 **Redirects in HTMX requests.** A panel request that has to go to the sign-in page, after a time-out, or to the change-password page gets an `HX-Redirect` header instead of a redirect. HTMX then moves the whole page, so neither page lands inside a panel.
 
 **Fixed administrator accounts**
 
-- **Created from the command line:** `manage.py create_admin <username>` asks for the full name, then twice for an initial password, without showing it, and checks it against the 12-character rule. It creates the account as a fixed administrator with `must_change_password` on, so the administrator chooses their own password at first sign-in. The audit log records the creation as a command-line action.
+- **Created from the command line:** `manage.py create_admin <username>` asks for the full name, then twice for an initial password, without showing it, and checks it against the 12-character rule. It creates the account as a fixed administrator with `must_change_password` on, so the administrator chooses their own password at first sign-in. The audit log records the creation as a command-line action, `user_created` (6.3).
 - **No passwords in files:** no administrator username or password is kept in `.env`, or anywhere else outside the database.
-- **Removing one:** `manage.py disable_admin <username>` disables the account. Its history stays in the audit log.
+- **Removing one:** `manage.py disable_admin <username>` disables the account and writes `user_disabled`. Its history stays in the audit log.
 - **Checking who they are:** `manage.py list_admins` shows every fixed administrator, with their full name, and whether the account is active.
-- **No changes from inside the application:** it refuses to delete, disable or remove rights from a fixed administrator, both in the screens and in the model's save and delete logic.
-- **Recovery:** a fixed administrator's forgotten password is reset only from the command line, with `manage.py changepassword <username>`. A locked administrator is unlocked with `manage.py axes_reset_username <username>`.
+- **No changes from inside the application:** it refuses to delete, disable or remove rights from a fixed administrator, both in the screens and in the model's save and delete logic. `disable_admin` is the only way to disable one.
+- **Recovery:** a fixed administrator's forgotten password is reset only from the command line, with `manage.py changepassword <username>`. A locked administrator is unlocked with `manage.py axes_reset_username <username>`. The project replaces both commands with its own, under the same names, so each writes its event: `changepassword` is a reset, so it also turns `must_change_password` on and writes `password_reset`, and `axes_reset_username` writes `account_unlocked`. Django's and django-axes' own versions write nothing to the audit log.
 - **Who can run these commands:** only someone with shell access to the developer's machine. That's the same boundary that protects `.env` and the database.
 
 **Tested by**
 
 - Five wrong passwords lock the account. With the clock moved forward 15 minutes, it signs in again.
+- Five wrong passwords write five `sign_in_failed` events and one `account_locked`. A sixth try during the lock is refused, writes a `sign_in_failed` but no second `account_locked`, and doesn't move the end of the lock.
 - Four wrong passwords, a right one, then four more wrong ones don't lock the account.
 - Five wrong passwords for one username don't stop another user signing in.
 - With the clock moved forward 31 minutes of inactivity, the user is signed out, and an HTMX request gets an `HX-Redirect` to the sign-in page.
@@ -199,6 +202,8 @@ The application uses a custom user model from its first migration, as Django rec
 - A user is shown as "Full name (username)" in the as-of line, the Source sheet and the audit log.
 - After `disable_admin`, that administrator can't sign in, and `list_admins` shows the account as disabled.
 - A fixed administrator can't be deleted or disabled from inside the application.
+- Every address but the sign-in page sends a user who isn't signed in to the sign-in page, and back once they sign in.
+- `changepassword` turns `must_change_password` on, and `axes_reset_username` lets a locked account sign in at once, each writing its event.
 
 ### 6.2 Authorization
 
@@ -246,9 +251,13 @@ Every event is one row in `audit_event`, written only through `audit.record()`.
 | `upload` | The upload concerned, if any |
 | `details` | Structured data such as the username tried, the role granted, the file hash, or the filters used in an export |
 
-**Actions recorded:** `sign_in`, `sign_out`, `sign_in_failed`, `account_locked`, `user_created`, `user_disabled`, `password_reset`, `role_created`, `role_changed`, `role_removed`, `access_granted`, `access_changed`, `access_removed`, `report_created`, `ruleset_changed`, `upload_refused`, `upload_received`, `upload_needs_columns`, `upload_columns_picked`, `upload_awaiting_approval`, `upload_failed`, `upload_approved`, `upload_rejected`, `upload_withdrawn`, `upload_rolled_back`, `approval_refused`, `export_downloaded`.
+**Actions recorded:** `sign_in`, `sign_out`, `sign_in_failed`, `account_locked`, `account_unlocked`, `user_created`, `user_changed`, `user_disabled`, `password_reset`, `password_changed`, `role_created`, `role_changed`, `role_removed`, `access_granted`, `access_changed`, `access_removed`, `report_created`, `ruleset_changed`, `upload_refused`, `upload_received`, `upload_needs_columns`, `upload_columns_picked`, `upload_awaiting_approval`, `upload_failed`, `upload_approved`, `upload_rejected`, `upload_withdrawn`, `upload_rolled_back`, `approval_refused`, `export_downloaded`.
 
 The `upload_` actions match the state changes in ENG-02, Section 6, one action for each. `upload_received` is the upload being created at `reading`. `upload_refused` is the one that changes nothing: a file refused before an upload exists (ENG-02, 6), so the plan's Phase 2 gate can show the same file sent twice in the audit log. `approval_refused` is an approval that was refused, so nothing changed: the gate's file whose control total doesn't match shows in the log as an attempt that failed (ENG-02, 10.1).
+
+The account actions cover the plan's "every change to accounts or access". `password_reset` is someone else setting a temporary password, and `password_changed` is a user choosing their own, the first time included. `account_unlocked` is a lock-out ended by hand before its 15 minutes. `user_changed` is any other change to an account, such as a corrected full name or a disabled account enabled again, and it comes with the account screens in Phase 4.
+
+**How a change reaches the log.** Whatever changes an account, a role or an access row calls `audit.record()` itself, in the same transaction as the change: the commands in 6.1 and the sign-in signals now, and the account screens from Phase 4. Django's admin screens record a change only in their own `django_admin_log` table, so each admin screen in Phase 4 saves and deletes through functions that write the event.
 
 **Writing an event.** `audit.record(action, *, user=None, report=None, upload=None, details=None)`, in `ids_audit/audit/__init__.py`, writes one event and returns it.
 
@@ -257,7 +266,7 @@ The `upload_` actions match the state changes in ENG-02, Section 6, one action f
 - It runs inside its caller's transaction, so an action and its event are saved together or not at all.
 - `at` is set when the row is saved, so no event can be backdated.
 
-**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `report_created` keeps the report's `name`. `upload_refused` keeps the `reason`, which is `too_large`, `unknown_format`, `already_committed` or `open_upload`, the file's `original_name` and `size_bytes`, its `file_sha256` once it's been hashed, and for the last two reasons the `number` of the upload it matches or that's open. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`, and the `control_total` the uploader typed, if they typed one (ENG-02, 9.1). `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it, and each of those sheets' header as text. `upload_columns_picked` keeps every column picked for the upload so far, by sheet and field. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_rejected`, `upload_withdrawn` and `upload_rolled_back` keep the `reason`. `upload_approved` keeps the number and total of the postings written, how many items each exception type in the preview listed (ENG-02, 11.2) and, on the report's first commit, the duplicate mode (ENG-02, 10.1). `approval_refused` keeps the `reasons`, each an exception type that blocks approval or one of `preview_out_of_date`, `mode_not_allowed` and `commit_check_failed`, and the `message` shown. Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
+**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `sign_in_failed` and `account_locked` keep the `username` tried, never the password. `user_created` keeps the account's `username`, `full_name` and `is_fixed_admin`. `user_disabled`, `password_reset` and `account_unlocked` keep the account's `username`. `user_changed` keeps each field changed, with its value before and after, and never a password. An event written from the command line has no user, and keeps the `command` it was run with, such as `create_admin`. `report_created` keeps the report's `name`. `upload_refused` keeps the `reason`, which is `too_large`, `unknown_format`, `already_committed` or `open_upload`, the file's `original_name` and `size_bytes`, its `file_sha256` once it's been hashed, and for the last two reasons the `number` of the upload it matches or that's open. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`, and the `control_total` the uploader typed, if they typed one (ENG-02, 9.1). `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it, and each of those sheets' header as text. `upload_columns_picked` keeps every column picked for the upload so far, by sheet and field. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_rejected`, `upload_withdrawn` and `upload_rolled_back` keep the `reason`. `upload_approved` keeps the number and total of the postings written, how many items each exception type in the preview listed (ENG-02, 11.2) and, on the report's first commit, the duplicate mode (ENG-02, 10.1). `approval_refused` keeps the `reasons`, each an exception type that blocks approval or one of `preview_out_of_date`, `mode_not_allowed` and `commit_check_failed`, and the `message` shown. Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
 
 **Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way:
 
@@ -464,6 +473,7 @@ As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production
 - Default privileges belong to one database, so they never reach the test database. A session fixture in `tests/conftest.py` applies `sql/grants.sql` to the test database once it's migrated, so the tests see the same grants as the application.
 - A grant test switches to the application's role with `SET LOCAL ROLE ids_app` before the statement it checks, so the database refuses that statement as it would refuse the application. The switch ends with the test's transaction.
 - Every test that a statement is refused has a matching test that an allowed statement works (6.3), so a refusal can't come from missing grants.
+- A test that needs time to pass, such as a lock-out ending, moves the clock with time-machine (3) instead of waiting. The clock it moves is the application's, so times PostgreSQL sets itself, with `now()`, don't move. None of the tables uses them (ENG-02, 10.2).
 
 **First-time setup**, after cloning as in 7.1:
 
