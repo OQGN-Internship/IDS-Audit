@@ -1,0 +1,14 @@
+# Kept out of the application image (ENG-01 6.4): the real settings and
+# passwords, the client's data, and everything only development needs.
+.env
+real-export/
+backups/
+.git/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+**/__pycache__/
+staticfiles/
+tests/
+docs/

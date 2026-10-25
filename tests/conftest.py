@@ -1,14 +1,13 @@
 """Shared test setup (ENG-01 7.5)."""
 
+import io
 from pathlib import Path
 
 import pytest
-from django.db import connection, transaction
+from django.core.management import call_command
 
 from ids_audit.imports.models import Upload
 from tests.factories import make_upload
-
-GRANTS_SQL = Path(__file__).resolve().parents[1] / "sql" / "grants.sql"
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -26,11 +25,11 @@ def django_db_setup(django_db_setup, django_db_blocker) -> None:
     """Apply sql/grants.sql to the test database, once it's migrated.
 
     Default privileges belong to one database, so they never reach the test
-    database. This gives the tests the same grants as the application.
+    database. This gives the tests the same grants as the application, with
+    the command the migrate job runs.
     """
-    with django_db_blocker.unblock(), transaction.atomic():
-        with connection.cursor() as cursor:
-            cursor.execute(GRANTS_SQL.read_text(encoding="utf-8"))
+    with django_db_blocker.unblock():
+        call_command("apply_grants", stdout=io.StringIO())
 
 
 @pytest.fixture
