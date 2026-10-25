@@ -13,7 +13,7 @@ Each user has their own account and per-report permissions. Every sign-in, uploa
 
 ## Status
 
-Phase 1, correct numbers. The client has approved the delivery plan. The real SAP export hasn't arrived yet, so the build starts on a generated sample file made to look like one (ENG-02 12.3). The build runs over Days 2 to 5, followed by the client's acceptance:
+Phase 2, audit-grade import. The client has approved the delivery plan. The real SAP export hasn't arrived yet, so the build starts on a generated sample file made to look like one (ENG-02 12.3). The build runs over Days 2 to 5, followed by the client's acceptance:
 
 | Phase | Day | Delivers |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Phase 1, correct numbers. The client has approved the delivery plan. The real SA
 | 3. Reports | 4 | Screens, FAQ, charts, Excel exports |
 | 4. Permissions and handover | 5 | Users and roles, backup and restore, handover |
 
-Phase 1 starts with the sample file and the script that generates it. The application code follows.
+Phases 1 and 2 are built: the figures match the sample's expected totals to the baisa, and a fixed administrator can sign in, upload a file, check its preview, approve, reject or withdraw it, and roll it back, each on record in the audit log. Phase 3 builds the report screens.
 
 ## Documentation
 
@@ -42,31 +42,31 @@ Python 3.12, Django 5.2, PostgreSQL 17, HTMX, Alpine.js and ECharts, packaged wi
 
 ## Getting started
 
-**Now (early Phase 1):** there's no app to run yet. Clone the repository and read the documents above, starting with the plan.
+You'll need Docker, Python 3.12 and [uv](https://docs.astral.sh/uv/). Keep the working copy outside any synced folder such as OneDrive.
 
 ```bash
 git clone https://github.com/OQGN-Internship/IDS-Audit.git
-```
-
-**During Phase 1:** you'll need Docker, Python 3.12 and [uv](https://docs.astral.sh/uv/). Python runs on your machine, and only the database runs in Docker (ENG-01 7.5):
-
-```bash
 cd IDS-Audit
-uv sync
-cp .env.example .env          # then fill in the settings
-docker compose up -d db       # starts the database, reachable only from this machine
-uv run python manage.py migrate
-uv run pytest
+cp .env.example .env          # then fill in the settings (ENG-01 7.1)
 ```
 
-**From Phase 2:** the whole app starts with one command (ENG-01 7.1):
+**The app** starts with one command (ENG-01 7.1). Create each fixed administrator once:
 
 ```bash
 docker compose up -d          # starts the database, runs migrations, starts the app
 docker compose exec app python manage.py create_admin <username>
 ```
 
-The app is then at `http://localhost:8000`, reachable only from the same machine.
+The app is then at `http://localhost:8000`, or the `APP_PORT` you set, reachable only from the same machine. Sign in with the initial password you typed, and choose your own.
+
+**The tests** run on your machine, with only the database in Docker (ENG-01 7.5):
+
+```bash
+uv sync
+uv run playwright install chromium   # once, for the browser tests
+docker compose up -d db
+uv run pytest
+```
 
 ## Client data
 
