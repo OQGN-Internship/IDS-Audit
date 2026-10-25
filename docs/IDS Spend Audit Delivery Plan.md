@@ -6,7 +6,7 @@ IDS Spend Audit is a small application. It shows how much IDS has actually spent
 
 Users upload the SAP export. The app checks it, shows a preview, and adds it to the report only once an approver accepts it. Every figure can be traced back to the row in the file it came from.
 
-The plan takes **five working days** with one developer: Day 1 for planning, and Days 2 to 5 for the build. The client's review and sign-off follow the build. For now, the application runs locally on the developer's machine.
+The plan takes **five working days** with one developer: Day 1 for planning, and Days 2 to 5 for the build. The client's review and sign-off follow the build. For now, the application runs locally on the developer's machine, and everyone uses it there.
 
 **Current status:** the client has approved this plan. The real SAP export hasn't arrived yet, so the build starts on a sample file made to look like a real SAP export (see Phase 1).
 
@@ -207,17 +207,24 @@ Each answer is needed by the day shown, or that phase uses the default.
 | --- | --- | --- |
 | The real SAP export, with SAP's own totals for it | Before acceptance | The build uses the sample file. Acceptance can't start without the real export |
 | Which SAP report produces the export? | Before acceptance | G/L line items (FAGLL03), the layout the sample file imitates |
-| Does the export hold only actual spend, or also POs and PRs? If both, which column marks actual spend, and which of its values are actual spend and which aren't? | Day 2 | Every row is treated as actual spend |
+| Which postings in the export count as actual spend: all of them, or only some, such as invoices but not journals, accruals, or Funds Management payments and down payments? Does it also hold POs and PRs? Which column marks what counts, and which of its values count? | Day 2 | Every row is treated as actual spend |
 | Is the company code's local currency Omani rials, and which export columns hold the local amount and its currency? | Day 2 | Yes, in the columns the sample file uses: `Amount in LC` and `LCurr` |
 | Is every cost center that isn't in the cost center mapping outside IDS? | Day 2 | Yes |
+| Is any IDS spend posted without a cost center, for example to an internal order, a WBS element or an asset? If so, does it count, and in which department? | Before acceptance | No. A line without a cost center is listed in the preview with its amount, and its file can't be approved, since its rows don't add up to the file's total |
 | Is each export the new month only, or year-to-date each time? | Day 3 | Replace the period the file covers |
+| Is an export ever split, for example by company code or into special periods, or taken before the period closes? | Before acceptance | No. Each file is SAP's complete selection for the months it covers, so a later file for the same months replaces the earlier one |
 | Can every spend line in the export include its company code, fiscal year, document number and line item? | Day 3 | Replace the period the file covers |
 | Does the export include a control total? | Day 3 | The uploader enters SAP's total for the file before approval |
 | If a GL account's budget line changes between files, which applies: the latest file, the posting's own file, or the one for its fiscal year? | Day 3 | The latest file, with the change flagged as an exception |
+| Who maintains the GL and cost center mapping sheets added to each file, and does each list every GL account and IDS cost center, or only those in that file? | Before acceptance | The validator supplies complete, current sheets, and the uploader adds them to every file. The latest file's mapping applies whole: a code it leaves out loses its budget line or department, and the preview shows the spend that moves |
+| Does each spend line carry its own commitment item, and can it differ from the one the mapping sheet gives its GL account? Should budget-line figures match an SAP Funds Management report, or the mapping sheet? | Before acceptance | The mapping sheet decides each GL account's budget line, a spend line that disagrees is listed as an exception, and budget-line figures are checked against the mapping sheet |
+| Can a file be approved when some of its spend rows can't be read, such as a row with an impossible date? | Before acceptance | Yes. Each such row is listed with its reason and amount in the preview and on the exceptions screen, and the report's total is lower than SAP's by exactly those amounts. The validator checks each one before signing off |
+| May an administrator remove a file uploaded by mistake, such as one holding another department's data, if it was never approved? | Before acceptance | No. Nothing is ever removed: a rejected file stays stored, with its preview, and in every backup |
 | How many rows per file, and how many files per month? | Day 3 | Imports run while the user waits, which suits files up to tens of thousands of rows |
 | Who can create a new report, and what access does its creator get? | Day 3 | Administrators only |
 | The first users, the reports each one can use, and their role on each | Day 5 | One demo account per preset role, used only for the demo and disabled before real use |
 | Who validates the numbers? | Before acceptance | Acceptance can't start |
+| Do users need to reach the application from their own computers during acceptance? | Before acceptance | No. Until it's decided where the application runs, users and the validator use it on the developer's machine, with the developer there, each signing in with their own account and signing out afterwards |
 | Where the application runs after sign-off | After sign-off | The developer's machine |
 | Where may copies of OQGN's data and its backups be kept, who holds them, and what happens to them when the work ends? | Before the real export arrives | Each backup is copied to one encrypted external drive kept by the developer, which holds only the last 7. When the work ends, the developer hands OQGN the latest backup and deletes every copy of its data from their machine and drive |
 
@@ -230,7 +237,7 @@ Each answer is needed by the day shown, or that phase uses the default.
 | Cost center | The code for the team that spent the money |
 | Department | The IDS department a cost center belongs to, taken from the mapping sheet |
 | Outside IDS | A cost center that isn't in the IDS cost center mapping |
-| Actual spend | Posted invoices. Only this counts as spend in the app |
+| Actual spend | Spend posted in SAP, unlike PRs and POs. Only this counts as spend in the app. Which postings in the export count is an open question, and by default every row does |
 | PR / PO | Purchase requisition (an internal request) and purchase order (the order sent to the supplier). Neither counts as spend |
 | Control total | The total printed in the export, used to check that every row was read |
 | Reconciliation | Checking that imported plus skipped amounts equal the control total |
