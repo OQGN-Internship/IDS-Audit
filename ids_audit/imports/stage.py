@@ -5,7 +5,6 @@ Only imports/ writes uploads and staging rows (ENG-01 4, rule 2).
 """
 
 import dataclasses
-import datetime
 from collections.abc import Sequence
 from decimal import Decimal
 
@@ -15,12 +14,14 @@ from django.db.models import Count, Sum
 from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import SkippedRow, StagingRow, Upload
+from ids_audit.imports.preview import report_preview
 from ids_audit.imports.states import lock_upload, move
 from ids_audit.imports.storage import read_stored_file
 from ids_audit.ledger.models import CcDeptMap, GlCiMap, PostingResolved
 from ids_audit.pipeline.columns import NeedsColumns
 from ids_audit.pipeline.duplicates import find_duplicates, line_key_offered
 from ids_audit.pipeline.formats import UnknownFormat
+from ids_audit.pipeline.preview import first_of_next_month
 from ids_audit.pipeline.read import read_file
 from ids_audit.pipeline.readers import FileUnreadable
 from ids_audit.pipeline.reconciliation import amount_text, reconcile
@@ -192,12 +193,22 @@ def copy_staging_rows(
 
 def save_figures(upload: Upload, result: ReadResult, duplicates: Duplicates) -> None:
     """Set the upload's column layout, period, control total, row figures and
-    their amounts, and difference (ENG-02 9 and 11.1). move() saves them.
+    their amounts, difference and preview (ENG-02 9 and 11). move() saves them.
+    The staging rows must already be saved.
     """
-    reconciliation = reconcile(result)
-    duplicate_amount = sum(
-        (r.amount for r in result.clean_rows if (r.sheet, r.row_number) in duplicates),
-        Decimal(0),
+    # A total typed on the upload form counts only for a file with no total
+    # row (ENG-02 9.1).
+    entered = (
+        upload.control_total
+        if upload.control_total_source == Upload.ControlTotalSource.ENTERED
+        else None
+    )
+    reconciliation = reconcile(result, entered)
+    to_commit = [
+        r for r in result.clean_rows if (r.sheet, r.row_number) not in duplicates
+    ]
+    duplicate_amount = reconciliation.staged - sum(
+        (r.amount for r in to_commit), Decimal(0)
     )
     skipped_spend = [r for r in result.skipped_rows if r.sheet == result.spend_sheet]
     replaced, replaced_amount = replaced_postings(upload.report, result)
@@ -206,9 +217,8 @@ def save_figures(upload: Upload, result: ReadResult, duplicates: Duplicates) -> 
     upload.period_start = result.period_start
     upload.period_end = result.period_end
     upload.control_total = reconciliation.control_total
-    upload.control_total_source = (
-        "" if result.control_total is None else Upload.ControlTotalSource.FILE
-    )
+    if result.control_total is not None:
+        upload.control_total_source = Upload.ControlTotalSource.FILE
     upload.rows_read = len(result.clean_rows) + len(skipped_spend)
     upload.rows_new = len(result.clean_rows) - len(duplicates)
     upload.rows_duplicate = len(duplicates)
@@ -225,6 +235,7 @@ def save_figures(upload: Upload, result: ReadResult, duplicates: Duplicates) -> 
         "line_key_offered": (
             not upload.report.duplicate_mode and line_key_offered(result.clean_rows)
         ),
+        **report_preview(upload, result, reconciliation, to_commit, duplicates),
     }
     upload.reconciliation_difference = reconciliation.difference
 
@@ -242,10 +253,3 @@ def replaced_postings(report: Report, result: ReadResult) -> tuple[int, Decimal]
         posting_date__lt=first_of_next_month(result.period_end),
     ).aggregate(count=Count("pk"), amount=Sum("amount"))
     return found["count"], found["amount"] or Decimal(0)
-
-
-def first_of_next_month(day: datetime.date) -> datetime.date:
-    """Return the first day of the month after day's."""
-    if day.month == 12:
-        return datetime.date(day.year + 1, 1, 1)
-    return datetime.date(day.year, day.month + 1, 1)

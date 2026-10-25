@@ -7,6 +7,7 @@ together or not at all.
 """
 
 import hashlib
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
@@ -19,7 +20,9 @@ from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import Upload
 from ids_audit.imports.states import Refused, fail_interrupted_reads
 from ids_audit.imports.storage import store_file
+from ids_audit.pipeline.cleaning import TOO_LARGE, has_more_than_3_decimals
 from ids_audit.pipeline.formats import UnknownFormat, detect_format
+from ids_audit.pipeline.reconciliation import amount_text
 from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
 from ids_audit.reports.models import Report, Ruleset
 
@@ -74,9 +77,19 @@ def create_report(name: str, user: User) -> Report:
     return report
 
 
-def receive_file(report: Report, user: User, original_name: str, data: bytes) -> Upload:
+def receive_file(
+    report: Report,
+    user: User,
+    original_name: str,
+    data: bytes,
+    control_total: Decimal | None = None,
+) -> Upload:
     """Store a file under its hash, then create its upload at reading, numbered
     after the report's last upload (ENG-01 5.1, step 2).
+
+    control_total is SAP's total for the file, if the uploader typed one on
+    the upload form. It's used only if the file has no total row (ENG-02 9.1),
+    and a value that isn't an amount numeric(18,3) holds is a ValueError.
 
     A file over MAX_UPLOAD_MB, of an unknown format, matching a committed
     upload in the report, or sent while the report has an open upload is
@@ -85,6 +98,7 @@ def receive_file(report: Report, user: User, original_name: str, data: bytes) ->
     after the file is stored, the stored file stays: another upload may share
     it, and a new try writes the same bytes.
     """
+    check_typed_total(control_total)
     facts = {"original_name": original_name, "size_bytes": len(data)}
     try:
         # Before anything reads the file (ENG-01 6.4).
@@ -123,18 +137,25 @@ def receive_file(report: Report, user: User, original_name: str, data: bytes) ->
                 uploaded_by=user,
                 # It will be read with the report's latest settings.
                 ruleset=report.rulesets.order_by("-version").first(),
+                control_total=control_total,
+                control_total_source=(
+                    "" if control_total is None else Upload.ControlTotalSource.ENTERED
+                ),
             )
+            details = {
+                "number": upload.number,
+                "original_name": original_name,
+                "size_bytes": upload.size_bytes,
+                "file_sha256": file_sha256,
+            }
+            if control_total is not None:
+                details["control_total"] = amount_text(control_total)
             audit.record(
                 AuditEvent.Action.UPLOAD_RECEIVED,
                 user=user,
                 report=report,
                 upload=upload,
-                details={
-                    "number": upload.number,
-                    "original_name": original_name,
-                    "size_bytes": upload.size_bytes,
-                    "file_sha256": file_sha256,
-                },
+                details=details,
             )
     except UploadRefused as refusal:
         # Written after the refused transaction is undone, so it's kept.
@@ -146,6 +167,18 @@ def receive_file(report: Report, user: User, original_name: str, data: bytes) ->
         )
         raise
     return upload
+
+
+def check_typed_total(control_total: Decimal | None) -> None:
+    """Refuse a typed control total that isn't an amount numeric(18,3) holds
+    exactly: one with more than 3 decimal places, or not a number at all.
+    """
+    if control_total is None:
+        return
+    if not control_total.is_finite() or has_more_than_3_decimals(control_total):
+        raise ValueError("A control total is an amount with at most 3 decimals.")
+    if abs(control_total) >= TOO_LARGE:
+        raise ValueError("A control total must be less than 10^15.")
 
 
 def refuse_if_blocked(report: Report, file_sha256: str, facts: dict) -> None:

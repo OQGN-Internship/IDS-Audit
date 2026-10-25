@@ -46,8 +46,9 @@ def amount_text(amount: Decimal) -> str:
     return format(amount, "f")
 
 
-def reconcile(result: ReadResult) -> Reconciliation:
-    """Work out a file's reconciliation (ENG-02 9.2).
+def reconcile(result: ReadResult, entered: Decimal | None = None) -> Reconciliation:
+    """Work out a file's reconciliation (ENG-02 9.2), against its total row,
+    or the total the uploader typed when it has none (9.1).
 
     The difference is worked out from the control total as read, and only
     then rounded, so Excel's binary errors in its sums, such as
@@ -62,11 +63,14 @@ def reconcile(result: ReadResult) -> Reconciliation:
         ),
         Decimal(0),
     )
-    if result.control_total is None:
+    control_total = (
+        result.control_total if result.control_total is not None else entered
+    )
+    if control_total is None:
         return Reconciliation(None, staged, skipped, None)
     return Reconciliation(
-        control_total=to_baisa(result.control_total),
+        control_total=to_baisa(control_total),
         staged=staged,
         skipped=skipped,
-        difference=to_baisa(result.control_total - staged - skipped),
+        difference=to_baisa(control_total - staged - skipped),
     )

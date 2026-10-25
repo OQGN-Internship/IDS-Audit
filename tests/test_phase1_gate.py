@@ -4,8 +4,8 @@ after it, each compared with its expected result (ENG-02 12.2 and 12.3).
 
 Every figure is reached through the imports/ functions and models and through
 reports/queries.py, by way of manage.py report_totals, never by calling
-pipeline/ directly. The other rows and the exception lists are left out here
-(ENG-01 4).
+pipeline/ directly. The other rows and the exception lists come from the
+upload's preview (ENG-01 4, ENG-02 11.2).
 """
 
 import io
@@ -32,16 +32,14 @@ SAMPLE_CSV = "sample_semicolon.csv"
 
 
 def expected(fixture: str) -> dict:
-    """Return a fixture's expected result, without what Phase 1 doesn't build:
-    the other rows, which the preview saves in Phase 2, and the exception
-    lists, which posting_resolved's tests check (ENG-01 4).
+    """Return a fixture's expected result, without its file name and the
+    upload it describes.
     """
     path = FIXTURES_DIR / f"{Path(fixture).stem}.expected.json"
     with open(path, encoding="utf-8") as file:
         result = json.load(file)
-    for key in ("fixture", "scenario", "exceptions"):
+    for key in ("fixture", "scenario"):
         del result[key]
-    del result["rows"]["other"]
     return result
 
 
@@ -64,9 +62,14 @@ def staged_figures(upload: Upload) -> dict:
         sheet for sheet in upload.column_layout.values() if "amount" in sheet["columns"]
     ]
     amounts = upload.preview["amounts"]
+    exceptions = {e["type"]: e["items"] for e in upload.preview["exceptions"]}
     return {
         "header_row": spend_sheet["header_row"],
-        "rows": {"to_commit": upload.rows_new, "skipped": upload.rows_skipped},
+        "rows": {
+            "to_commit": upload.rows_new,
+            "skipped": upload.rows_skipped,
+            "other": len(exceptions["other_row"]),
+        },
         "period": {
             "first_posting": upload.period_start.isoformat(),
             "last_posting": upload.period_end.isoformat(),
@@ -81,6 +84,23 @@ def staged_figures(upload: Upload) -> dict:
             {"row": row.row_number, "reason": row.reason}
             for row in SkippedRow.objects.filter(upload=upload).order_by("pk")
         ],
+        # Named as in the expected results (ENG-02 12.3).
+        "exceptions": {
+            "missing_from_gl_mapping": by_code(exceptions["missing_from_gl_map"]),
+            "listed_without_ci": by_code(exceptions["listed_without_ci"]),
+            "outside_ids": by_code(exceptions["outside_ids"]),
+            "other_rows": [i["rows"][0][1] for i in exceptions["other_row"]],
+        },
+    }
+
+
+def by_code(items: list[dict]) -> dict:
+    """Return an exception's items as the expected results list them: each
+    code's amount and row numbers.
+    """
+    return {
+        i["code"]: {"amount": i["amount"], "rows": [row for _, row in i["rows"]]}
+        for i in items
     }
 
 
@@ -110,6 +130,8 @@ def test_the_sample_file_gives_its_expected_figures() -> None:
     commit_upload(upload, user)
     figures |= report_figures(report)
     assert figures == expected(SAMPLE_XLSX)
+    # The first upload into an empty report adds all the report's spend.
+    assert upload.preview["actual_spend"] == figures["actual_spend"]
 
 
 def test_the_semicolon_copy_uploaded_after_it_gives_its_expected_figures() -> None:

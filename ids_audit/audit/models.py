@@ -45,6 +45,7 @@ class AuditEvent(models.Model):
         UPLOAD_REJECTED = "upload_rejected"
         UPLOAD_WITHDRAWN = "upload_withdrawn"
         UPLOAD_ROLLED_BACK = "upload_rolled_back"
+        APPROVAL_REFUSED = "approval_refused"
         EXPORT_DOWNLOADED = "export_downloaded"
 
     # Stored in UTC, shown in Muscat time.

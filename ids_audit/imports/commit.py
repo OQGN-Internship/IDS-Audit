@@ -10,6 +10,7 @@ from django.db import connection, transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
 
+from ids_audit import audit
 from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import StagingRow, Upload
@@ -23,14 +24,25 @@ DuplicateMode = Report.DuplicateMode
 
 class ApprovalRefused(Refused):
     """The upload can't be approved as asked, so nothing is written (ENG-02
-    10.1, step 2).
+    10.1). reasons are what approval_refused keeps (ENG-01 6.3).
     """
 
+    PREVIEW_OUT_OF_DATE = "preview_out_of_date"
+    MODE_NOT_ALLOWED = "mode_not_allowed"
+    COMMIT_CHECK_FAILED = "commit_check_failed"
 
-class CommitCheckFailed(Exception):
+    def __init__(self, reasons: list[str], message: str) -> None:
+        super().__init__(message)
+        self.reasons = reasons
+
+
+class CommitCheckFailed(ApprovalRefused):
     """The postings written don't match the preview's count and total, so the
     commit is undone (ENG-02 10.1, step 5).
     """
+
+    def __init__(self, message: str) -> None:
+        super().__init__([self.COMMIT_CHECK_FAILED], message)
 
 
 def commit_upload(
@@ -41,15 +53,50 @@ def commit_upload(
 
     duplicate_mode is the approver's choice of mode on the report's first
     commit, replace by period if it's None (7.3). An upload not at
-    awaiting_approval is refused with WrongState, and a mode that can't be
-    chosen with ApprovalRefused. The checks that need sign-in come with it: the
-    user's access (ENG-01 4, Build order).
+    awaiting_approval is refused with WrongState. One whose preview lists an
+    exception that blocks approval, whose preview is out of date, or that
+    can't take the mode chosen is refused with ApprovalRefused, which an
+    approval_refused event keeps. The check that needs sign-in comes with it:
+    the user's access (ENG-01 4, Build order).
     """
+    try:
+        return approve(upload, user, duplicate_mode)
+    except ApprovalRefused as refusal:
+        # Written after the refused transaction is undone, so it's kept.
+        audit.record(
+            AuditEvent.Action.APPROVAL_REFUSED,
+            user=user,
+            report=upload.report,
+            upload=upload,
+            details={"reasons": refusal.reasons, "message": str(refusal)},
+        )
+        raise
+
+
+def approve(upload: Upload, user: User, duplicate_mode: str | None) -> Upload:
+    """Run the commit's steps in one transaction (ENG-02 10.1)."""
     with transaction.atomic():
         # Step 1. A second approval for the same report waits here.
         report = Report.objects.select_for_update().get(pk=upload.report_id)
         # Step 2.
         upload = lock_upload(upload, Upload.Status.AWAITING_APPROVAL)
+        preview = upload.preview or {}
+        blocking = [
+            e["type"] for e in preview.get("exceptions", ()) if e["blocks_approval"]
+        ]
+        if blocking:
+            raise ApprovalRefused(
+                blocking,
+                "The file can't be approved until nothing blocks it: "
+                f"{', '.join(blocking)}.",
+            )
+        # Step 3.
+        if preview.get("committed_uploads") != committed_numbers(report):
+            raise ApprovalRefused(
+                [ApprovalRefused.PREVIEW_OUT_OF_DATE],
+                "An upload was approved or rolled back since this preview was "
+                "built. Reject this upload and upload the file again.",
+            )
         first_mode = mode_to_set(report, upload, duplicate_mode)
         # Step 4.
         copy_to_postings(upload)
@@ -70,7 +117,12 @@ def commit_upload(
         # (10.2).
         upload.decided_by = user
         upload.decided_at = timezone.now()
-        details = {"postings": written["count"], "amount": amount_text(total)}
+        details = {
+            "postings": written["count"],
+            "amount": amount_text(total),
+            # How many items each exception type listed (ENG-02 11.2).
+            "exceptions": {e["type"]: len(e["items"]) for e in preview["exceptions"]},
+        }
         if first_mode:
             report.duplicate_mode = first_mode
             report.save(update_fields=["duplicate_mode"])
@@ -95,17 +147,30 @@ def mode_to_set(report: Report, upload: Upload, chosen: str | None) -> str | Non
     if report.duplicate_mode:
         if chosen is not None:
             raise ApprovalRefused(
+                [ApprovalRefused.MODE_NOT_ALLOWED],
                 "The duplicate mode is chosen on a report's first approval only. "
-                f"This report uses {report.get_duplicate_mode_display().lower()}."
+                f"This report uses {report.get_duplicate_mode_display().lower()}.",
             )
         return None
     mode = DuplicateMode(chosen or DuplicateMode.REPLACE_BY_PERIOD)
     if mode == DuplicateMode.LINE_KEY and not upload.preview.get("line_key_offered"):
         raise ApprovalRefused(
+            [ApprovalRefused.MODE_NOT_ALLOWED],
             "Line-key mode isn't offered for this file: some of its rows have no "
-            "company code, fiscal year, document number or line item."
+            "company code, fiscal year, document number or line item.",
         )
     return mode
+
+
+def committed_numbers(report: Report) -> list[int]:
+    """Return the numbers of the report's committed uploads, in the order of
+    commits (ENG-02 10.2), which a preview keeps (11.1).
+    """
+    return list(
+        report.uploads.filter(status=Upload.Status.COMMITTED)
+        .order_by("decided_at", "number")
+        .values_list("number", flat=True)
+    )
 
 
 def copy_to_postings(upload: Upload) -> None:

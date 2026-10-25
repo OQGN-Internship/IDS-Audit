@@ -36,6 +36,11 @@ TWO_LINES = csv_file(
 )
 
 
+# TWO_LINES' exceptions, each type with how many items it lists: the skipped
+# row, and 610100 and 4520, which no mapping lists yet (ENG-02 11.2).
+EXCEPTIONS = {"skipped_row": 1, "missing_from_gl_map": 1, "outside_ids": 1}
+
+
 def awaiting(data: bytes = TWO_LINES, report: Report | None = None) -> Upload:
     """Receive and stage a file, so its upload awaits approval."""
     report = report or make_report()
@@ -108,9 +113,11 @@ def test_the_report_s_first_commit_sets_replace_by_period() -> None:
     assert report.duplicate_mode == REPLACE_BY_PERIOD
     event = AuditEvent.objects.get(action=AuditEvent.Action.UPLOAD_APPROVED)
     assert (event.user, event.report, event.upload) == (approver, report, upload)
+    # No GL or cost center mapping yet, so every row is missing from both.
     assert event.details == {
         "postings": 2,
         "amount": "749.500",
+        "exceptions": EXCEPTIONS,
         "duplicate_mode": REPLACE_BY_PERIOD,
     }
 
@@ -127,7 +134,11 @@ def test_a_later_commit_leaves_the_duplicate_mode_alone() -> None:
     report.refresh_from_db()
     assert report.duplicate_mode == Report.DuplicateMode.LINE_KEY
     event = AuditEvent.objects.get(action=AuditEvent.Action.UPLOAD_APPROVED)
-    assert event.details == {"postings": 2, "amount": "749.500"}
+    assert event.details == {
+        "postings": 2,
+        "amount": "749.500",
+        "exceptions": EXCEPTIONS,
+    }
 
 
 def test_postings_count_once_committed() -> None:
@@ -147,9 +158,11 @@ def test_a_row_marked_duplicate_isn_t_committed() -> None:
     """
     upload = awaiting()
     StagingRow.objects.filter(row_number=3).update(is_duplicate=True)
-    # What the preview would show in line-key mode, in Phase 2.
+    # What the preview shows when row 3 is already in the report (7.3).
+    upload.refresh_from_db()
+    amounts = {**upload.preview["amounts"], "to_commit": "1000.000"}
     Upload.objects.filter(pk=upload.pk).update(
-        rows_new=1, preview={"amounts": {"to_commit": "1000.000"}}
+        rows_new=1, preview={**upload.preview, "amounts": amounts}
     )
     commit_upload(upload, make_user())
     assert list(Posting.objects.values_list("row_number", flat=True)) == [2]
