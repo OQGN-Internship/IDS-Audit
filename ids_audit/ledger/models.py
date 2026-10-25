@@ -59,6 +59,15 @@ class Posting(SpendLine):
 
     class Meta:
         db_table = "posting"
+        # The indexes the report screens use (ENG-03 10). upload_id has its
+        # own already, as a foreign key.
+        indexes = [
+            models.Index(fields=["report", "posting_date"], name="posting_report_date"),
+            models.Index(fields=["report", "gl_code"], name="posting_report_gl"),
+            models.Index(
+                fields=["report", "cost_center_code"], name="posting_report_cc"
+            ),
+        ]
 
 
 class PostingResolved(SpendLine):
