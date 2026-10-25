@@ -134,3 +134,4 @@ tfoot tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
 .answer { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0; }
 .counted { color: var(--muted); }
 .questions li { margin: 0.3rem 0; }
+.export { margin: 0.4rem 0; }

@@ -163,6 +163,10 @@ UPLOADS_DIR = os.environ.get("UPLOADS_DIR", "")
 # The largest file received, in megabytes of 1,048,576 bytes (ENG-01 6.4).
 MAX_UPLOAD_MB = int(env("MAX_UPLOAD_MB", "50"))
 
+# The release this is, which the image is built with (ENG-01 7.1). An
+# export's Source sheet shows it (ENG-03 9.2).
+APP_VERSION = os.environ.get("APP_VERSION") or "dev"
+
 # Ids are bigint, as ENG-02 2 gives for posting.
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

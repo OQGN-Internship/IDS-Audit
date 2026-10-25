@@ -5,7 +5,11 @@ name: ids-audit
 # What migrate and app share. Each adds its own settings and the password of
 # the one role it connects as.
 x-app: &app
-  build: .
+  build:
+    context: .
+    # The release, from the shell that builds; dev if it's unset (ENG-01 7.3).
+    args:
+      APP_VERSION: ${APP_VERSION:-dev}
   image: ids-audit-app
   environment: &app-environment
     SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}

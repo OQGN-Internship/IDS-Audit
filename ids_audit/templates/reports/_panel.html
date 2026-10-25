@@ -28,6 +28,8 @@
   <p class="as-of">Figures as of upload {{ latest.number }}, {{ latest.original_name }}, approved by {{ latest.decided_by }} on {{ latest.decided_at|moment }}.</p>
 {% endif %}
 {% if awaiting %}<p class="as-of">Upload {{ awaiting.number }} is awaiting approval and isn't included.</p>{% endif %}
+{# A plain link: a download can't be swapped into a page (ENG-03 4). #}
+{% if can_export and latest %}<p class="export"><a href="{{ export_url }}">Export to Excel</a></p>{% endif %}
 {% if not latest %}
   <p class="empty">No approved uploads yet.{% if can_upload %} <a href="{% url 'uploads' report.pk %}">Go to Uploads</a>{% endif %}</p>
 {% elif screen.lines == 0 %}

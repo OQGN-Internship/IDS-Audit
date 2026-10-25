@@ -17,6 +17,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# The release this image is, from the build argument compose.yaml passes, so
+# an export's Source sheet can name it (ENG-01 7.1).
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
+
 # The locked dependencies first, without the development tools, so a change
 # to the code doesn't install them again.
 COPY pyproject.toml uv.lock .python-version ./

@@ -32,9 +32,14 @@ DUMMY = {
 
 def without_settings() -> dict:
     """The environment without any setting from .env, so nothing real reaches
-    a command these tests run, or its output.
+    a command these tests run, or its output, and without a version tag the
+    shell may hold.
     """
-    return {k: v for k, v in os.environ.items() if k not in SETTING_NAMES}
+    return {
+        k: v
+        for k, v in os.environ.items()
+        if k not in SETTING_NAMES and k != "APP_VERSION"
+    }
 
 
 def load(module: str, monkeypatch, **values: str):
@@ -61,6 +66,16 @@ def test_the_app_connects_as_ids_app_and_migrate_as_the_owner(monkeypatch) -> No
     database = migrate.DATABASES["default"]
     assert (database["USER"], database["PASSWORD"]) == ("ids_owner", "test-only-owner")
     assert migrate.DEBUG is False
+
+
+def test_the_settings_read_the_version_tag_dev_by_default(monkeypatch) -> None:
+    """Verify the settings take APP_VERSION from the environment, and dev
+    when it isn't set (ENG-01 7.1, G25).
+    """
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    assert load("config.settings.base", monkeypatch, **DUMMY).APP_VERSION == "dev"
+    tagged = load("config.settings.base", monkeypatch, APP_VERSION="v1.0.0")
+    assert tagged.APP_VERSION == "v1.0.0"
 
 
 def test_the_production_settings_need_the_app_password(monkeypatch) -> None:
@@ -115,10 +130,10 @@ def test_check_deploy_warns_only_about_https() -> None:
     assert warnings == ["W004", "W008", "W012", "W016"], result.stderr
 
 
-@pytest.fixture
-def compose(tmp_path) -> dict:
+def compose_config(tmp_path, **shell: str) -> dict:
     """compose.yaml as Docker Compose reads it, with made-up passwords in
-    place of .env's, or skip when Docker isn't installed.
+    place of .env's and these values in the shell, or skip when Docker isn't
+    installed.
     """
     if shutil.which("docker") is None:
         pytest.skip("Docker isn't installed.")
@@ -135,12 +150,18 @@ def compose(tmp_path) -> dict:
             "json",
         ],
         cwd=ROOT,
-        env=without_settings(),
+        env={**without_settings(), **shell},
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)["services"]
+
+
+@pytest.fixture
+def compose(tmp_path) -> dict:
+    """compose.yaml as Docker Compose reads it, with made-up passwords."""
+    return compose_config(tmp_path)
 
 
 def test_the_app_and_database_are_reachable_from_this_machine_only(compose) -> None:
@@ -196,3 +217,16 @@ def test_the_image_leaves_out_env_and_the_client_s_data() -> None:
     ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     for path in (".env", "real-export/", "backups/"):
         assert path in ignored
+
+
+def test_the_image_is_built_with_the_shell_s_version_tag(compose, tmp_path) -> None:
+    """Verify compose.yaml passes APP_VERSION to the build, dev when the shell
+    doesn't set it, and the Dockerfile keeps it for the settings (ENG-01
+    7.1, G25).
+    """
+    for service in ("migrate", "app"):
+        assert compose[service]["build"]["args"] == {"APP_VERSION": "dev"}
+    tagged = compose_config(tmp_path, APP_VERSION="v1.0.0")
+    assert tagged["app"]["build"]["args"] == {"APP_VERSION": "v1.0.0"}
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "ARG APP_VERSION=dev\nENV APP_VERSION=$APP_VERSION\n" in dockerfile

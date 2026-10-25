@@ -5,6 +5,7 @@ reads its filters and keys from the address, and shows the tables
 reports/screens.py builds. A panel request from HTMX gets the panel alone.
 """
 
+import tempfile
 from collections.abc import Callable
 
 from django import forms
@@ -12,9 +13,11 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
 from django.db.models.functions import Lower
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
+from ids_audit import audit
 from ids_audit.accounts.access import (
     EXPORT,
     UPLOAD,
@@ -22,14 +25,18 @@ from ids_audit.accounts.access import (
     allowed,
     may_create_reports,
     report_permission,
+    require,
     visible_reports,
 )
 from ids_audit.accounts.middleware import is_htmx
+from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.services import create_report
-from ids_audit.reports import faq, queries, screens
+from ids_audit.reports import export, faq, queries, screens
 from ids_audit.reports import filters as addresses
 from ids_audit.reports.models import Report
-from ids_audit.reports.queries import NONE, OUTSIDE, Filters
+from ids_audit.reports.queries import NO_KEYS, NONE, OUTSIDE, Filters, Keys
+
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class ReportForm(forms.Form):
@@ -96,14 +103,21 @@ def show(
     name: str,
     build: Callable[[], screens.Screen],
     hidden: dict[str, str] | None = None,
+    keys: Keys = NO_KEYS,
+    to_excel: bool = False,
 ) -> HttpResponse:
     """Render a screen: the whole page, or for HTMX its panel, which holds
-    everything the filters change (ENG-03 4). A report with no committed
-    upload shows no figures, so its screen isn't built.
+    everything the filters change (ENG-03 4), or with to_excel its export
+    (ENG-03 9). A report with no committed upload shows no figures, so its
+    screen isn't built for the page.
 
-    name is the screen's heading until it's built, and hidden holds the
-    screen's own keys, which its filter form sends again with the filters.
+    name is the screen's heading until it's built, hidden holds the screen's
+    own keys, which its filter form sends again with the filters, and keys
+    are its drill-down keys, which its export carries.
     """
+    if to_excel:
+        require(request.user, report, VIEW, EXPORT)
+        return excel(request, report, filters, keys, build())
     latest = queries.latest_committed(report)
     screen = build() if latest else None
     years = queries.years(report)
@@ -124,9 +138,70 @@ def show(
         "can_upload": allowed(request.user, report, UPLOAD),
         "can_export": allowed(request.user, report, VIEW, EXPORT),
         "has_charts": bool(screen) and any(t.charts for t in screen.tables),
+        "export_url": request.path
+        + "/export"
+        + addresses.query(filters, **export_values(screen, keys)),
     }
     template = "reports/_panel.html" if panel_only(request) else "reports/screen.html"
     return render(request, template, context)
+
+
+def export_values(screen: screens.Screen | None, keys: Keys) -> dict[str, str]:
+    """Return the keys an export's address carries: the screen's drill-down
+    keys, and an FAQ page's pick, written out even when it's the default
+    (ENG-03 9.1).
+    """
+    values = addresses.key_values(keys)
+    if screen is not None and screen.picker is not None and screen.picker.chosen:
+        values[screen.picker.key] = screen.picker.chosen
+    return values
+
+
+def excel(
+    request: HttpRequest, report: Report, filters: Filters, keys: Keys, screen
+) -> HttpResponse:
+    """Send a screen's export, written to a temporary file, and record it as
+    one export_downloaded event. An export past Excel's row limit is refused
+    before anything is written, with no event (ENG-03 9.4).
+    """
+    rows = export.largest_sheet(screen)
+    values = export_values(screen, keys)
+    address = request.path.removesuffix("/export") + addresses.query(filters, **values)
+    if rows > export.MAX_DATA_ROWS:
+        return render(
+            request,
+            "reports/export_refused.html",
+            {
+                "report": report,
+                "heading": screen.title,
+                "rows": rows,
+                "limit": export.MAX_DATA_ROWS,
+                "back": address,
+            },
+        )
+    at = timezone.now()
+    name = export.file_name(report, screen.view, at)
+    output = tempfile.TemporaryFile()
+    written = export.write_workbook(
+        output, report, screen, address, filters, request.user, at
+    )
+    audit.record(
+        AuditEvent.Action.EXPORT_DOWNLOADED,
+        user=request.user,
+        report=report,
+        details={
+            "view": screen.view,
+            "filters": {
+                "year": "all" if filters.year is None else str(filters.year),
+                "exclude_outside": "1" if filters.exclude_outside else "0",
+                **values,
+            },
+            "rows": written,
+            "file_name": name,
+        },
+    )
+    output.seek(0)
+    return FileResponse(output, as_attachment=True, filename=name, content_type=XLSX)
 
 
 def filters_only(request: HttpRequest) -> Filters:
@@ -135,15 +210,20 @@ def filters_only(request: HttpRequest) -> Filters:
 
 
 @report_permission(VIEW)
-def overview(request, report: Report):
+def overview(request, report: Report, to_excel: bool = False):
     filters = filters_only(request)
     return show(
-        request, report, filters, "Overview", lambda: screens.overview(report, filters)
+        request,
+        report,
+        filters,
+        "Overview",
+        lambda: screens.overview(report, filters),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def gl_accounts(request, report: Report):
+def gl_accounts(request, report: Report, to_excel: bool = False):
     filters = filters_only(request)
     return show(
         request,
@@ -151,11 +231,12 @@ def gl_accounts(request, report: Report):
         filters,
         "GL accounts",
         lambda: screens.gl_accounts(report, filters),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def gl_account(request, report: Report, code: str):
+def gl_account(request, report: Report, code: str, to_excel: bool = False):
     filters = filters_only(request)
     gl = addresses.code(code)
     return show(
@@ -164,11 +245,12 @@ def gl_account(request, report: Report, code: str):
         filters,
         f"GL account {gl}",
         lambda: screens.gl_account(report, filters, gl),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def departments(request, report: Report):
+def departments(request, report: Report, to_excel: bool = False):
     filters = filters_only(request)
     return show(
         request,
@@ -176,11 +258,12 @@ def departments(request, report: Report):
         filters,
         "Departments",
         lambda: screens.departments(report, filters),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def department(request, report: Report, code: str):
+def department(request, report: Report, code: str, to_excel: bool = False):
     filters = filters_only(request)
     key = addresses.code(code, (NONE, OUTSIDE))
     return show(
@@ -189,11 +272,12 @@ def department(request, report: Report, code: str):
         filters,
         screens.department_title(key, ""),
         lambda: screens.department(report, filters, key),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def budget_lines(request, report: Report):
+def budget_lines(request, report: Report, to_excel: bool = False):
     filters = filters_only(request)
     return show(
         request,
@@ -201,11 +285,12 @@ def budget_lines(request, report: Report):
         filters,
         "Budget lines",
         lambda: screens.budget_lines(report, filters),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def budget_line(request, report: Report, code: str):
+def budget_line(request, report: Report, code: str, to_excel: bool = False):
     filters = filters_only(request)
     key = addresses.code(code, (NONE,))
     return show(
@@ -214,15 +299,20 @@ def budget_line(request, report: Report, code: str):
         filters,
         queries.NO_BUDGET_LINE if key == NONE else f"Budget line {key}",
         lambda: screens.budget_line(report, filters, key),
+        to_excel=to_excel,
     )
 
 
 @report_permission(VIEW)
-def source_rows(request, report: Report):
-    values = addresses.read(request.GET, addresses.ROW_KEYS)
+def source_rows(request, report: Report, to_excel: bool = False):
+    taken = addresses.ROW_KEYS
+    if to_excel:
+        # The export holds every row, so it takes no page (ENG-03 9.1).
+        taken = tuple(key for key in taken if key != "page")
+    values = addresses.read(request.GET, taken)
     filters = addresses.filters_from(values)
     keys = addresses.keys_from(values)
-    page = addresses.page_from(values)
+    page = None if to_excel else addresses.page_from(values)
     return show(
         request,
         report,
@@ -230,11 +320,13 @@ def source_rows(request, report: Report):
         addresses.keys_in_words(keys),
         lambda: screens.source_rows(report, filters, keys, page),
         addresses.key_values(keys),
+        keys,
+        to_excel,
     )
 
 
 @report_permission(VIEW)
-def exceptions(request, report: Report):
+def exceptions(request, report: Report, to_excel: bool = False):
     filters = filters_only(request)
     return show(
         request,
@@ -242,6 +334,7 @@ def exceptions(request, report: Report):
         filters,
         "Exceptions",
         lambda: screens.exceptions(report, filters),
+        to_excel=to_excel,
     )
 
 
@@ -255,7 +348,7 @@ def faq_index(request, report: Report):
 
 
 @report_permission(VIEW)
-def faq_page(request, report: Report, slug: str):
+def faq_page(request, report: Report, slug: str, to_excel: bool = False):
     """One FAQ page. Pages 4 and 6 take their pick, gl or dept, in the
     address, and show the largest without one (ENG-03 7.2).
     """
@@ -274,4 +367,5 @@ def faq_page(request, report: Report, slug: str):
         filters,
         entry.question,
         lambda: faq.page(report, filters, entry, pick),
+        to_excel=to_excel,
     )
