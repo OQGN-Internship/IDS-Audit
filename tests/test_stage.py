@@ -181,13 +181,11 @@ def test_the_upload_keeps_reading_s_figures() -> None:
     figures = [getattr(upload, name) for name in ("rows_read", "rows_new")]
     figures += [upload.rows_duplicate, upload.rows_skipped, upload.rows_replaced]
     assert figures == [2, 2, 0, 0, 0]
-    assert upload.preview == {
-        "amounts": {
-            "to_commit": "749.500",
-            "duplicates": "0.000",
-            "skipped": "0.000",
-            "replaced": "0.000",
-        }
+    assert upload.preview["amounts"] == {
+        "to_commit": "749.500",
+        "duplicates": "0.000",
+        "skipped": "0.000",
+        "replaced": "0.000",
     }
     assert str(upload.reconciliation_difference) == "0.000"
     assert upload.error == ""
@@ -238,13 +236,11 @@ def test_skipped_rows_are_kept_with_their_cells_and_exact_amount() -> None:
         Decimal("50.000"),
     )
     assert (upload.rows_read, upload.rows_new, upload.rows_skipped) == (3, 1, 2)
-    assert upload.preview == {
-        "amounts": {
-            "to_commit": "1000.000",
-            "duplicates": "0.000",
-            "skipped": "12.3456",
-            "replaced": "0.000",
-        }
+    assert upload.preview["amounts"] == {
+        "to_commit": "1000.000",
+        "duplicates": "0.000",
+        "skipped": "12.3456",
+        "replaced": "0.000",
     }
     assert str(upload.reconciliation_difference) == "0.000"
 

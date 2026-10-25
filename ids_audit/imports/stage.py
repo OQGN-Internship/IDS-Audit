@@ -19,6 +19,7 @@ from ids_audit.imports.states import lock_upload, move
 from ids_audit.imports.storage import read_stored_file
 from ids_audit.ledger.models import CcDeptMap, GlCiMap, PostingResolved
 from ids_audit.pipeline.columns import NeedsColumns
+from ids_audit.pipeline.duplicates import find_duplicates, line_key_offered
 from ids_audit.pipeline.formats import UnknownFormat
 from ids_audit.pipeline.read import read_file
 from ids_audit.pipeline.readers import FileUnreadable
@@ -30,6 +31,10 @@ Status = Upload.Status
 Action = AuditEvent.Action
 
 # The row figures (ENG-02 11.1), which upload_awaiting_approval keeps.
+# The staging rows already in the report, by their place in the file, with
+# the amount of the posting each repeats (ENG-02 7.3).
+Duplicates = dict[tuple[str, int], Decimal]
+
 ROW_FIGURES = (
     "rows_read",
     "rows_new",
@@ -50,9 +55,12 @@ def stage_upload(upload: Upload, user: User) -> Upload:
     """
     with transaction.atomic():
         upload = lock_upload(upload, Status.READING)
+        line_key_mode = upload.report.duplicate_mode == Report.DuplicateMode.LINE_KEY
         try:
             data = read_stored_file(upload.file_sha256)
-            result = read_file(data, upload.ruleset.settings)
+            result = read_file(
+                data, upload.ruleset.settings, need_line_key=line_key_mode
+            )
         except NeedsColumns as stop:
             problems = [
                 {"sheet": p.sheet, "field": p.field, "columns": list(p.columns)}
@@ -79,8 +87,13 @@ def stage_upload(upload: Upload, user: User) -> Upload:
             )
             return upload
 
-        save_rows(upload, result)
-        save_figures(upload, result)
+        duplicates = (
+            find_duplicates(result.clean_rows, counted_line_keys(upload.report))
+            if line_key_mode
+            else {}
+        )
+        save_rows(upload, result, duplicates)
+        save_figures(upload, result, duplicates)
         move(
             upload,
             Status.AWAITING_APPROVAL,
@@ -98,11 +111,22 @@ def stage_upload(upload: Upload, user: User) -> Upload:
     return upload
 
 
-def save_rows(upload: Upload, result: ReadResult) -> None:
+def counted_line_keys(report: Report) -> dict[str, Decimal]:
+    """Return the line key of each of the report's postings that count, with
+    its amount (ENG-02 7.3).
+    """
+    return dict(
+        PostingResolved.objects.filter(report=report)
+        .exclude(line_key="")
+        .values_list("line_key", "amount")
+    )
+
+
+def save_rows(upload: Upload, result: ReadResult, duplicates: Duplicates) -> None:
     """Save the staging rows, skipped rows and mapping rows, each tagged with
     the upload (ENG-02 6, What's kept).
     """
-    copy_staging_rows(upload, result.clean_rows)
+    copy_staging_rows(upload, result.clean_rows, duplicates)
     SkippedRow.objects.bulk_create(
         SkippedRow(
             upload=upload,
@@ -138,7 +162,9 @@ def save_rows(upload: Upload, result: ReadResult) -> None:
     )
 
 
-def copy_staging_rows(upload: Upload, rows: Sequence[CleanRow]) -> None:
+def copy_staging_rows(
+    upload: Upload, rows: Sequence[CleanRow], duplicates: Duplicates
+) -> None:
     """Bulk-load the clean rows into staging_row with COPY (ENG-01 5.1, step 4).
 
     COPY sends every row in one stream, where INSERT would send a statement per
@@ -158,17 +184,21 @@ def copy_staging_rows(upload: Upload, rows: Sequence[CleanRow]) -> None:
                     "is_actual": row.is_actual is True,
                     "report_id": upload.report_id,
                     "upload_id": upload.pk,
-                    # Duplicates are marked in line-key mode (ENG-02 7.3).
-                    "is_duplicate": False,
+                    # Only in line-key mode (ENG-02 7.3).
+                    "is_duplicate": (row.sheet, row.row_number) in duplicates,
                 }
                 copy.write_row([values[f.attname] for f in fields])
 
 
-def save_figures(upload: Upload, result: ReadResult) -> None:
+def save_figures(upload: Upload, result: ReadResult, duplicates: Duplicates) -> None:
     """Set the upload's column layout, period, control total, row figures and
     their amounts, and difference (ENG-02 9 and 11.1). move() saves them.
     """
     reconciliation = reconcile(result)
+    duplicate_amount = sum(
+        (r.amount for r in result.clean_rows if (r.sheet, r.row_number) in duplicates),
+        Decimal(0),
+    )
     skipped_spend = [r for r in result.skipped_rows if r.sheet == result.spend_sheet]
     replaced, replaced_amount = replaced_postings(upload.report, result)
 
@@ -180,17 +210,21 @@ def save_figures(upload: Upload, result: ReadResult) -> None:
         "" if result.control_total is None else Upload.ControlTotalSource.FILE
     )
     upload.rows_read = len(result.clean_rows) + len(skipped_spend)
-    upload.rows_new = len(result.clean_rows)
-    upload.rows_duplicate = 0
+    upload.rows_new = len(result.clean_rows) - len(duplicates)
+    upload.rows_duplicate = len(duplicates)
     upload.rows_skipped = len(skipped_spend)
     upload.rows_replaced = replaced
     upload.preview = {
         "amounts": {
-            "to_commit": amount_text(reconciliation.staged),
-            "duplicates": amount_text(Decimal(0)),
+            "to_commit": amount_text(reconciliation.staged - duplicate_amount),
+            "duplicates": amount_text(duplicate_amount),
             "skipped": amount_text(reconciliation.skipped),
             "replaced": amount_text(replaced_amount),
-        }
+        },
+        # Chosen when the report's first upload is approved (ENG-02 7.3).
+        "line_key_offered": (
+            not upload.report.duplicate_mode and line_key_offered(result.clean_rows)
+        ),
     }
     upload.reconciliation_difference = reconciliation.difference
 

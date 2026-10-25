@@ -21,6 +21,8 @@ UNREADABLE_AMOUNT = "Unreadable amount"
 MORE_THAN_3_DECIMALS = "More than 3 decimal places"
 INVALID_DATE = "Invalid date"
 UNREADABLE_FISCAL_YEAR = "Unreadable fiscal year"
+# Only in a report in line-key mode (ENG-02 7.3).
+NO_LINE_KEY = "No line key"
 
 
 def repeats_row(row_number: int) -> str:

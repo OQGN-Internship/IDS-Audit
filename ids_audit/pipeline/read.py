@@ -43,6 +43,7 @@ from ids_audit.pipeline.results import (
     ANOTHER_CURRENCY,
     INVALID_DATE,
     MORE_THAN_3_DECIMALS,
+    NO_LINE_KEY,
     UNREADABLE_AMOUNT,
     UNREADABLE_CODE,
     UNREADABLE_FISCAL_YEAR,
@@ -85,12 +86,18 @@ class SpendRows:
     cc_entries: list[Entry] = field(default_factory=list)
 
 
-def read_file(data: bytes, settings: Mapping) -> ReadResult:
-    """Read and clean a file with a ruleset version's settings (ENG-02 3)."""
+def read_file(
+    data: bytes, settings: Mapping, *, need_line_key: bool = False
+) -> ReadResult:
+    """Read and clean a file with a ruleset version's settings (ENG-02 3).
+
+    need_line_key is True for a report in line-key mode, where a spend row
+    without a full line key is skipped (ENG-02 7.3).
+    """
     file_format = detect_format(data)
     sheets = read_sheets(data, file_format)
     layouts = find_layouts(sheets, settings, is_text=file_format == TEXT)
-    spend = read_spend_sheet(layouts[SPEND], settings)
+    spend = read_spend_sheet(layouts[SPEND], settings, need_line_key)
 
     skipped, other = list(spend.skipped), list(spend.other)
     mappings = {}
@@ -145,7 +152,9 @@ def map_values(row: MapRow) -> tuple[str, str, str, str]:
     return (row.code, row.code_name, row.value, row.value_name)
 
 
-def read_spend_sheet(layout: Layout, settings: Mapping) -> SpendRows:
+def read_spend_sheet(
+    layout: Layout, settings: Mapping, need_line_key: bool = False
+) -> SpendRows:
     """Sort the spend sheet's rows below its header (ENG-02 5), each list in
     row order.
 
@@ -187,6 +196,13 @@ def read_spend_sheet(layout: Layout, settings: Mapping) -> SpendRows:
     # A line key already seen in this file skips the row that repeats it (7.2).
     first_with_key: dict[str, int] = {}
     for clean, codes, row in kept:
+        if need_line_key and not clean.line_key:
+            result.skipped.append(
+                SkippedRow(
+                    clean.sheet, clean.row_number, NO_LINE_KEY, clean.amount, True, row
+                )
+            )
+            continue
         first = first_with_key.setdefault(clean.line_key, clean.row_number)
         if clean.line_key and first != clean.row_number:
             result.skipped.append(

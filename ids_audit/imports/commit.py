@@ -13,10 +13,18 @@ from django.utils import timezone
 from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import StagingRow, Upload
-from ids_audit.imports.states import lock_upload, move
+from ids_audit.imports.states import Refused, lock_upload, move
 from ids_audit.ledger.models import Posting
 from ids_audit.pipeline.reconciliation import amount_text
 from ids_audit.reports.models import Report
+
+DuplicateMode = Report.DuplicateMode
+
+
+class ApprovalRefused(Refused):
+    """The upload can't be approved as asked, so nothing is written (ENG-02
+    10.1, step 2).
+    """
 
 
 class CommitCheckFailed(Exception):
@@ -25,20 +33,24 @@ class CommitCheckFailed(Exception):
     """
 
 
-def commit_upload(upload: Upload, user: User) -> Upload:
+def commit_upload(
+    upload: Upload, user: User, duplicate_mode: str | None = None
+) -> Upload:
     """Approve an upload at awaiting_approval, in one transaction: either every
     step happens or none does (ENG-02 10.1).
 
-    Phase 1 leaves out the checks that need Phase 2: the user's access, what
-    blocks approval (9.3), and whether the preview is still current (ENG-01 4,
-    Build order). An upload not at awaiting_approval is refused with
-    WrongState.
+    duplicate_mode is the approver's choice of mode on the report's first
+    commit, replace by period if it's None (7.3). An upload not at
+    awaiting_approval is refused with WrongState, and a mode that can't be
+    chosen with ApprovalRefused. The checks that need sign-in come with it: the
+    user's access (ENG-01 4, Build order).
     """
     with transaction.atomic():
         # Step 1. A second approval for the same report waits here.
         report = Report.objects.select_for_update().get(pk=upload.report_id)
         # Step 2.
         upload = lock_upload(upload, Upload.Status.AWAITING_APPROVAL)
+        first_mode = mode_to_set(report, upload, duplicate_mode)
         # Step 4.
         copy_to_postings(upload)
         # Step 5. An upload is committed once, so its postings are the new ones.
@@ -59,11 +71,10 @@ def commit_upload(upload: Upload, user: User) -> Upload:
         upload.decided_by = user
         upload.decided_at = timezone.now()
         details = {"postings": written["count"], "amount": amount_text(total)}
-        if not report.duplicate_mode:
-            # Line-key mode is chosen in the first upload's preview, in Phase 2.
-            report.duplicate_mode = Report.DuplicateMode.REPLACE_BY_PERIOD
+        if first_mode:
+            report.duplicate_mode = first_mode
             report.save(update_fields=["duplicate_mode"])
-            details["duplicate_mode"] = report.duplicate_mode
+            details["duplicate_mode"] = first_mode
         move(
             upload,
             Upload.Status.COMMITTED,
@@ -74,6 +85,27 @@ def commit_upload(upload: Upload, user: User) -> Upload:
         # Step 7.
         StagingRow.objects.filter(upload=upload).delete()
     return upload
+
+
+def mode_to_set(report: Report, upload: Upload, chosen: str | None) -> str | None:
+    """Return the duplicate mode a first commit sets, or None on a later one
+    (ENG-02 7.3 and 10.1, step 6). Refuse a mode chosen on a later commit, and
+    line-key mode for a file the preview doesn't offer it for.
+    """
+    if report.duplicate_mode:
+        if chosen is not None:
+            raise ApprovalRefused(
+                "The duplicate mode is chosen on a report's first approval only. "
+                f"This report uses {report.get_duplicate_mode_display().lower()}."
+            )
+        return None
+    mode = DuplicateMode(chosen or DuplicateMode.REPLACE_BY_PERIOD)
+    if mode == DuplicateMode.LINE_KEY and not upload.preview.get("line_key_offered"):
+        raise ApprovalRefused(
+            "Line-key mode isn't offered for this file: some of its rows have no "
+            "company code, fiscal year, document number or line item."
+        )
+    return mode
 
 
 def copy_to_postings(upload: Upload) -> None:
