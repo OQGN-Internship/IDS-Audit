@@ -35,6 +35,7 @@ class AuditEvent(models.Model):
         ACCESS_REMOVED = "access_removed"
         REPORT_CREATED = "report_created"
         RULESET_CHANGED = "ruleset_changed"
+        UPLOAD_REFUSED = "upload_refused"
         UPLOAD_RECEIVED = "upload_received"
         UPLOAD_NEEDS_COLUMNS = "upload_needs_columns"
         UPLOAD_COLUMNS_PICKED = "upload_columns_picked"

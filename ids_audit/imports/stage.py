@@ -66,8 +66,8 @@ def stage_upload(upload: Upload, user: User) -> Upload:
                 {"problems": problems},
             )
             return upload
-        # The request refuses an unknown format before an upload exists
-        # (ENG-02 6), from Phase 2. Until then such a file fails here.
+        # receive_file refuses an unknown format before an upload exists
+        # (ENG-02 6), so only an upload received before it did fails here.
         except (FileUnreadable, UnknownFormat) as error:
             upload.error = str(error)
             move(

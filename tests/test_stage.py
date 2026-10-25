@@ -3,6 +3,7 @@
 """
 
 import datetime
+import hashlib
 import threading
 from decimal import Decimal
 
@@ -17,6 +18,7 @@ from ids_audit.imports.models import SkippedRow, StagingRow, Upload
 from ids_audit.imports.services import receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.imports.states import WrongState
+from ids_audit.imports.storage import store_file
 from ids_audit.ledger.models import CcDeptMap, GlCiMap
 from ids_audit.pipeline.results import (
     ANOTHER_CURRENCY,
@@ -443,14 +445,34 @@ def test_a_column_problem_stops_at_needs_columns(header, problem) -> None:
             id="no spend sheet",
         ),
         pytest.param(b"PK\x03\x04 not a workbook", "couldn't be opened", id="damaged"),
-        pytest.param(b"%PDF-1.4\n", "HTML, XML, MHTML or PDF", id="unknown format"),
     ],
 )
 def test_a_file_that_can_t_be_read_fails_with_its_error(data, error) -> None:
     """Verify a file that can't be read moves to failed with its error, saving
     nothing else, and its event keeps the error (ENG-02 6, ENG-01 6.3).
     """
-    upload = staged(data)
+    assert_failed_with(staged(data), error)
+
+
+def test_a_stored_file_of_unknown_format_fails() -> None:
+    """Verify an upload whose stored file isn't an accepted format fails with
+    the reason. receive_file refuses such a file, so the upload is made by hand,
+    as one received before it did would be.
+    """
+    data = b"%PDF-1.4\n"
+    file_sha256 = hashlib.sha256(data).hexdigest()
+    store_file(file_sha256, data)
+    upload = make_upload()
+    Upload.objects.filter(pk=upload.pk).update(file_sha256=file_sha256)
+    assert_failed_with(
+        stage_upload(upload, upload.uploaded_by), "HTML, XML, MHTML or PDF"
+    )
+
+
+def assert_failed_with(upload: Upload, error: str) -> None:
+    """Check the upload failed with the error, saving nothing else, and its
+    one upload_failed event keeps the error and its user.
+    """
     assert upload.status == Status.FAILED
     upload.refresh_from_db()
     assert error in upload.error

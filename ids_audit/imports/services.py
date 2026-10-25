@@ -8,16 +8,46 @@ together or not at all.
 
 import hashlib
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Max
+from django.utils import timezone
 
 from ids_audit import audit
 from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import Upload
+from ids_audit.imports.states import Refused, fail_interrupted_reads
 from ids_audit.imports.storage import store_file
+from ids_audit.pipeline.formats import UnknownFormat, detect_format
 from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
 from ids_audit.reports.models import Report, Ruleset
+
+Status = Upload.Status
+
+# MAX_UPLOAD_MB counts megabytes of this many bytes (ENG-01 6.4).
+MEGABYTE = 1024 * 1024
+
+# The states of an upload that's still open: a report has at most one (ENG-02 6).
+OPEN = (Status.READING, Status.NEEDS_COLUMNS, Status.AWAITING_APPROVAL)
+
+
+class UploadRefused(Refused):
+    """A file refused before an upload exists (ENG-02 6).
+
+    reason is the code upload_refused keeps, and details the other facts it
+    keeps (ENG-01 6.3).
+    """
+
+    TOO_LARGE = "too_large"
+    UNKNOWN_FORMAT = "unknown_format"
+    ALREADY_COMMITTED = "already_committed"
+    OPEN_UPLOAD = "open_upload"
+
+    def __init__(self, reason: str, message: str, details: dict) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.details = details
 
 
 def create_report(name: str, user: User) -> Report:
@@ -48,37 +78,96 @@ def receive_file(report: Report, user: User, original_name: str, data: bytes) ->
     """Store a file under its hash, then create its upload at reading, numbered
     after the report's last upload (ENG-01 5.1, step 2).
 
-    If the transaction fails, the stored file stays: another upload may share
+    A file over MAX_UPLOAD_MB, of an unknown format, matching a committed
+    upload in the report, or sent while the report has an open upload is
+    refused with UploadRefused: nothing is stored, no upload is created, and an
+    upload_refused event keeps the refusal (ENG-02 6). If the transaction fails
+    after the file is stored, the stored file stays: another upload may share
     it, and a new try writes the same bytes.
     """
-    # Over the bytes as received, before anything reads them (ENG-02 7.1).
-    file_sha256 = hashlib.sha256(data).hexdigest()
-    store_file(file_sha256, data)
-    with transaction.atomic():
-        # Locks the report's row until the transaction ends. A second file for
-        # this report waits here, then reads the new highest number.
-        report = Report.objects.select_for_update().get(pk=report.pk)
-        highest = report.uploads.aggregate(highest=Max("number"))["highest"] or 0
-        upload = Upload.objects.create(
-            report=report,
-            number=highest + 1,
-            file_sha256=file_sha256,
-            original_name=original_name,
-            size_bytes=len(data),
-            uploaded_by=user,
-            # It will be read with the report's latest settings.
-            ruleset=report.rulesets.order_by("-version").first(),
-        )
+    facts = {"original_name": original_name, "size_bytes": len(data)}
+    try:
+        # Before anything reads the file (ENG-01 6.4).
+        if len(data) > settings.MAX_UPLOAD_MB * MEGABYTE:
+            raise UploadRefused(
+                UploadRefused.TOO_LARGE,
+                f"The file is larger than {settings.MAX_UPLOAD_MB} MB, the most a "
+                "file may be.",
+                facts,
+            )
+        try:
+            detect_format(data)
+        except UnknownFormat as error:
+            raise UploadRefused(
+                UploadRefused.UNKNOWN_FORMAT, str(error), facts
+            ) from None
+
+        # So a read that was interrupted doesn't count as an open upload.
+        fail_interrupted_reads(report)
+        # Over the bytes as received (ENG-02 7.1).
+        file_sha256 = hashlib.sha256(data).hexdigest()
+        facts["file_sha256"] = file_sha256
+        with transaction.atomic():
+            # Locks the report's row until the transaction ends. A second file
+            # for this report waits here, then sees this one's upload.
+            report = Report.objects.select_for_update().get(pk=report.pk)
+            refuse_if_blocked(report, file_sha256, facts)
+            store_file(file_sha256, data)
+            highest = report.uploads.aggregate(highest=Max("number"))["highest"] or 0
+            upload = Upload.objects.create(
+                report=report,
+                number=highest + 1,
+                file_sha256=file_sha256,
+                original_name=original_name,
+                size_bytes=len(data),
+                uploaded_by=user,
+                # It will be read with the report's latest settings.
+                ruleset=report.rulesets.order_by("-version").first(),
+            )
+            audit.record(
+                AuditEvent.Action.UPLOAD_RECEIVED,
+                user=user,
+                report=report,
+                upload=upload,
+                details={
+                    "number": upload.number,
+                    "original_name": original_name,
+                    "size_bytes": upload.size_bytes,
+                    "file_sha256": file_sha256,
+                },
+            )
+    except UploadRefused as refusal:
+        # Written after the refused transaction is undone, so it's kept.
         audit.record(
-            AuditEvent.Action.UPLOAD_RECEIVED,
+            AuditEvent.Action.UPLOAD_REFUSED,
             user=user,
             report=report,
-            upload=upload,
-            details={
-                "number": upload.number,
-                "original_name": original_name,
-                "size_bytes": upload.size_bytes,
-                "file_sha256": file_sha256,
-            },
+            details={"reason": refusal.reason, **refusal.details},
         )
+        raise
     return upload
+
+
+def refuse_if_blocked(report: Report, file_sha256: str, facts: dict) -> None:
+    """Refuse a file that matches a committed upload in the report (ENG-02
+    7.1), or that's sent while the report has an open upload (6). The report's
+    row must be locked, so no other file can change either answer meanwhile.
+    """
+    uploads = report.uploads.order_by("number")
+    same = uploads.filter(status=Status.COMMITTED, file_sha256=file_sha256).first()
+    if same is not None:
+        on = timezone.localtime(same.decided_at).strftime("%d.%m.%Y")
+        raise UploadRefused(
+            UploadRefused.ALREADY_COMMITTED,
+            f"This file was already committed on {on} as upload {same.number}.",
+            {**facts, "number": same.number},
+        )
+    open_upload = uploads.filter(status__in=OPEN).first()
+    if open_upload is not None:
+        raise UploadRefused(
+            UploadRefused.OPEN_UPLOAD,
+            f"Upload {open_upload.number} is still open "
+            f"({open_upload.get_status_display().lower()}). A report takes one "
+            "file at a time, so it must be approved, rejected or withdrawn first.",
+            {**facts, "number": open_upload.number},
+        )

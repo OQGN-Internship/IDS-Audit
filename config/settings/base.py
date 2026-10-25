@@ -58,6 +58,9 @@ DATABASES = {
 # temporary folder, and from Phase 2 compose.yaml sets it to the uploads volume.
 UPLOADS_DIR = os.environ.get("UPLOADS_DIR", "")
 
+# The largest file received, in megabytes of 1,048,576 bytes (ENG-01 6.4).
+MAX_UPLOAD_MB = int(env("MAX_UPLOAD_MB", "50"))
+
 # Ids are bigint, as ENG-02 2 gives for posting.
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

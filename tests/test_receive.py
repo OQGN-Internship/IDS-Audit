@@ -243,7 +243,8 @@ def test_a_second_file_waits_for_the_lock_and_takes_the_next_number(
         try:
             with transaction.atomic():
                 Report.objects.select_for_update().get(pk=report.pk)
-                make_upload(report)
+                # Closed, so the second file isn't refused for it (ENG-02 6).
+                make_upload(report, status=Upload.Status.REJECTED)
                 locked.set()
                 release.wait(timeout=10)
         finally:
