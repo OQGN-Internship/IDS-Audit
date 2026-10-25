@@ -105,7 +105,7 @@ Before the client names the first users, the plan's default is one demo account 
 
 ### Fixed administrators, from the command line
 
-Each command runs in a terminal in the repository folder, as `docker compose exec app python manage.py <command>`. Each one that changes something is recorded in the audit log as a command-line action.
+Each command runs in a terminal in the repository folder, as `docker compose exec app python manage.py <command>`. [command.md](command.md) explains every `manage.py` command, which to use and which never to. Each one that changes something is recorded in the audit log as a command-line action.
 
 | Command | Does |
 | --- | --- |
