@@ -144,6 +144,28 @@ def test_no_rule_rounds_a_corner_or_spaces_by_left_or_right() -> None:
                 assert sides[1] == sides[3], selector
 
 
+def test_only_show_and_sign_out_are_plain_buttons() -> None:
+    """Verify every button that sends a form is a main button except Show
+    and Sign out, and no button carries a class the stylesheet doesn't
+    style (ENG-03 4).
+    """
+    templates = Path(__file__).parent.parent / "ids_audit" / "templates"
+    plain, classes = [], set()
+    for template in templates.rglob("*.html"):
+        for attributes, label in re.findall(
+            r"<button([^>]*)>(.*?)</button>", template.read_text(encoding="utf-8")
+        ):
+            found = re.search(r'class="([^"]+)"', attributes)
+            if found:
+                classes.update(found[1].split())
+                if "quiet" in found[1].split():
+                    plain.append(label)
+    assert sorted(plain) == ["Show", "Sign out"]
+    styled = {selector for selector, _ in rules()}
+    for name in classes:
+        assert f"button.{name}" in styled, name
+
+
 def test_the_logo_is_the_official_file() -> None:
     """Verify the logo is OQGN's file, byte for byte."""
     assert hashlib.sha256(LOGO.read_bytes()).hexdigest() == LOGO_SHA256

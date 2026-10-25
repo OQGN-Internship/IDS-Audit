@@ -13,7 +13,7 @@
     {% csrf_token %}
     <label for="reason">Reason for rolling back</label>
     <textarea id="reason" name="reason" rows="2"></textarea>
-    <button type="submit" class="danger">Roll back upload {{ upload.number }}</button>
+    <button type="submit">Roll back upload {{ upload.number }}</button>
   </form>
 {% endif %}
 {% endblock %}

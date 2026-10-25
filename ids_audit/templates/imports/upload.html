@@ -54,7 +54,7 @@
       {% csrf_token %}
       <label for="reject-reason">Reason for rejecting</label>
       <textarea id="reject-reason" name="reason" rows="2"></textarea>
-      <button type="submit" class="danger">Reject upload {{ upload.number }}</button>
+      <button type="submit">Reject upload {{ upload.number }}</button>
     </form>
   {% endif %}
   {% if can_withdraw %}
@@ -62,7 +62,7 @@
       {% csrf_token %}
       <label for="withdraw-reason">Reason for withdrawing</label>
       <textarea id="withdraw-reason" name="reason" rows="2"></textarea>
-      <button type="submit" class="quiet">Withdraw upload {{ upload.number }}</button>
+      <button type="submit">Withdraw upload {{ upload.number }}</button>
     </form>
   {% endif %}
   {% if can_roll_back %}

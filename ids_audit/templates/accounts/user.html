@@ -76,7 +76,7 @@
       <form method="post" action="{% url 'admin_user_disable' account.pk %}">
         {% csrf_token %}
         <p class="hint">A disabled account can't sign in. Its history stays in the audit log.</p>
-        <button type="submit" class="danger">Disable {{ account.username }}</button>
+        <button type="submit">Disable {{ account.username }}</button>
       </form>
     {% else %}
       <form method="post" action="{% url 'admin_user_enable' account.pk %}">
