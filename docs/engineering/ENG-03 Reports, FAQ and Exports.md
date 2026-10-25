@@ -183,7 +183,7 @@ A report's Audit log lists the events that name the report (ENG-01, 6.3). Fixed 
 - **Newest first, 100 to a page,** by the event's number, so the order never changes. The address takes only `page`, as source rows do (6.1): any other key, or a page that isn't a whole number from 1, returns 400, and a page past the last 404.
 - **Columns:** the time, to the second in Muscat time, since several events can share a minute; who acted, as "Full name (username)"; the action, in words, such as "Upload approved"; the upload's number, if the event names one; and the details.
 - **Who acted, when no user did:** "Command line" for an event that keeps its `command`, "Unknown username" for a failed sign-in or a lock-out of a username no account has, and "The application" for a change it made on its own, such as marking an interrupted read `failed` (ENG-01, 6.3).
-- **The details** are the event's `details`, each as its name and value, by name. PostgreSQL keeps `details` as `jsonb`, which doesn't keep the order they were written in. A value that holds more, such as an export's filters, is written as JSON. They're escaped like every other value (ENG-01, 6.4).
+- **The details** are the event's `details`, each as its name and value, by name. PostgreSQL keeps `details` as `jsonb`, which doesn't keep the order they were written in. A value that holds more, such as an export's filters, is written as JSON, with its names in order too. They're escaped like every other value (ENG-01, 6.4).
 - **Navigation.** The report's navigation links the Audit log only for users with **view\_audit\_log**, and the administration home links the whole log.
 
 **Rules**
