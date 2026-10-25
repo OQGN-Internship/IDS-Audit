@@ -1,5 +1,5 @@
-"""Receive: creating a report, and receiving a file as a numbered upload
-(ENG-01 4, Build order, and 5.1).
+"""Receive: creating a report, changing its ruleset, and receiving a file as a
+numbered upload (ENG-01 4, Build order, and 5.1; ENG-02 3).
 
 Only imports/ writes uploads (ENG-01 4, rule 2). Each function writes its audit
 event inside its own transaction, so an action and its event are saved
@@ -16,10 +16,17 @@ from django.utils import timezone
 
 from ids_audit import audit
 from ids_audit.accounts.models import User
+from ids_audit.accounts.services import require_fixed_admin
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import Upload
-from ids_audit.imports.states import Refused, fail_interrupted_reads, open_upload
+from ids_audit.imports.states import (
+    OPEN,
+    Refused,
+    fail_interrupted_reads,
+    open_upload,
+)
 from ids_audit.imports.storage import store_file
+from ids_audit.pipeline import ruleset
 from ids_audit.pipeline.cleaning import TOO_LARGE, has_more_than_3_decimals
 from ids_audit.pipeline.formats import UnknownFormat, detect_format
 from ids_audit.pipeline.reconciliation import amount_text
@@ -50,6 +57,16 @@ class UploadRefused(Refused):
         self.details = details
 
 
+class RulesetRefused(Refused):
+    """A ruleset change refused, with nothing written (ENG-02 3). problems
+    lists each reason.
+    """
+
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__(" ".join(problems))
+        self.problems = problems
+
+
 def create_report(name: str, user: User) -> Report:
     """Create a report, its ruleset version 1 and its report_created event, in
     one transaction (ENG-02 3).
@@ -72,6 +89,66 @@ def create_report(name: str, user: User) -> Report:
             details={"name": name},
         )
     return report
+
+
+def change_ruleset(
+    report: Report, user: User, changes: dict, command: str | None = None
+) -> Ruleset:
+    """Write the report's next ruleset version, its latest with the changes
+    made, and its ruleset_changed event, in one transaction (ENG-02 3).
+
+    user must be an active fixed administrator, or it's PermissionDenied. A
+    change that leaves every setting as it was, gives a setting that doesn't
+    exist or a value out of its form, or changes outside_ids_rule or
+    mapping_rule while the report has an open or a committed upload is
+    refused with RulesetRefused, and writes nothing. command is the
+    manage.py command it was run with, which the event keeps.
+    """
+    require_fixed_admin(user)
+    with transaction.atomic():
+        # Locked, as receiving a file locks it, so no upload opens while a
+        # setting that acts on the report's figures changes (ENG-01 5.1).
+        report = Report.objects.select_for_update().get(pk=report.pk)
+        latest = report.rulesets.order_by("-version").first()
+        new_settings = ruleset.merged(latest.settings, changes)
+        problems = ruleset.problems(new_settings)
+        if problems:
+            raise RulesetRefused(problems)
+        changed = {
+            key: {"before": latest.settings[key], "after": new_settings[key]}
+            for key in new_settings
+            if new_settings[key] != latest.settings[key]
+        }
+        if not changed:
+            raise RulesetRefused(["The change leaves every setting as it was."])
+        shown = [key for key in ruleset.SHOWN_SETTINGS if key in changed]
+        if (
+            shown
+            and report.uploads.filter(status__in=(*OPEN, Status.COMMITTED)).exists()
+        ):
+            raise RulesetRefused(
+                [
+                    f"{key} can't change while the report has an open or a "
+                    "committed upload."
+                    for key in shown
+                ]
+            )
+        version = Ruleset.objects.create(
+            report=report,
+            version=latest.version + 1,
+            settings=new_settings,
+            created_by=user,
+        )
+        details = {"version": version.version, "changed": changed}
+        if command:
+            details["command"] = command
+        audit.record(
+            AuditEvent.Action.RULESET_CHANGED,
+            user=user,
+            report=report,
+            details=details,
+        )
+    return version
 
 
 def receive_file(
