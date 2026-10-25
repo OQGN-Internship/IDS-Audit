@@ -8,7 +8,7 @@ This document defines what each screen, FAQ page and export shows, and exactly h
 
 It covers where every figure comes from, the filters, the screens, the charts, drill-down to source rows, the FAQ pages, the exceptions screen, the Excel export, speed and testing. Which postings count, and how they get there, is in ENG-02. Sign-in, permissions and the audit log are in ENG-01.
 
-The FAQ pages follow the plan's eight default questions until the client sends the final list, due by the start of Day 4. Section 12 lists that and the other items still to confirm.
+The FAQ pages answer the plan's eight questions, which came from the client, and more can be added when the client needs them (7.1). Section 12 lists the items still to confirm.
 
 ## 2. Where every figure comes from
 
@@ -301,13 +301,13 @@ The list is fixed in code, in `reports/faq.py`, since the client confirmed that 
 | `answer` | The sentence pattern, filled from the table's own figures |
 | `check` | How to check the answer by hand |
 
-Adding or changing a question is a code change, with its own test.
+The client can ask for more questions as the need comes up. Adding or changing one is a code change, with its own test, and a question can be answered only from the postings and mappings the import keeps (ENG-02, 2).
 
 `/reports/<id>/faq` lists the questions in order, each linking to its page. It's an index, so it has no export. Each page shows the filter line and the as-of line like any screen, then the question, the answer, its tables, what was counted, and the check by hand. The pages' slugs are, in the plan's order, `total-spend`, `largest-gl-accounts`, `gl-budget-lines`, `gl-account-cost-centers`, `department-spend`, `department-gl-accounts`, `spend-over-time` and `unmatched-spend`.
 
-### 7.2 The default questions
+### 7.2 The questions
 
-These are the plan's eight questions, in its order.
+These are the plan's eight questions, in its order. They came from the client.
 
 | # | Question | Answer, for example | Table on the page | How to check it by hand, in the original export |
 | --- | --- | --- | --- | --- |
@@ -515,7 +515,6 @@ Until each is decided, the default is what gets built.
 
 | # | Assumption | Section | Confirmed by | If it's different |
 | --- | --- | --- | --- | --- |
-| 1 | The FAQ list is the plan's eight questions | 7.2 | The client's final list, due by the start of Day 4 | Add or change entries in `faq.py`, each with its test |
-| 2 | Year means the calendar year of the posting date | 3.1 | The client by Day 2, with ENG-02's item 8 on the fiscal year | Filter by fiscal year instead |
-| 3 | The hand checks match how the validator checks figures in SAP | 7.2 | The validator, at acceptance | Rewrite those checks |
-| 4 | Amounts are shown in OMR with 3 decimal places | 2.4 | The validator, at acceptance | Change the format, which is set in one place |
+| 1 | Year means the calendar year of the posting date | 3.1 | The client by Day 2, with ENG-02's item 8 on the fiscal year | Filter by fiscal year instead |
+| 2 | The hand checks match how the validator checks figures in SAP | 7.2 | The validator, at acceptance | Rewrite those checks |
+| 3 | Amounts are shown in OMR with 3 decimal places | 2.4 | The validator, at acceptance | Change the format, which is set in one place |

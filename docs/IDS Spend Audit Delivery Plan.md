@@ -164,9 +164,8 @@ The dashed line marks the end of Day 5. After it, timing depends on the client's
   - department and budget-line views
   - exceptions: GL accounts with no budget line, cost centers outside IDS, and budget-line changes between files
   - filters for year and for excluding cost centers outside IDS
-  - FAQ pages, one per agreed question. The client confirmed that a fixed FAQ is enough, so users don't add questions in the app
+  - FAQ pages, one for each of the eight questions in Goal and scope, which came from the client. More are added in code when the client needs them. The client confirmed that a fixed FAQ is enough, so users don't add questions in the app
   - Excel export of any view, with a source sheet listing the filters and uploads it used. Each export is recorded in the audit log
-- **From the client:** the final FAQ list, by the start of Day 4.
 - **Done when:** every FAQ answer for the sample file, and for the real export once it arrives, is on screen, each total equals the sum of its source rows, and the Excel export matches the screen.
 
 ### Phase 4: Permissions and handover (Day 5)
@@ -217,7 +216,6 @@ Each answer is needed by the day shown, or that phase uses the default.
 | If a GL account's budget line changes between files, which applies: the latest file, the posting's own file, or the one for its fiscal year? | Day 3 | The latest file, with the change flagged as an exception |
 | How many rows per file, and how many files per month? | Day 3 | Imports run while the user waits, which suits files up to tens of thousands of rows |
 | Who can create a new report, and what access does its creator get? | Day 3 | Administrators only |
-| The final FAQ list | Day 4 | The eight default questions |
 | The first users, the reports each one can use, and their role on each | Day 5 | One demo account per preset role, used only for the demo and disabled before real use |
 | OQGN's colours and logo, for the theme | Day 5 | The screens keep their plain look until they arrive |
 | Who validates the numbers? | Before acceptance | Acceptance can't start |
