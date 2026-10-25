@@ -13,7 +13,7 @@ Each user has their own account and per-report permissions. Every sign-in, uploa
 
 ## Status
 
-Phase 2, audit-grade import. The client has approved the delivery plan. The real SAP export hasn't arrived yet, so the build starts on a generated sample file made to look like one (ENG-02 12.3). The build runs over Days 2 to 5, followed by the client's acceptance:
+Phase 3, reports. The client has approved the delivery plan. The real SAP export hasn't arrived yet, so the build starts on a generated sample file made to look like one (ENG-02 12.3). The build runs over Days 2 to 5, followed by the client's acceptance:
 
 | Phase | Day | Delivers |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Phase 2, audit-grade import. The client has approved the delivery plan. The real
 | 3. Reports | 4 | Screens, FAQ, charts, Excel exports |
 | 4. Permissions and handover | 5 | Users and roles, backup and restore, handover |
 
-Phases 1 and 2 are built: the figures match the sample's expected totals to the baisa, and a fixed administrator can sign in, upload a file, check its preview, approve, reject or withdraw it, and roll it back, each on record in the audit log. Phase 3 builds the report screens.
+Phases 1 to 3 are built for the sample file. The figures match its expected totals to the baisa. A fixed administrator can sign in, upload a file, check its preview, approve, reject or withdraw it, and roll it back, each on record in the audit log. The report's screens, FAQ pages and charts answer the plan's eight questions, every amount opens the rows behind it, and every screen exports to Excel. Phase 4 adds users, roles and per-report access, the audit log screen, backup and restore, the guide and OQGN's theme.
 
 ## Documentation
 
