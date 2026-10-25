@@ -199,31 +199,34 @@ A report's Audit log lists the events that name the report (ENG-01, 6.3). Fixed 
 
 **OQGN's theme**
 
-The plan's Phase 4 gives every screen OQGN's colours and logo once the screens are complete. They come from OQGN's brand guide, which the developer received on 2026-10-25: colours taken from the stylesheets of oqgn.om, the official logo file, and accessible variants worked out from those colours. The theme changes only the base template and `static/css/app.css` (the rule above).
+The plan's Phase 4 gives every screen OQGN's colours and logo once the screens are complete. They come from OQGN's brand guide, which the developer received on 2026-10-25: colours taken from the stylesheets of oqgn.om, the official logo file, and accessible variants worked out from those colours. The colours, the type and the sidebar change only the base template and `static/css/app.css` (the rule above). The overview's tiles change how its first table is drawn, and the charts read their colours by the theme's names.
 
 | Part | Token | Colour | Used for |
 | --- | --- | --- | --- |
 | Page | surface | `#FFFFFF` | The background of every page |
-| Text | ink | `#000000` | Text, headings, and the links in the report's navigation |
+| Text | ink | `#000000` | Text, headings, and every link on a band of surface-alt: the sidebar, table headings, the overview's tiles and the "No approved uploads yet" box |
 | Secondary text | ink-subtle | `#706F6F` | The filter line, the as-of line, hints, captions and the legend, on white only |
-| Links | green-text | `#587D39` | Links on white, the focus ring, and the line under the screen open now |
-| Header line | green-alt | `#73A846` | The header's 4px bottom border |
-| Bands | surface-alt | `#EDEDED` | Table headings, the report's navigation, and the "No approved uploads yet" box |
+| Links | green-text | `#587D39` | Links on white, the focus ring, and the bar beside the screen open now in the sidebar |
+| Logo line | green-alt | `#73A846` | The 4px line under the logo, at the top of the sidebar |
+| Bands | surface-alt | `#EDEDED` | The sidebar, table headings, the overview's tiles, and the "No approved uploads yet" box |
 | Row lines | line | `#D1D3D4` | Lines between table rows |
 | Controls | ink-subtle | `#706F6F` | The border of every field, list and button other than a main button |
-| Main button | green-dark | `#344E26` | Its background, with white text |
+| Main button | green-dark | `#344E26` | Its background, with white text. Every button that sends a form is a main button, except Show, the filter form's button for when JavaScript is off |
 | Problems | danger | `#E63B48` | A 4px border at the start of an error, a refusal or what blocks approval, whose text stays ink |
 | Success | green-text | `#587D39` | The same border on a success message |
 | Charts | green-text and green-dark | `#587D39` and `#344E26` | Bars, and the running-total line |
 | Outside IDS | orange-text | `#AB5B16` | Its bars, and its swatch in the legend |
 
 - **Colours are custom properties.** Each colour above is defined once, in `:root` at the top of `static/css/app.css`, named after its token, such as `--oqgn-green-text`. No other rule writes a colour value, and the charts read theirs from these (Section 5).
-- **Readable.** Text and its background have a contrast of at least 4.5:1, and a border or chart colour that carries meaning at least 3:1 against white (WCAG 2.1 AA). So the brand's green `#76A64C` and orange `#F58220`, at 2.9:1 and 2.6:1 on white, are never used for text, a control's border or a chart, and white text never sits on them, though oqgn.om does both. The header's line is decoration, so it can be light green.
+- **Readable.** Text and its background have a contrast of at least 4.5:1, and a border or chart colour that carries meaning at least 3:1 against white (WCAG 2.1 AA). So the brand's green `#76A64C` and orange `#F58220`, at 2.9:1 and 2.6:1 on white, are never used for text, a control's border or a chart, and white text never sits on them, though oqgn.om does both. The logo's line is decoration, so it can be light green. On surface-alt, green-text and ink-subtle fall to 4.1:1 and 4.3:1, so text and links on a band are ink.
 - **Meaning never rests on colour alone.** An error, a refusal or what blocks approval says so in words, the screen open now is also marked with `aria-current`, and Outside IDS is named in its chart's labels and legend (Section 5).
 - **Focus.** Every link, button and field focused from the keyboard shows a 2px solid ring in green-text, 2px outside it. The guide asks for the brand's green, but that is under 3:1 on white.
 - **Square corners.** Nothing has rounded corners, as on oqgn.om.
-- **The logo.** The official file, `oqgn-logo.svg` (188 by 47), is kept unchanged as `static/brand/oqgn-logo.svg`. Every page shows it at the start of the header, linking to the home page, at most 155px wide, with "OQ Gas Networks" as its text alternative and clear space around it at least the height of its "O". It's never redrawn, recoloured or rebuilt in CSS. It holds its texture as embedded images, so it's shown as an image file, never written into a page.
+- **The logo.** The official file, `oqgn-logo.svg` (188 by 47), is kept unchanged as `static/brand/oqgn-logo.svg`. Every page shows it at the top of the sidebar, linking to the home page, at most 155px wide, with "OQ Gas Networks" as its text alternative and clear space around it at least the height of its "O". It's never redrawn, recoloured or rebuilt in CSS. It holds its texture as embedded images, so it's shown as an image file, never written into a page.
 - **Type.** Text is set in "Helvetica Neue", Arial, sans-serif, the guide's fallbacks for OQGN's font, Aktiv Grotesk, which the application has no licence for. No font file is kept or loaded, and never the trial files oqgn.om loads. Body text is 16px, and headings are bold.
+- **The sidebar.** Every page has a sidebar at its start in place of a header, on surface-alt: the logo, then Reports, then on a report's pages the report's name and its screens (Navigation, above), then Administration for fixed administrators, and last the signed-in user as "Full name (username)" with Sign out. The screen open now, a detail screen counting as its list, carries `aria-current="page"` and a 4px green-text bar at its start. The sign-in page's sidebar holds only the logo. Below 60rem wide, the sidebar becomes a band across the top of the page, its links wrapping in rows, with no menu to open, so it needs no JavaScript.
+- **Denser tables.** Table text is 14px with cells padded 4px by 8px, so a list of a few dozen GL accounts fits on one screen. Numbers keep their tabular figures, right-aligned.
+- **The overview as a dashboard.** The *Actual spend* table shows as tiles across the top of the overview: Actual spend, On IDS cost centers, and Outside IDS while it's included, each with its amount, linked to its source rows like any amount, and its lines. The tiles are the same table drawn another way, so the export's *Actual spend* sheet doesn't change. On a screen at least 75rem wide, the *Largest GL accounts* and *By month* charts each sit beside their table, and narrower, above it, as on every other screen.
 - **Left out.** Nothing else comes from oqgn.om: no Bootstrap, Tailwind or Font Awesome (ENG-01, 3), and no shadows or animation. The guide also asks for every screen in Arabic, but the screen language stays English (Section 12). The stylesheet sets margins and padding by start and end, such as `margin-inline-start`, rather than left and right, so Arabic screens wouldn't need a new layout.
 
 **Tested by**
@@ -242,6 +245,8 @@ The plan's Phase 4 gives every screen OQGN's colours and logo once the screens a
 - No rule in the stylesheet rounds a corner, or sets a margin or padding by left or right.
 - `static/brand/oqgn-logo.svg` is the official file, checked by its SHA-256, and every page shows it in the header with its text alternative.
 - In the browser, the logo is drawn, and a link focused from the keyboard shows its ring.
+- Every page has the sidebar, the screen open now is marked with `aria-current="page"` there, a detail screen marking its list, and the sign-in page's sidebar has only the logo.
+- The overview shows its *Actual spend* as tiles, each amount linking to source rows that add up to it, and its export still has the *Actual spend* sheet.
 - An HTMX request for a screen gets its panel, holding the filter line and an Export link with the new filters, and a request without HTMX, or HTMX's request for a page after going back, gets the whole page.
 - `/reports/<id>/` opens the overview, and the base template links the report's screens on each of them.
 - For the sample file, each screen shows the figures in its expected result, and each amount links to source rows with the keys and filters of its group.
