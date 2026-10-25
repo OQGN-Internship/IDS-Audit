@@ -1,11 +1,11 @@
 -- Gives ids_app its rights on every table and view, then takes back the ones
--- it must not have (ENG-01 6.3). Runs as ids_owner after every migration, in
--- one transaction (psql -1), so no insert-only table ever has its UPDATE back.
--- It can run any number of times: granting or revoking a right a second time
--- changes nothing.
+-- it must not have (ENG-01 6.3). manage.py apply_grants runs it as ids_owner
+-- after every migration, in one transaction, so no insert-only table ever has
+-- its UPDATE back. The tests run it the same way (ENG-01 7.5). It can run any
+-- number of times: granting or revoking a right a second time changes nothing.
 --
--- Plain SQL only, with no psql commands, so the tests' Python fixture can run
--- it too (ENG-01 7.5).
+-- Plain SQL only, with no psql commands, since it runs through Django's
+-- database connection, not psql.
 
 -- 1. Every table and view, including any created before the default
 --    privileges existed. In PostgreSQL, ALL TABLES includes views.
