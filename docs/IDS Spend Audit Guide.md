@@ -14,15 +14,15 @@ Things to know:
 
 - After 5 wrong passwords, your account is locked for 15 minutes. Wait, or ask an administrator to unlock it.
 - After 30 minutes without using the application, you're signed out.
-- Everyone uses the same machine, so **sign out when you finish**, with **Sign out** at the top of every page, and **never let the browser save your password**. After you sign out, the browser's Back button shows the sign-in page, not your reports.
+- Everyone uses the same machine, so **sign out when you finish**, with **Sign out** at the bottom of the sidebar on every page, and **never let the browser save your password**. After you sign out, the browser's Back button shows the sign-in page, not your reports.
 - If you forget your password, ask an administrator to reset it. You then choose a new one at your next sign-in.
 - Everything you do is recorded in the audit log under your name.
 
 ### Your reports
 
-**Reports** at the top of every page lists the reports you can use. You see only the reports an administrator gave you a role on, and you can do only what that role allows on each (see "Roles" below).
+**Reports**, in the sidebar at the start of every page, lists the reports you can use. You see only the reports an administrator gave you a role on, and you can do only what that role allows on each (see "Roles" below).
 
-Each report has these screens, linked at the top of its pages:
+Each report has these screens, linked in the sidebar on its pages:
 
 | Screen | Shows |
 | --- | --- |
@@ -78,7 +78,7 @@ Administrators can change these and make others. The plan's "Users, sign-in and 
 
 ## For administrators
 
-Administrators are fixed accounts, created from the command line. They see every report, hold every permission on each, and open **Administration** at the top of every page.
+Administrators are fixed accounts, created from the command line. They see every report, hold every permission on each, and open **Administration** from the sidebar on every page.
 
 ### Users
 

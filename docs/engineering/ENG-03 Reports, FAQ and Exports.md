@@ -243,7 +243,7 @@ The plan's Phase 4 gives every screen OQGN's colours and logo once the screens a
 - Every colour in `static/css/app.css` is a custom property in `:root`, and each holds its colour from the theme's table.
 - Each text colour the stylesheet sets has a contrast of at least 4.5:1 with the background it's set on, worked out from the custom properties, and the controls', problems' and charts' colours at least 3:1 against white.
 - No rule in the stylesheet rounds a corner, or sets a margin or padding by left or right.
-- `static/brand/oqgn-logo.svg` is the official file, checked by its SHA-256, and every page shows it in the header with its text alternative.
+- `static/brand/oqgn-logo.svg` is the official file, checked by its SHA-256, and every page shows it at the top of the sidebar with its text alternative.
 - In the browser, the logo is drawn, and a link focused from the keyboard shows its ring.
 - Every page has the sidebar, the screen open now is marked with `aria-current="page"` there, a detail screen marking its list, and the sign-in page's sidebar has only the logo.
 - The overview shows its *Actual spend* as tiles, each amount linking to source rows that add up to it, and its export still has the *Actual spend* sheet.
