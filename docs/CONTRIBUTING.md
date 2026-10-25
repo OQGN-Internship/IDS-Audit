@@ -137,7 +137,7 @@ uv run ruff format --check .
 uv run pytest
 ```
 
-- The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when `real-export/` holds no export (ENG-02 12.2).
+- The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when `real-export/` holds no export with its expected result (ENG-02 12.2). Once the real export is on your machine, run `IDS_REQUIRE_REAL_EXPORT=1 uv run pytest` after any change to reading, cleaning or counting, so the test fails rather than skips if it can't find the export.
 - The database tests need PostgreSQL, so start it first with `docker compose up -d db` (ENG-01 7.5). The other tests pass without it.
 - Any change to a figure, a permission or a migration needs a test that would fail without it.
 - After any change to `scripts/`, `compose.yaml`, the `Dockerfile` or a migration, also run `uv run pytest -m docker`, the backup and restore gate, which a plain `uv run pytest` leaves out because it builds the image and takes minutes (ENG-01 7.5). It needs Docker and Git Bash.

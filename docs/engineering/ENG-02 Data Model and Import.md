@@ -711,7 +711,23 @@ Each golden file has an expected result beside it: totals by GL account, by comm
 
 A golden result changes only on purpose, in its own commit, with the reason in the commit message. A rule change that moves any number fails the tests until then.
 
-The real export is client data, so it never goes into Git. It is kept in `real-export/`, with SAP's totals for it, and Git ignores everything there except the folder's README (ENG-01, 6.4). Its test reads them from that folder, and is skipped when the folder holds no export.
+**The real export** is client data, so it never goes into Git. It is kept in `real-export/`, and Git ignores everything there except the folder's README (ENG-01, 6.4). Several exports can be kept there, each tested on its own.
+
+- **Its expected result** is a JSON file beside it, named after it: `FAGLL03 2026-09.xlsx` has `FAGLL03 2026-09.expected.json`. It holds SAP's own totals during the build, and the validator's hand-checked figures too from acceptance (ENG-03, 11). It's client data like the export, so it's never committed either, and the rule above that a golden result changes only in its own commit applies to the made-up files alone. Its `source` says who gave each figure and when, and a figure changed later is noted there with its reason.
+- **What it holds.** Every key but `source` is optional, and only the figures given are checked, so SAP's overall total and three GL accounts are enough to start. Amounts are strings, as in the sample's expected result (12.3).
+
+| Key | Holds |
+| --- | --- |
+| `source` | Who gave the figures, and when, such as "SAP totals from the validator, 2 November 2026" |
+| `settings` | The ruleset settings that differ from version 1's, as `change_ruleset` takes them (Section 3), such as a header name the export needs (Section 13) |
+| `control_total` | SAP's total for the file, such as `"-1234.500"`, when the file has no total row (9.1) |
+| `actual_spend` | `total`, the figure SAP's overall total is compared with, and from acceptance `inside_ids` and `outside_ids` |
+| `by_gl`, `by_ci`, `by_department`, `by_month` | The codes given, each with its actual spend, keyed as in `report_totals` (ENG-01, 7.2) |
+| `skipped_rows` | The rows the client agrees to leave out (Section 13, item 19), each with its `row` and `reason`. None when it's missing |
+
+- **The test**, `tests/test_real_export.py`, takes each expected result in the folder and uploads its export into a new, empty report, with a ruleset version 2 made from its `settings`. It goes through the same steps as the Phase 1 gate test: receive, stage, approve. It checks that the upload reaches `awaiting_approval`, reconciles, has no exception that blocks approval and skips exactly the rows listed, and that `report_totals` then gives every figure the expected result holds, to the baisa. Each failure names the figure and both amounts.
+- **An export with no expected result beside it** fails the test, since nothing can check its figures. Any `.xlsx`, `.xls`, `.csv` or `.txt` file in the folder is an export.
+- **While the folder holds no expected result**, the test is skipped. pytest counts a skip as a pass, so the reason names the folder and what to put there, and `uv run pytest` prints it (`-rs` in `pyproject.toml`). Once the real export is on the machine, every run that should check it, a gate shown to the client or one after a change to a reading rule, sets `IDS_REQUIRE_REAL_EXPORT=1`, which turns the skip into a failure, so a moved or misnamed folder can't pass unseen.
 
 ### 12.3 The sample file
 
@@ -825,6 +841,8 @@ Running the script again gives byte-identical files. The workbook's creation dat
 
 - Running the script again leaves every file in `tests/fixtures/` byte for byte unchanged.
 - In each expected result, `by_gl`, `by_ci`, `by_department` and `by_month` each add up to `actual_spend.total`, so do `inside_ids` and `outside_ids`, and the reconciliation `difference` is `0.000`.
+- With no expected result in `real-export/`, the real-export test is skipped with a reason naming the folder, and fails when `IDS_REQUIRE_REAL_EXPORT=1`. An export without its expected result fails it.
+- Put in a folder of its own with an expected result made from its own, the sample file passes the real-export test, with and without `settings` and a typed `control_total`. It fails when one figure is changed by `0.001`, when a code is missing from the report, when a row is skipped that isn't listed, and when a blocking exception stops approval.
 
 **Done when** every test passes on a clean checkout with `uv run pytest`, and the sample file's totals match its expected result to the baisa. Once the real export arrives, its overall and GL totals must also match SAP's to the baisa.
 

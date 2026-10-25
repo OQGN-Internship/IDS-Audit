@@ -549,7 +549,7 @@ Each section above ends with the tests that prove it. This section is how they'r
 | Browser | Overview to GL account to source rows, both filters, and an export download | Playwright |
 | Speed | Section 10 | pytest |
 
-**Expected results.** Each golden file from ENG-02 gains the expected figures for every screen and FAQ answer. For the sample file, they come from the script that generated it. For the real export, they're SAP's own totals during the build, and the validator's hand-checked figures once acceptance starts.
+**Expected results.** Each golden file from ENG-02 gains the expected figures for every screen and FAQ answer. For the sample file, they come from the script that generated it. For the real export, they're SAP's own totals during the build, and the validator's hand-checked figures once acceptance starts. Both are client data, kept beside the export in `real-export/` and never committed (ENG-02, 12.2).
 
 **Done when** the plan's Phase 3 gate is met: every FAQ answer for the sample file, and for the real export once it arrives, is on screen, each total equals the sum of its source rows, and the Excel export matches the screen. All the tests above pass with `uv run pytest`.
 
