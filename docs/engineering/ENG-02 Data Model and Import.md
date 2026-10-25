@@ -253,6 +253,7 @@ A **spend row** is any row whose GL account and cost center cells both hold some
 | Spend row with more than 3 decimal places | `12.3456` | `More than 3 decimal places` | Yes |
 | Spend row with an invalid date | `31.02.2026` | `Invalid date` | Yes |
 | Spend row with an unreadable fiscal year | `FY26`, in a file with a date column | `Unreadable fiscal year` | Yes |
+| Spend row without a full line key, in a report in line-key mode | No document number | `No line key` | Yes (7.3) |
 | Spend row repeating a line key already in the same file | Same document and line item twice | `Repeats row 12`, naming the first row | Yes (Section 7) |
 
 A row with more than one problem gets the reason that comes first in the table. A skipped row keeps its amount whenever it can be read, whatever the reason.
@@ -353,24 +354,30 @@ Each report uses one of two modes, set in `report.duplicate_mode`.
 
 |  | Replace by period (the default) | Line key |
 | --- | --- | --- |
-| Used when | Always, unless line-key mode is chosen | The approver chooses it in the first upload's preview. It's offered only when every spend row has a full `line_key` |
+| Used when | Always, unless line-key mode is chosen | The approver chooses it when approving the report's first upload. It's offered only when the file has rows to commit and every one has a full `line_key`. A spend row skipped for another reason doesn't count against it |
 | What committing does | Every posting already in the report dated in the file's months is replaced. The months run from the month of `period_start` to the month of `period_end` | Rows whose `line_key` matches a posting that counts are marked `is_duplicate` and not committed. Only new lines are added |
 | Suits | Year-to-date exports, where each file restates every month it covers | Exports that overlap irregularly |
 | Preview shows | The months replaced, and the number and amount of postings replaced | The number and amount of duplicates |
 | A posting that disappears from a later export | Disappears from the report too | Stays in the report |
-| Rows without a full line key | Accepted | Skipped with the reason "no line key", and counted in reconciliation |
+| Rows without a full line key | Accepted | Skipped with the reason "No line key", and counted in reconciliation (Section 5) |
 
 The mode can't change once a report has a committed upload. A report's first upload means any upload made before the report's first commit (10.1), such as a new try after a rejected file. Nothing is in the report yet, so both modes give the same preview figures.
 
 Replacement never deletes or edits a posting. A replaced posting simply stops counting (Section 10.2), so rolling back the upload that replaced it makes it count again.
 
-In line-key mode, a duplicate whose amount differs from the posting already in the report is shown as an exception. The posting already in the report stays as it is.
+**Marking duplicates.** In line-key mode, a staging row is marked `is_duplicate` when its `line_key` is exactly the `line_key` of a posting in the report that counts (10.2), as `posting_resolved` shows it. This is worked out when the file is read, so the preview's figures already leave duplicates out (11.1), and the commit copies only the rows not marked (10.1). A line key repeated within the file is skipped before this (7.2), so a staging row matches at most one posting.
+
+A duplicate whose amount differs from the posting already in the report is shown as an exception, with both amounts. The posting already in the report stays as it is.
 
 **Tested by**
 
 - The same file twice in one report is refused, and accepted in another report, or in the same report once its upload is rolled back.
 - In replace-by-period mode, a September year-to-date file followed by an October one leaves exactly the October file's postings for January to October.
-- In line-key mode, a second file overlapping the first adds only its new lines.
+- In line-key mode, a second file overlapping the first adds only its new lines, and the preview counts the others as duplicates, with their amount.
+- In line-key mode, a duplicate whose amount differs is an exception, and approving leaves the posting already in the report unchanged.
+- In line-key mode, a row without a full line key is skipped as `No line key`, and the file still reconciles. In replace-by-period mode the same row is staged.
+- Line-key mode is offered for a first upload whose rows to commit all have a full line key, and refused at approval for one where a row doesn't, or for a report that already has a committed upload.
+- A posting whose upload was rolled back doesn't make a row a duplicate.
 - A line repeated in one file is skipped once, and the file still reconciles.
 
 ## 8. Mapping versions and resolution
@@ -453,7 +460,9 @@ Reconciliation proves the file was read completely: every amount in it is either
 ### 9.1 The control total
 
 - **From the file.** The total row (Section 5) on the spend sheet. Only a row below the last spend row qualifies, and if more than one does, the last is used. Any other row that looks like a total is an other row. `control_total_source` is `file`.
-- **Entered.** If the file has no total row, the uploader types the total shown in SAP for the same selection. `control_total_source` is `entered`, and the preview shows it as typed by hand.
+- **Entered.** If the file has no total row, the uploader types the total shown in SAP for the same selection. It's typed on the upload form, with the file, so it's given before the file is read and the person typing it hasn't seen what the rows add up to. It's saved on the upload as it's received, with at most 3 decimal places, and `control_total_source` is `entered`. The preview shows it as typed by hand. It can't be changed afterwards: a wrong total is fixed by withdrawing the upload and uploading the file again.
+
+If the file has a total row, the file's total is used, and a typed total is kept only in the `upload_received` event (ENG-01, 6.3). A file with no total row, uploaded with no typed total, has no control total, so its approval is blocked (9.3).
 
 Excel adds tiny binary errors when it sums, such as `1234.5000000001`. So the difference (9.2) is worked out from the control total as read, before any rounding. The difference is then rounded half up to 3 decimal places, which removes only fractions of a baisa. A file with a skipped amount such as `12.3456` still reconciles. `control_total` is saved rounded the same way. Spend rows are never rounded (Section 5).
 
@@ -483,6 +492,8 @@ With no control total there's nothing to subtract from, so `reconciliation_diffe
 
 A skipped spend row whose amount can't be read leaves a difference, so it blocks approval through the first condition.
 
+The preview lists each condition that applies as an exception that blocks approval (11.2), and the commit refuses an upload whose preview lists one (10.1).
+
 Skipped rows count in reconciliation only to prove the file was read completely. They're never in the report. A file's actual spend in the report is therefore its control total minus three amounts. They're its skipped spend rows, its duplicates already in the report (line-key mode), and its rows to commit that aren't actual spend. No row is in more than one, and the preview shows each (11.1).
 
 **Tested by**
@@ -493,7 +504,7 @@ Skipped rows count in reconciliation only to prove the file was read completely.
 - Changing one amount by `0.001` blocks approval.
 - A row with an unclassified value type blocks approval, and so does a mapping code listed with different values.
 - Of two rows reading Total below the last spend row, the last gives the control total and the other is an other row. A Total row above the last spend row is an other row.
-- A file with no total row asks for one, and the typed total is saved with `control_total_source` as `entered`.
+- A total typed on the upload form is saved with `control_total_source` as `entered`, and ignored for a file with a total row.
 - A file of actual-spend rows with one skipped row reconciles, and its report total is lower by exactly that row's amount.
 
 ## 10. Commit and rollback
@@ -503,14 +514,16 @@ Skipped rows count in reconciliation only to prove the file was read completely.
 Approval runs as one database transaction. Either every step happens or none does.
 
 1. Lock the report's row, so two approvals for the same report can't run at once.
-2. Check that the user still has **approve**, that the upload is still at `awaiting_approval`, and that nothing in 9.3 blocks it.
-3. Check that no upload in the report was committed or rolled back since the preview was built. If one was, stop and rebuild the preview.
+2. Check that the user still has **approve**, that the upload is still at `awaiting_approval`, and that its preview lists no exception that blocks approval (9.3 and 11.2).
+3. Check that the report's committed uploads, in the order of commits (10.2), are still the ones the preview was built against, which it keeps as `committed_uploads` (11.1). An upload committed or rolled back since would make the preview's figures wrong. The rules in Section 6 mean this can only happen through a fault, so the approval is refused rather than the preview rebuilt: the upload is rejected and the file uploaded again, which builds a new preview.
 4. Copy the staging rows not marked `is_duplicate` into `posting`.
 5. Check that the count and total of the new postings equal the preview's. If they don't, stop.
-6. Set the upload to `committed` with `decided_by` and `decided_at` (10.2). On the report's first commit, also set `report.duplicate_mode` to the mode chosen in the preview (7.3). Write the audit event, with the duplicate mode in its details on a first commit.
+6. Set the upload to `committed` with `decided_by` and `decided_at` (10.2). On the report's first commit, also set `report.duplicate_mode` to the mode the approver chose (7.3): replace by period unless they chose line-key mode and the preview offers it. Choosing a mode on any later commit is refused. Write the audit event, with the duplicate mode in its details on a first commit.
 7. Delete the upload's staging rows.
 
 If the transaction stops at any step, nothing is written, the upload stays at `awaiting_approval`, and the error is shown. Because the audit event is in the same transaction, a commit can't happen without its audit event.
+
+**A refused approval is on record.** An approval refused at step 2 for an exception that blocks it, at step 3, for a duplicate mode it can't choose (7.3), or at step 5 writes an `approval_refused` event with its reasons once the transaction is undone (ENG-01, 6.3). A user without **approve** gets the access check's 403 instead, and an upload no longer at `awaiting_approval` is refused with no event, since there was nothing to approve.
 
 ### 10.2 Which postings count
 
@@ -553,11 +566,14 @@ The preview is the approver's whole view of a file before it counts. It's built 
 | --- | --- | --- |
 | File | Name, size, uploader, time, ruleset version | `upload` |
 | Period | First and last posting date, and the months replaced (replace-by-period mode) | `period_start`, `period_end` |
+| Duplicate mode | On a report with no committed upload, whether line-key mode can be chosen (7.3) | `preview` |
 | Rows | Read, to commit, duplicates, replaced and skipped | `rows_*` |
 | Amounts | The amount for each row figure above | `preview` |
 | Reconciliation | The formula in 9.2, line by line, with the difference | `control_total`, `reconciliation_difference` |
-| Actual spend in this file | Total, inside IDS and outside IDS | `preview` |
+| Actual spend in this file | Total, inside IDS and outside IDS, of the rows to commit | `preview` |
 | Not actual spend | The amount of the rows to commit with `is_actual` false (9.3) | `preview` |
+| Value types | Each value type found, when the file has a value-type column (11.2) | `preview` |
+| Mappings | Which upload's GL mapping and cost center mapping the file's postings will use (8.3) | `preview` |
 | Report actual spend | Before and after approval | `preview` |
 | Exceptions | Each type below, with its rows, row count and amount | `preview` |
 
@@ -573,29 +589,55 @@ Each exception lists the rows it covers, by sheet and row number in the original
 | `rows_skipped` | Skipped spend rows. A skipped mapping row isn't a spend row, so it's listed with the exceptions only (11.2) | `skipped`: the skipped rows that count in reconciliation, with a readable amount, as read (9.2) |
 | `rows_replaced` | Postings that count (10.2), dated in the file's months, which committing replaces in replace-by-period mode (7.3). None in a report with no committed upload, or in line-key mode | `replaced` |
 
-`preview` is a JSON object. Its `amounts` key holds the four amounts above, each a string holding the exact amount, such as `"12400.000"`, so reading it never passes through a float. The row figures, their amounts, the period, the control total and the difference are saved from Phase 1, because the commit checks them (10.1) and the Phase 1 gate test reads them (ENG-01, 4). The rest of the preview comes in Phase 2.
+`preview` is a JSON object. Every amount in it is a string holding the exact amount, such as `"12400.000"`, so reading it never passes through a float. Its keys:
+
+| Key | Holds |
+| --- | --- |
+| `amounts` | `to_commit`, `duplicates`, `skipped` and `replaced`: the amounts of the row figures above |
+| `line_key_offered` | `true` when the report has no committed upload and line-key mode can be chosen for this file (7.3) |
+| `committed_uploads` | The numbers of the report's committed uploads in the order of commits (10.2) when the preview was built, which the commit checks (10.1, step 3) |
+| `months_replaced` | Each month from `period_start` to `period_end`, such as `"2026-03"`, unless the report is in line-key mode (7.3) |
+| `actual_spend` | `total`, `inside_ids` and `outside_ids`: the rows to commit with `is_actual` true |
+| `not_actual` | The amount of the rows to commit with `is_actual` false |
+| `value_types` | Each value type among the rows to commit: its `value_type` as written, its `rows`, its `amount`, and its `class`, which is `actual`, `not_actual` or `unclassified`. Empty when the file has no value-type column |
+| `mappings` | `gl` and `cc`: the number of the upload whose mapping the file's postings will use, which is this upload's own when it has that mapping, or `null` when no upload has one yet (8.1 and 8.3) |
+| `report_actual_spend` | `before` and `after` approval |
+| `exceptions` | The exceptions in 11.2 |
+
+**What approving would change.** The figures that depend on the mapping in force or on which postings count are worked out by approving the upload for a moment, inside the read's own transaction: the commit's steps 4 and 6 (10.1) run in a savepoint, without the audit event, the figures are read through `posting_resolved` and `reports/queries.py` as any screen reads them, and the savepoint is rolled back. These are the actual spend inside and outside IDS, the report's actual spend after approval, the exceptions for GL accounts with no budget line, listed without a commitment item and cost centers outside IDS, and the spend each mapping change moves. So the preview follows exactly the rules the report will, and never a second copy of them. The report's actual spend after approval is therefore its actual spend once the upload is approved, whether rows are actual or not, replaced or duplicates.
 
 ### 11.2 Exception types
 
-| Exception | Example | Blocks approval |
-| --- | --- | --- |
-| Difference not zero | `-0.500` | Yes |
-| No control total | No total row, and none typed | Yes |
-| Row in another currency | `USD` | Yes |
-| Unclassified value type | `Plan`, where the rule lists only `Actual` and `Commitment` | Yes |
-| Mapping code listed with different values | `610100` with `2101` on one row and `2201` on another | Yes |
-| Skipped row | Invalid date, more than 3 decimals, unreadable code, repeated line, no line key, unreadable mapping code | No |
-| Other row without GL account or cost center | A subtotal or a label | No |
-| GL account with no budget line | `640200` | No |
-| GL account listed without a commitment item | `650200` | No |
-| Cost center outside IDS | `3100` | No |
-| Mapping change | `610100` moves from `2101` to another commitment item | No |
-| Mapping sheet and spend sheet disagree | 4.2 | No |
-| Names differ for one code | `2101` named `Software and licences` on one row and `Software` on another | No |
-| Duplicate with a different amount | Line-key mode, 7.3 | No |
-| A month with no rows inside the replaced months | February empty between January and March | No |
+| Exception | Type in `preview` | Example | Each item | Blocks approval |
+| --- | --- | --- | --- | --- |
+| Difference not zero | `difference_not_zero` | `-0.500` | None. Its amount is the difference | Yes |
+| No control total | `no_control_total` | No total row, and none typed | None | Yes |
+| Row in another currency | `another_currency` | `USD` | A row | Yes |
+| Unclassified value type | `unclassified_value_type` | `Plan`, where the rule lists only `Actual` and `Commitment` | A value type, with its `value_type` | Yes |
+| Mapping code listed with different values | `listed_with_different_values` | `610100` with `2101` on one row and `2201` on another | A code, with its `mapping` and `code` | Yes |
+| Skipped row | `skipped_row` | Invalid date, more than 3 decimals, unreadable code, repeated line, no line key, unreadable mapping code | A row, with its `reason` | No |
+| Other row without GL account or cost center | `other_row` | A subtotal or a label | A row | No |
+| GL account with no budget line | `missing_from_gl_map` | `640200` | A GL account, with its `code` | No |
+| GL account listed without a commitment item | `listed_without_ci` | `650200` | A GL account, with its `code` | No |
+| Cost center outside IDS | `outside_ids` | `3100` | A cost center, with its `code` | No |
+| Mapping change | `mapping_change` | `610100` moves from `2101` to another commitment item | A code, with its `mapping`, `code`, `before`, `after` and `committed` | No |
+| Mapping sheet and spend sheet disagree | `sheet_and_spend_disagree` | 4.2 | A code, with its `mapping` and `code` | No |
+| Names differ for one code | `names_differ` | `2101` named `Software and licences` on one row and `Software` on another | A code, with its `field` and `code` | No |
+| Duplicate with a different amount | `duplicate_different_amount` | Line-key mode, 7.3 | A row, with the `posting_amount` already in the report | No |
+| A month with no rows inside the replaced months | `month_without_rows` | February empty between January and March | A month, with its `month` | No |
+| Replaced postings outside the file's dates | `replaces_outside_dates` | A file dated 15 to 28 February replaces postings dated 1 to 14 February | An earlier upload, with its `upload` number and the number of its `postings` replaced | No |
 
-An exception that doesn't block approval still needs a look. The approver approves the file with its exceptions, and the audit event records how many there were of each type.
+`exceptions` lists only the types that occur, in the order of this table. Each is an object with its `type`, `blocks_approval`, `amount` and `items`. Each item has the `rows` it covers in the original file, as pairs of sheet and row number, which may be empty, and its `amount`, or `null` when it has none, beside the keys the table gives. A type's amount is the sum of its items' amounts, or `null` when none has one. Its row count is the number of rows its items list.
+
+- **Rows and amounts.** A row's amount is the amount it was read with, for a skipped row only if it could be read. A mapping row has none.
+- **Skipped rows** are the skipped rows of every sheet except those in another currency, which have their own type.
+- **Budget lines and outside IDS** cover the rows to commit that are actual spend, as the report will show them once the upload is approved (11.1), so their amounts match the exceptions screen's (ENG-03, 8).
+- **A mapping change** is a code whose budget line or department differs between the upload's mapping and the mapping in force (8.3). `before` and `after` are the commitment item or department, empty for a GL account listed without a commitment item, and `null` when the mapping doesn't list the code. Its amount is the actual spend that approving moves, worked out as in 11.1: this file's rows to commit, compared with the mapping in force now, and the committed postings that count, of which `committed` is the part. Its rows are this file's rows that move.
+- **Codes listed with different values, disagreements and differing names** come from the mapping rows (Section 5). `mapping` is `gl` or `cc`, and `field` is the name that differs, such as `ci_name`.
+- **A month with no rows** is a month in `months_replaced` with no rows to commit.
+- **Replaced postings outside the file's dates** are the postings approving replaces (7.3) dated before `period_start` or after `period_end`. They're in the months the file covers but not in its dates, so a file covering part of a month hides the rest of it. The exception says so plainly, for each earlier upload.
+
+An exception that doesn't block approval still needs a look. The approver approves the file with its exceptions, and the audit event records how many items each type listed.
 
 When the file has a value-type column, the preview lists each value type found, with its row count, its amount, and whether it's actual, not actual or unclassified (Section 5).
 
@@ -604,6 +646,11 @@ When the file has a value-type column, the preview lists each value type found, 
 - The sample file's preview shows exactly the exceptions its README describes: `640200`, `650200`, `3100` and `3200`, and its subtotal rows as other rows without a GL account or cost center (12.3).
 - Each exception type shows once, with the right rows, in a file built to cause it. The types that need an earlier upload (mapping change, duplicate with a different amount, a month with no rows) use a pair of files in a report of the right mode.
 - The preview of a rejected upload shows the same figures as before it was rejected.
+- After approval, the report's actual spend equals the preview's `after`, including for a file with rows that aren't actual spend, rows that replace others and duplicates.
+- A file covering 15 to 28 February, after one covering 1 to 28 February, lists the earlier postings dated 1 to 14 February as replaced outside its dates.
+- A file with no total row, uploaded with a typed total, reconciles against it, and one uploaded without is blocked as having no control total.
+- An approval refused for each blocking type writes one `approval_refused` event with its reason, and commits nothing.
+- An approval after another upload was committed or rolled back since the preview was built is refused.
 - In any file, `rows_new`, `rows_duplicate` and `rows_skipped` add up to `rows_read`, and a skipped mapping row counts in none of them.
 - A second file covering months already committed shows the number and amount of the postings it replaces. In line-key mode it shows none.
 
