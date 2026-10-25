@@ -385,14 +385,16 @@ An export holds exactly what its screen shows: the same filters, rows, order and
 
 ### 9.1 What can be exported
 
-Every screen in Section 4 except Uploads and the Audit log: the overview, the list and detail screens, the source rows, the exceptions screen and every FAQ page. The address is the screen's own address with `/export` added, so it carries the same filters.
+Every screen in Section 4 except Uploads and the Audit log: the overview, the list and detail screens, the source rows, the exceptions screen and every FAQ page. The FAQ's list of questions is an index, not a page, so it has none (7.1). The address is the screen's own address with `/export` added, so it carries the same filters, keys and pick, and takes the same values as the screen, refused the same way (3.1). Source rows' export holds every row, so it doesn't take `page`. The Export link on each screen is built from the address on screen, with an FAQ page's pick written out even when it's the default, so the Source sheet names it.
 
 ### 9.2 The workbook
 
 | Sheet | Holds |
 | --- | --- |
-| One data sheet per table on the screen | A frozen header row, one row per line on screen, and a total row at the bottom. Each sheet has a fixed name of at most 31 characters, such as *GL accounts*, *By month* or *Skipped rows*, never one built from a code, a name or a question |
-| Source | The report, the view, the filters in words, and the as-of line. Every committed upload (ENG-02, 10.2), in the order of commits: its number, file name, SHA-256, rows read, who approved it and when, its ruleset version, and the lines and actual spend it still counts under the export's filters. An upload whose postings a later file replaced is listed with `0` lines, since its mapping may still be in force. Who exported it and when, in Muscat time, and the app's version tag. An FAQ export adds the question and the answer sentence |
+| One data sheet per table on the screen, in the screen's order | A frozen header row, one row per line on screen, and a total row at the bottom. Each sheet has a fixed name of at most 31 characters, such as *GL accounts*, *By month* or *Skipped rows*, never one built from a code, a name or a question. A chart isn't exported: its table is |
+| Source, last | The report, the view with its address, the filters in words, the keys of source rows in words, and the as-of line, with the line for an upload awaiting approval. Every committed upload (ENG-02, 10.2), in the order of commits: its number, file name, SHA-256, rows read, who approved it and when, its ruleset version, and the lines and actual spend it still counts under the export's filters. An upload whose postings a later file replaced is listed with `0` lines, since its mapping may still be in force. Who exported it, as "Full name (username)" (ENG-01, 6.1), and when, in Muscat time, and the app's version tag (ENG-01, 7.1). An FAQ export adds the question and the answer sentence |
+
+An export of a report with no committed upload, or of filters that match nothing, still has every sheet: each data sheet holds its header and total rows only, and the Source sheet says why.
 
 ### 9.3 Cells
 
@@ -402,9 +404,11 @@ Every screen in Section 4 except Uploads and the Audit log: the overview, the li
 | Totals | Values the app calculated, not formulas, so they match the screen | The same, in bold |
 | Codes and document numbers | Text, so a long number doesn't turn into scientific notation | Text |
 | Dates | Excel dates | `dd.mm.yyyy` |
-| Shares | Numbers, rounded as on screen, such as `0.124` | `0.0%` |
+| Shares | Numbers, rounded as on screen, such as `0.124`. An empty cell where there's no share (2.2) | `0.0%` |
 | Months | Text, as on screen, such as `Mar 2026` | Text |
 | Names and item text | Text, exactly as written |  |
+| Lines, rows and upload numbers | Whole numbers | `0` |
+| A skipped row's amount, kept as read (Section 8) | A number | `#,##0.000###;-#,##0.000###` |
 
 Excel holds 15 significant digits, so amounts below 1,000,000,000,000 OMR keep every baisa.
 
@@ -412,9 +416,10 @@ Excel holds 15 significant digits, so amounts below 1,000,000,000,000 OMR keep e
 
 - **No formulas from data.** XlsxWriter's `strings_to_formulas`, `strings_to_urls` and `strings_to_numbers` options are off, so text such as `=HYPERLINK(...)` stays text (ENG-01, 6.4).
 - **Large exports.** XlsxWriter's `constant_memory` mode writes rows as they come, so memory use stays flat.
-- **Row limit.** An export of more than 1,048,574 data rows, Excel's limit once the header and total rows are counted, is refused, with a message to narrow the filters.
-- **File name.** `<report>_<view>_<yyyymmdd-hhmm>.xlsx`, with anything other than letters, digits, hyphens and underscores removed.
-- **Permission and audit.** The export address needs **view** and **export**, and every export writes one `export_downloaded` event, with the view, the filters and the row count in its details (ENG-01, 6.3).
+- **Row limit.** An export of more than 1,048,574 data rows on a sheet, Excel's limit once the header and total rows are counted, is refused before anything is written. The page says how many rows it has and asks to narrow the filters, and no event is written, since nothing was downloaded.
+- **File name.** `<report>_<view>_<yyyymmdd-hhmm>.xlsx` in Muscat time, where *view* is the screen's address under the report with `/` written as `-`, such as `gl-610100` or `faq-total-spend`. Anything other than the letters A to Z and a to z, digits, hyphens and underscores is removed, and a report name with nothing left is written as `report` and its number.
+- **Written, then sent.** The workbook is written to a temporary file, which the response then sends and deletes.
+- **Permission and audit.** The export address needs **view** and **export**, and every export writes one `export_downloaded` event once the workbook is written (ENG-01, 6.3).
 
 **Tested by**
 
@@ -424,6 +429,10 @@ Excel holds 15 significant digits, so amounts below 1,000,000,000,000 OMR keep e
 - A 10-digit document number opens as text, unchanged.
 - Each export writes exactly one `export_downloaded` event.
 - A user without **export**, or without **view**, gets 403 from the export address.
+- An export with more rows than the limit is refused with its message, writes no event, and its file isn't sent. The test lowers the limit, since a million rows would take minutes.
+- The file name is the report's name, cleaned, the view and the time, and a report named only in Arabic gets `report` and its number.
+- The Source sheet shows the app's version tag, and the user as "Full name (username)".
+- The Export link appears only for a user with **export**, and carries the filters on screen.
 
 ## 10. Speed
 
