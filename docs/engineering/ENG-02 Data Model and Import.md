@@ -842,7 +842,7 @@ Running the script again gives byte-identical files. The workbook's creation dat
 - Running the script again leaves every file in `tests/fixtures/` byte for byte unchanged.
 - In each expected result, `by_gl`, `by_ci`, `by_department` and `by_month` each add up to `actual_spend.total`, so do `inside_ids` and `outside_ids`, and the reconciliation `difference` is `0.000`.
 - With no expected result in `real-export/`, the real-export test is skipped with a reason naming the folder, and fails when `IDS_REQUIRE_REAL_EXPORT=1`. An export without its expected result fails it.
-- Put in a folder of its own with an expected result made from its own, the sample file passes the real-export test, with and without `settings` and a typed `control_total`. It fails when one figure is changed by `0.001`, when a code is missing from the report, when a row is skipped that isn't listed, and when a blocking exception stops approval.
+- Put in a folder of its own with an expected result made from its own, the sample file passes the real-export test, and so does an expected result giving only the overall total. A made-up CSV whose amount header only a changed ruleset recognises, with no total row, passes with its `settings` and a typed `control_total`, and fails without either. The test fails when one figure is changed by `0.001`, when a code is missing from the report, when a row is skipped that isn't listed, and when a blocking exception stops approval.
 
 **Done when** every test passes on a clean checkout with `uv run pytest`, and the sample file's totals match its expected result to the baisa. Once the real export arrives, its overall and GL totals must also match SAP's to the baisa.
 
