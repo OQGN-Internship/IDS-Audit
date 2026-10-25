@@ -132,7 +132,7 @@ Every screen except Uploads and the Audit log also exports to Excel, at its own 
 | Exceptions | `exceptions` | Section 8 | **view** |
 | FAQ | `faq` and `faq/<slug>` | Section 7 | **view** |
 | Uploads | `uploads` | Each upload with its state and preview (ENG-02, Sections 6 and 11). Its addresses are in the table below | **view**. The preview of an upload that was never committed also needs **upload** or **approve**. Each action needs its own permission |
-| Audit log | `audit` | ENG-01, 6.3 | **view\_audit\_log** |
+| Audit log | `audit` | The report's events, as below | **view\_audit\_log** |
 
 The report list at `/reports/` shows only the reports the user can access (ENG-01, 6.2). Fixed administrators also see **New report** there. It opens `/reports/new`, which asks only for the report's name (ENG-02, 3), then opens the new report's Uploads. Anyone else gets 403 from that address (ENG-01, 8). The list links each report to `/reports/<id>/`, which opens its overview.
 
@@ -141,7 +141,7 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - **The filter form.** Above the figures, a form holds the two filters (3.1), and on FAQ pages 4 and 6 the picker (7.2). Changing any of them sends them with HTMX, which swaps the panel and updates the address (ENG-01, 5.2). Without JavaScript, the form's Show button loads the page with them.
 - **The panel holds everything the filters change:** the filter form itself, the filter line, the as-of line, the tables, the chart data, and every link that carries the filters, which are the drill-down links, the pages of source rows and the Export link. So after a change nothing on screen keeps the old filters, and Export downloads what's shown. The form is in the panel too because a picker's choices follow the filters, largest first, so the form is drawn again with them. Export is a plain link, never an HTMX request, since a download can't be swapped into a page.
 - **A panel or a page.** An HTMX request gets the panel alone. Any other request gets the whole page, and so does HTMX's request for a page that's no longer in its history, after the user goes back.
-- **Navigation.** On every page of a report, the base template names the report and links its screens: Overview, GL accounts, Departments, Budget lines, Exceptions, FAQ and Uploads, and in Phase 4 the Audit log for users with **view\_audit\_log**.
+- **Navigation.** On every page of a report, the base template names the report and links its screens: Overview, GL accounts, Departments, Budget lines, Exceptions, FAQ and Uploads, and the Audit log for users with **view\_audit\_log**.
 - **One source for a screen and its export.** Each screen's tables are built once, in `reports/screens.py`, from the functions in `reports/queries.py`. The page shows them and the export writes them (Section 9), so the two can't differ.
 
 | Screen | Its tables, each also a sheet of its export |
@@ -175,6 +175,16 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - **Approve is offered while an upload awaits approval,** with any exceptions that block it named beside the button. Approving a blocked upload is refused by the commit's own check and kept as `approval_refused` (ENG-02, 10.1), so the screen holds no second copy of what blocks approval.
 - **Long exception lists open on request.** One exception type can list thousands of rows, so the preview shows each type's row count and amount, and its items open on request: in place, as an HTMX panel, or without JavaScript as their own page.
 - **Amounts and times** follow 2.4.
+
+**The audit log**
+
+A report's Audit log lists the events that name the report (ENG-01, 6.3). Fixed administrators also have the whole log at `/admin/audit` (ENG-01, 6.1), which adds sign-ins, account and role changes, and a column naming each event's report. Both are read-only, and neither has an export.
+
+- **Newest first, 100 to a page,** by the event's number, so the order never changes. The address takes only `page`, as source rows do (6.1): any other key, or a page that isn't a whole number from 1, returns 400, and a page past the last 404.
+- **Columns:** the time, to the second in Muscat time, since several events can share a minute; who acted, as "Full name (username)"; the action, in words, such as "Upload approved"; the upload's number, if the event names one; and the details.
+- **Who acted, when no user did:** "Command line" for an event that keeps its `command`, "Unknown username" for a failed sign-in or a lock-out of a username no account has, and "The application" for a change it made on its own, such as marking an interrupted read `failed` (ENG-01, 6.3).
+- **The details** are the event's `details`, each as its name and value, in the order they were kept. A value that holds more, such as an export's filters, is written as JSON. They're escaped like every other value (ENG-01, 6.4).
+- **Navigation.** The report's navigation links the Audit log only for users with **view\_audit\_log**, and the administration home links the whole log.
 
 **Rules**
 
@@ -236,6 +246,10 @@ The plan's Phase 4 gives every screen OQGN's colours and logo once the screens a
 - `/reports/<id>/` opens the overview, and the base template links the report's screens on each of them.
 - For the sample file, each screen shows the figures in its expected result, and each amount links to source rows with the keys and filters of its group.
 - A report with no committed upload shows "No approved uploads yet" on every screen, with a link to Uploads only for a user with **upload**.
+- A report's Audit log lists only the events that name it, newest first, with no sign-ins and none of another report's, and the whole log lists every event, for fixed administrators only.
+- The Audit log shows each event's time to the second in Muscat time, its user as "Full name (username)", "Command line", "Unknown username" or "The application", its action in words, its upload, and its details escaped.
+- The Audit log comes 100 events to a page, refuses a wrong address with 400 and a page past the last with 404, and has no form or export.
+- The report's navigation links the Audit log for an Approver, and not for a Viewer.
 
 ## 5. Charts
 

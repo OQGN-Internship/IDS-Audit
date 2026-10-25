@@ -317,7 +317,7 @@ The account actions cover the plan's "every change to accounts or access". `pass
 - **`sql/grants.sql`** runs after every migration, in one transaction, and can run any number of times. It grants `ids_app` its rights on every existing table and view, and revokes `TRUNCATE` on all of them. It then revokes `UPDATE` and `DELETE` on the insert-only tables, and `DELETE` on the user table, so a new migration can't reopen them. It also revokes `INSERT`, `UPDATE` and `DELETE` on every view, such as `posting_resolved` (ENG-02, 8.4). A simple view passes writes through to its table, with the rights of the view's owner, `ids_owner`. `posting_resolved` joins tables, so PostgreSQL refuses any write through it whatever the rights, with `55000`. The revoke still covers any simple view added later. It grants nothing on sequences: inserting into an identity column needs no right on its sequence.
 - **The audit log screens** only read it (ENG-03, 4).
 
-**Who can read it:** fixed administrators see every event. A user with View audit log on a report sees that report's events.
+**Who can read it:** fixed administrators see every event, at `/admin/audit`. A user with View audit log on a report sees the events that name that report, on its Audit log screen. ENG-03, 4 describes both.
 
 **Tested by**
 
