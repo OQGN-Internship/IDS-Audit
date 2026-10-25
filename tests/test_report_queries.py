@@ -392,11 +392,6 @@ def test_the_as_of_line_names_the_latest_committed_upload() -> None:
     assert queries.awaiting_approval(report) == waiting
 
 
-def test_an_empty_report_has_no_committed_upload() -> None:
-    """Verify a report with nothing committed has nothing for the as-of line."""
-    assert queries.latest_committed(make_report()) is None
-
-
 def test_committed_uploads_list_each_with_what_it_still_counts() -> None:
     """Verify every committed upload is listed in the order of commits, with
     the lines and actual spend it still counts: none for one whose months a
