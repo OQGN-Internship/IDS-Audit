@@ -170,6 +170,24 @@ def test_q4_shows_the_gl_account_picked_and_leaves_out_outside_ids(
     # The largest comes first, and is the one shown without a pick.
     options = re.findall(r'<option value="(\d{6})"', text)
     assert options[0] == "610100"
+    assert "for GL account 620200, by cost center.</p>" in text
+
+
+def test_q4_counts_a_cost_center_with_no_department_inside_ids(client) -> None:
+    """Verify Q4 counts a cost center with no department as one inside IDS but
+    in no department, apart from one outside IDS (ENG-03 7.2).
+    """
+    report = make_report()
+    upload = make_upload(report)
+    map_cc(upload, "4510", "APP")
+    map_cc(upload, "4520", "")
+    for cost_center in ("4510", "4520", "3100"):
+        add_posting(upload, JUL, "1.000", cost_center_code=cost_center)
+    commit(upload, minute=1)
+    assert answer(client, report, "gl-account-cost-centers") == (
+        "610100 was used by 2 cost centers in 1 department, and by 1 cost center "
+        "outside IDS."
+    )
 
 
 def test_q4_with_a_gl_account_with_no_spend_says_nothing_matched(
@@ -192,6 +210,8 @@ def test_q6_picks_any_department_outside_ids_included(client, sample_report) -> 
     )
     text = page(client, sample_report, "department-gl-accounts")
     picker = re.search(r'<select name="dept">(.*?)</select>', text, re.S)[1]
+    assert '<option value="outside">Outside IDS</option>' in picker
+    assert '<option value="APP" selected>APP Applications</option>' in picker
     assert re.findall(r'<option value="([A-Za-z]+)"', picker) == [
         "APP",
         "INF",

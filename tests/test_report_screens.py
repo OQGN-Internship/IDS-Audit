@@ -80,6 +80,7 @@ def test_a_report_s_address_opens_its_overview(client, sample_report) -> None:
         "departments",
         "budget_lines",
         "exceptions",
+        "faq",
     ):
         assert f'href="{reverse(name, args=[sample_report.pk])}"' in page, name
     assert f'href="{reverse("uploads", args=[sample_report.pk])}"' in page
