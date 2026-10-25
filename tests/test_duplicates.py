@@ -9,6 +9,7 @@ import pytest
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.commit import ApprovalRefused, commit_upload
 from ids_audit.imports.models import StagingRow, Upload
+from ids_audit.imports.rollback import roll_back_upload
 from ids_audit.imports.services import receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.ledger.models import Posting, PostingResolved
@@ -269,3 +270,19 @@ def test_a_later_approval_can_t_choose_a_mode(mode) -> None:
     upload.refresh_from_db()
     assert upload.status == Status.AWAITING_APPROVAL
     assert not Posting.objects.filter(upload=upload).exists()
+
+
+@on_database
+def test_a_rollback_leaves_the_mode_as_the_first_commit_set_it() -> None:
+    """Verify rolling back a report's only commit keeps its mode, so the next
+    file isn't offered line-key mode and can't choose it (ENG-02 7.3).
+    """
+    report = make_report()
+    first = committed(FIRST_FILE, report)
+    roll_back_upload(first, report.created_by, "Approved too soon")
+    report.refresh_from_db()
+    assert report.duplicate_mode == REPLACE_BY_PERIOD
+    upload = staged(OVERLAPPING, report)
+    assert upload.preview["line_key_offered"] is False
+    with pytest.raises(ApprovalRefused):
+        commit_upload(upload, upload.uploaded_by, duplicate_mode=LINE_KEY)
