@@ -209,10 +209,17 @@ def test_the_sample_column_layout_is_kept_for_the_upload() -> None:
     assert layout["Transactions"]["columns"]["amount"] == "M"
     assert layout["Cost Center Mapping"] == {
         "header_row": 1,
+        "header": [
+            "Cost Center",
+            "Cost Center Name",
+            "Department Code",
+            "Department Name",
+        ],
         "columns": {
             "cost_center_code": "A",
             "cc_name": "B",
             "dept_code": "C",
             "dept_name": "D",
         },
+        "picked": {},
     }

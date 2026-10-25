@@ -80,8 +80,11 @@ def is_blank(row: Iterable[Cell]) -> bool:
 
 
 def cell_of(layout: Layout, row: Sequence[Cell], field: str) -> Cell:
-    """Return a row's cell for a field, or "" if the sheet has no column for it."""
-    return row[layout.columns[field]] if field in layout.columns else ""
+    """Return a row's cell for a field, or "" if the sheet has no column for it
+    or the row ends before it, which a picked column can (ENG-02 4.5).
+    """
+    index = layout.columns.get(field)
+    return row[index] if index is not None and index < len(row) else ""
 
 
 def read_mapping_sheet(

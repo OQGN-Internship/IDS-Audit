@@ -18,7 +18,7 @@ from ids_audit import audit
 from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import Upload
-from ids_audit.imports.states import Refused, fail_interrupted_reads
+from ids_audit.imports.states import Refused, fail_interrupted_reads, open_upload
 from ids_audit.imports.storage import store_file
 from ids_audit.pipeline.cleaning import TOO_LARGE, has_more_than_3_decimals
 from ids_audit.pipeline.formats import UnknownFormat, detect_format
@@ -30,9 +30,6 @@ Status = Upload.Status
 
 # MAX_UPLOAD_MB counts megabytes of this many bytes (ENG-01 6.4).
 MEGABYTE = 1024 * 1024
-
-# The states of an upload that's still open: a report has at most one (ENG-02 6).
-OPEN = (Status.READING, Status.NEEDS_COLUMNS, Status.AWAITING_APPROVAL)
 
 
 class UploadRefused(Refused):
@@ -195,12 +192,12 @@ def refuse_if_blocked(report: Report, file_sha256: str, facts: dict) -> None:
             f"This file was already committed on {on} as upload {same.number}.",
             {**facts, "number": same.number},
         )
-    open_upload = uploads.filter(status__in=OPEN).first()
-    if open_upload is not None:
+    still_open = open_upload(report)
+    if still_open is not None:
         raise UploadRefused(
             UploadRefused.OPEN_UPLOAD,
-            f"Upload {open_upload.number} is still open "
-            f"({open_upload.get_status_display().lower()}). A report takes one "
+            f"Upload {still_open.number} is still open "
+            f"({still_open.get_status_display().lower()}). A report takes one "
             "file at a time, so it must be approved, rejected or withdrawn first.",
-            {**facts, "number": open_upload.number},
+            {**facts, "number": still_open.number},
         )

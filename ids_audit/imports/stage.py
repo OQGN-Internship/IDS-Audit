@@ -5,7 +5,7 @@ Only imports/ writes uploads and staging rows (ENG-01 4, rule 2).
 """
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 
 from django.db import connection, transaction
@@ -18,7 +18,7 @@ from ids_audit.imports.preview import report_preview
 from ids_audit.imports.states import lock_upload, move
 from ids_audit.imports.storage import read_stored_file
 from ids_audit.ledger.models import CcDeptMap, GlCiMap, PostingResolved
-from ids_audit.pipeline.columns import NeedsColumns
+from ids_audit.pipeline.columns import Choice, NeedsColumns
 from ids_audit.pipeline.duplicates import find_duplicates, line_key_offered
 from ids_audit.pipeline.formats import UnknownFormat
 from ids_audit.pipeline.preview import first_of_next_month
@@ -45,7 +45,7 @@ ROW_FIGURES = (
 )
 
 
-def stage_upload(upload: Upload, user: User) -> Upload:
+def stage_upload(upload: Upload, user: User, choices: Sequence[Choice] = ()) -> Upload:
     """Read an upload at reading with its ruleset version's settings, and save
     what reading found, all in one transaction (ENG-02 6).
 
@@ -53,6 +53,8 @@ def stage_upload(upload: Upload, user: User) -> Upload:
     required column moves to needs_columns, and one that can't be read to
     failed, each saving nothing else. An upload that isn't at reading is
     refused with WrongState. user is whoever started the read (ENG-01 6.3).
+    choices are columns just picked, used before those the report's committed
+    uploads picked (ENG-02 4.5).
     """
     with transaction.atomic():
         upload = lock_upload(upload, Status.READING)
@@ -60,19 +62,23 @@ def stage_upload(upload: Upload, user: User) -> Upload:
         try:
             data = read_stored_file(upload.file_sha256)
             result = read_file(
-                data, upload.ruleset.settings, need_line_key=line_key_mode
+                data,
+                upload.ruleset.settings,
+                need_line_key=line_key_mode,
+                choices=[*choices, *saved_choices(upload.report)],
             )
         except NeedsColumns as stop:
             problems = [
                 {"sheet": p.sheet, "field": p.field, "columns": list(p.columns)}
                 for p in stop.problems
             ]
+            headers = {sheet: list(header) for sheet, header in stop.headers.items()}
             move(
                 upload,
                 Status.NEEDS_COLUMNS,
                 Action.UPLOAD_NEEDS_COLUMNS,
                 user,
-                {"problems": problems},
+                {"problems": problems, "headers": headers},
             )
             return upload
         # receive_file refuses an unknown format before an upload exists
@@ -110,6 +116,73 @@ def stage_upload(upload: Upload, user: User) -> Upload:
             },
         )
     return upload
+
+
+def pick_columns(
+    upload: Upload, user: User, picks: Mapping[str, Mapping[str, str]]
+) -> Upload:
+    """Move an upload at needs_columns back to reading with the columns the
+    user picked, and read it again, all in one transaction (ENG-02 4.5 and 6).
+
+    picks maps each sheet's name to the column letter picked for each field,
+    such as {"Spend": {"amount": "M"}}. They add to the columns picked before
+    for the upload. A pick for a sheet or field the upload didn't stop for, or
+    no pick at all, is a ValueError, and so is a letter that isn't a column,
+    once reading meets it. Either way nothing changes. An upload not at
+    needs_columns is refused with WrongState.
+    """
+    with transaction.atomic():
+        upload = lock_upload(upload, Status.NEEDS_COLUMNS)
+        # Why it stopped, and what was picked before, are kept only in its
+        # events (ENG-02 6, What's kept).
+        events = AuditEvent.objects.filter(upload=upload).order_by("pk")
+        stops = events.filter(action=Action.UPLOAD_NEEDS_COLUMNS)
+        needed = {(p["sheet"], p["field"]) for p in stops.last().details["problems"]}
+        if not any(picks.values()):
+            raise ValueError("Pick a column for at least one field.")
+        for sheet, fields in picks.items():
+            for field in fields:
+                if (sheet, field) not in needed:
+                    raise ValueError(f"{field} on sheet {sheet!r} needs no column.")
+        headers = {}
+        for stop in stops:
+            headers.update(stop.details["headers"])
+        before = events.filter(action=Action.UPLOAD_COLUMNS_PICKED).last()
+        columns = {
+            sheet: dict(fields)
+            for sheet, fields in (before.details["columns"] if before else {}).items()
+        }
+        for sheet, fields in picks.items():
+            columns.setdefault(sheet, {}).update(fields)
+        move(
+            upload,
+            Status.READING,
+            Action.UPLOAD_COLUMNS_PICKED,
+            user,
+            {"columns": columns},
+        )
+        choices = [
+            Choice(tuple(headers[sheet]), fields) for sheet, fields in columns.items()
+        ]
+        return stage_upload(upload, user, choices)
+
+
+def saved_choices(report: Report) -> list[Choice]:
+    """Return the columns picked in the report's committed uploads, the most
+    recently committed first, so a file with the same header is matched with
+    them (ENG-02 4.5 and 10.2).
+    """
+    layouts = (
+        report.uploads.filter(status=Status.COMMITTED)
+        .order_by("-decided_at", "-number")
+        .values_list("column_layout", flat=True)
+    )
+    return [
+        Choice(tuple(sheet["header"]), sheet["picked"])
+        for layout in layouts
+        for sheet in (layout or {}).values()
+        if sheet.get("picked")
+    ]
 
 
 def counted_line_keys(report: Report) -> dict[str, Decimal]:

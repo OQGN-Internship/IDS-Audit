@@ -24,7 +24,14 @@ from ids_audit.pipeline.cleaning import (
     date_from_period,
     has_more_than_3_decimals,
 )
-from ids_audit.pipeline.columns import CC_MAP, GL_MAP, SPEND, Layout, find_layouts
+from ids_audit.pipeline.columns import (
+    CC_MAP,
+    GL_MAP,
+    SPEND,
+    Choice,
+    Layout,
+    find_layouts,
+)
 from ids_audit.pipeline.formats import TEXT, detect_format
 from ids_audit.pipeline.mappings import (
     CC_FIELDS,
@@ -87,16 +94,24 @@ class SpendRows:
 
 
 def read_file(
-    data: bytes, settings: Mapping, *, need_line_key: bool = False
+    data: bytes,
+    settings: Mapping,
+    *,
+    need_line_key: bool = False,
+    choices: Sequence[Choice] = (),
 ) -> ReadResult:
     """Read and clean a file with a ruleset version's settings (ENG-02 3).
 
     need_line_key is True for a report in line-key mode, where a spend row
-    without a full line key is skipped (ENG-02 7.3).
+    without a full line key is skipped (ENG-02 7.3). choices are the columns
+    picked for sheets with a given header, the first that matches applying
+    (4.5).
     """
     file_format = detect_format(data)
     sheets = read_sheets(data, file_format)
-    layouts = find_layouts(sheets, settings, is_text=file_format == TEXT)
+    layouts = find_layouts(
+        sheets, settings, is_text=file_format == TEXT, choices=choices
+    )
     spend = read_spend_sheet(layouts[SPEND], settings, need_line_key)
 
     skipped, other = list(spend.skipped), list(spend.other)
@@ -130,7 +145,9 @@ def read_file(
         column_layout={
             layout.sheet.name: {
                 "header_row": layout.header_row,
+                "header": list(layout.header),
                 "columns": layout.letters(),
+                "picked": dict(layout.picked),
             }
             for layout in layouts.values()
         },

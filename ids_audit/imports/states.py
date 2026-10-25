@@ -18,6 +18,9 @@ from ids_audit.reports.models import Report
 
 Status = Upload.Status
 
+# The states of an upload that's still open: a report has at most one (ENG-02 6).
+OPEN = (Status.READING, Status.NEEDS_COLUMNS, Status.AWAITING_APPROVAL)
+
 # An upload still at reading this long after it was received was interrupted
 # (ENG-02 6).
 READ_TIME_LIMIT = datetime.timedelta(minutes=10)
@@ -36,17 +39,31 @@ class WrongState(Refused):
     """
 
 
-def lock_upload(upload: Upload, status: str) -> Upload:
+def lock_upload(upload: Upload, *statuses: str) -> Upload:
     """Lock the upload's row until the transaction ends, and return it as
-    stored. Refuse it with WrongState unless it's at status.
+    stored. Refuse it with WrongState unless it's at one of the statuses.
     """
     locked = Upload.objects.select_for_update().get(pk=upload.pk)
-    if locked.status != status:
+    if locked.status not in statuses:
+        expected = " or ".join(Status(s).label.lower() for s in statuses)
         raise WrongState(
             f"Upload {locked.number} is {locked.get_status_display().lower()}, "
-            f"not {Upload.Status(status).label.lower()}."
+            f"not {expected}."
         )
     return locked
+
+
+def open_upload(report: Report) -> Upload | None:
+    """Return the report's open upload, if it has one (ENG-02 6)."""
+    return report.uploads.filter(status__in=OPEN).order_by("number").first()
+
+
+def given_reason(reason: str) -> str:
+    """Return a reason trimmed, refusing an empty one (ENG-02 6 and 10.3)."""
+    reason = reason.strip()
+    if not reason:
+        raise ValueError("A reason is needed.")
+    return reason
 
 
 def move(

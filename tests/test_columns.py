@@ -10,8 +10,10 @@ from ids_audit.pipeline.columns import (
     CC_MAP,
     GL_MAP,
     SPEND,
+    Choice,
     ColumnProblem,
     NeedsColumns,
+    column_index,
     column_letter,
     find_header_row,
     find_layouts,
@@ -34,9 +36,13 @@ def sheet(name: str, *rows: tuple) -> Sheet:
     return Sheet(name, tuple(rows))
 
 
-def layouts(*sheets: Sheet, is_text: bool = False, **settings) -> dict:
+def layouts(
+    *sheets: Sheet, is_text: bool = False, choices: tuple = (), **settings
+) -> dict:
     """Run find_layouts with the default settings, changed by settings."""
-    return find_layouts(sheets, {**DEFAULT_SETTINGS, **settings}, is_text=is_text)
+    return find_layouts(
+        sheets, {**DEFAULT_SETTINGS, **settings}, is_text=is_text, choices=choices
+    )
 
 
 def problems(*sheets: Sheet, is_text: bool = False, **settings) -> set[ColumnProblem]:
@@ -277,5 +283,81 @@ def test_the_problem_message_names_the_sheet_and_columns() -> None:
     ("index", "letters"), [(0, "A"), (25, "Z"), (26, "AA"), (701, "ZZ"), (702, "AAA")]
 )
 def test_column_letters_are_as_excel_shows_them(index, letters) -> None:
-    """Verify column numbers turn into Excel's letters."""
+    """Verify column numbers turn into Excel's letters, and back."""
     assert column_letter(index) == letters
+    assert column_index(letters) == index
+
+
+@pytest.mark.parametrize("letters", ["a", "A1", "", " A", "Ä"])
+def test_anything_but_capital_letters_isn_t_a_column(letters) -> None:
+    """Verify a picked column must be written as Excel names columns."""
+    with pytest.raises(ValueError, match="isn't a column"):
+        column_index(letters)
+
+
+# Columns picked for a header (ENG-02 4.5)
+
+# A spend sheet whose amount header no name matches, in column D.
+UNNAMED = ("G/L Account", "Cost Center", "Posting Date", "Betrag", "", "")
+UNNAMED_HEADER = ("G/L Account", "Cost Center", "Posting Date", "Betrag")
+
+
+def test_a_sheet_needing_columns_reports_its_header() -> None:
+    """Verify NeedsColumns keeps the sheet's header as text, to its last cell
+    that isn't empty, so a pick can be saved against it.
+    """
+    with pytest.raises(NeedsColumns) as caught:
+        layouts(sheet("Spend", UNNAMED))
+    assert caught.value.headers == {"Spend": UNNAMED_HEADER}
+
+
+def test_a_choice_for_the_same_header_gives_the_missing_column() -> None:
+    """Verify the column picked for the amount is used, and kept as picked."""
+    choice = Choice(UNNAMED_HEADER, {"amount": "D"})
+    spend = layouts(sheet("Spend", UNNAMED), choices=(choice,))[SPEND]
+    assert spend.columns["amount"] == 3
+    assert (spend.header, spend.picked) == (UNNAMED_HEADER, {"amount": "D"})
+
+
+def test_a_choice_picks_one_of_two_matching_columns() -> None:
+    """Verify a pick settles a field two columns match (ENG-02 4.5)."""
+    header = ("G/L Account", "Cost Center", "Posting Date", "Amount", "Amount in LC")
+    with pytest.raises(NeedsColumns):
+        layouts(sheet("Spend", header))
+    choice = Choice(header, {"amount": "E"})
+    assert (
+        layouts(sheet("Spend", header), choices=(choice,))[SPEND].columns["amount"] == 4
+    )
+
+
+def test_a_choice_for_a_header_one_cell_different_doesn_t_apply() -> None:
+    """Verify the header must be exactly the same, cell for cell."""
+    choice = Choice(
+        ("G/L Account", "Cost Center", "Posting Date", "Wert"), {"amount": "D"}
+    )
+    with pytest.raises(NeedsColumns):
+        layouts(sheet("Spend", UNNAMED), choices=(choice,))
+
+
+def test_the_first_choice_for_a_header_wins() -> None:
+    """Verify of two choices for one header, the first given applies."""
+    first = Choice(UNNAMED_HEADER, {"amount": "D"})
+    later = Choice(UNNAMED_HEADER, {"amount": "C"})
+    spend = layouts(sheet("Spend", UNNAMED), choices=(first, later))[SPEND]
+    assert spend.columns["amount"] == 3
+
+
+def test_a_choice_for_a_field_the_sheet_doesn_t_read_is_ignored() -> None:
+    """Verify a commitment item picked on a text file's spend sheet isn't
+    read, since a text file has no mapping of its own (ENG-02 4.1).
+    """
+    choice = Choice(UNNAMED_HEADER, {"amount": "D", "ci_code": "A"})
+    spend = layouts(sheet("", UNNAMED), is_text=True, choices=(choice,))[SPEND]
+    assert "ci_code" not in spend.columns
+    assert spend.picked == {"amount": "D"}
+
+
+def test_a_sheet_with_no_choice_has_nothing_picked() -> None:
+    """Verify a sheet the names match keeps its header and an empty pick."""
+    spend = layouts(sheet("Spend", SPEND_HEADER))[SPEND]
+    assert (spend.header, spend.picked) == (SPEND_HEADER, {})

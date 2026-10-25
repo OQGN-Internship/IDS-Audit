@@ -156,6 +156,8 @@ def test_the_upload_keeps_reading_s_figures() -> None:
     assert upload.column_layout == {
         "": {
             "header_row": 1,
+            "header": list(HEADER),
+            "picked": {},
             "columns": {
                 "company_code": "A",
                 "gl_code": "B",
@@ -429,7 +431,7 @@ def test_a_column_problem_stops_at_needs_columns(header, problem) -> None:
     assert nothing_saved(upload)
     event = AuditEvent.objects.get(action=AuditEvent.Action.UPLOAD_NEEDS_COLUMNS)
     assert (event.user, event.upload) == (upload.uploaded_by, upload)
-    assert event.details == {"problems": [problem]}
+    assert event.details == {"problems": [problem], "headers": {"": list(header)}}
 
 
 @pytest.mark.parametrize(

@@ -3,6 +3,8 @@
 Plain Python, like the rest of pipeline/: it imports nothing from Django.
 """
 
+import dataclasses
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -55,18 +57,35 @@ NAME_FIELD = {
 }
 
 
+# A column's letters, as Excel names it.
+LETTERS = re.compile(r"[A-Z]+")
+
+
+@dataclass(frozen=True)
+class Choice:
+    """Columns picked for a sheet whose header is exactly header: each field's
+    column letter, such as {"amount": "M"} (ENG-02 4.5).
+    """
+
+    header: tuple[str, ...]
+    columns: Mapping[str, str]
+
+
 @dataclass(frozen=True)
 class Layout:
     """Where one classified sheet's header row and columns are.
 
     header_row is the row number Excel shows, and columns maps each field the
-    sheet reads to its column's index, 0 for column A.
+    sheet reads to its column's index, 0 for column A. header is the header
+    row as text, and picked the columns a Choice gave, by field.
     """
 
     sheet: Sheet
     sheet_type: str
     header_row: int
     columns: Mapping[str, int]
+    header: tuple[str, ...] = ()
+    picked: Mapping[str, str] = dataclasses.field(default_factory=dict)
 
     def letters(self) -> dict[str, str]:
         """Return each field's column as Excel names it, such as "B"."""
@@ -93,21 +112,35 @@ class ColumnProblem:
 class NeedsColumns(Exception):
     """A classified sheet is missing a required field, or has a field matched
     by two columns, so the upload stops at needs_columns (ENG-02 4.5).
+
+    headers holds the header, as text, of each sheet with a problem, so a
+    column picked for it can be saved against that header.
     """
 
-    def __init__(self, problems: Sequence[ColumnProblem]) -> None:
+    def __init__(
+        self,
+        problems: Sequence[ColumnProblem],
+        headers: Mapping[str, tuple[str, ...]] | None = None,
+    ) -> None:
         self.problems = tuple(problems)
+        self.headers = dict(headers or {})
         super().__init__(" ".join(str(problem) for problem in self.problems))
 
 
 def find_layouts(
-    sheets: Sequence[Sheet], settings: Mapping, *, is_text: bool
+    sheets: Sequence[Sheet],
+    settings: Mapping,
+    *,
+    is_text: bool,
+    choices: Sequence[Choice] = (),
 ) -> dict[str, Layout]:
     """Return the layout of each classified sheet, by sheet type.
 
+    A sheet whose header is exactly a choice's takes the columns picked in the
+    first such choice, in place of what the header names matched (ENG-02 4.5).
     Raise FileUnreadable when the file has no spend sheet or two sheets of one
-    type (ENG-02 4.2), and NeedsColumns when a classified sheet's columns don't
-    pass the column check (4.5).
+    type (4.2), and NeedsColumns when a classified sheet's columns don't pass
+    the column check (4.5).
     """
     names = header_lookup(settings["header_names"])
     found: dict[str, list[tuple[Sheet, int, dict[str, list[int]]]]] = {
@@ -115,6 +148,8 @@ def find_layouts(
         GL_MAP: [],
         CC_MAP: [],
     }
+    headers: dict[str, tuple[str, ...]] = {}
+    picked: dict[str, dict[str, str]] = {}
     for sheet in sheets:
         header = find_header_row(sheet, names)
         if header is None:
@@ -125,6 +160,12 @@ def find_layouts(
             continue
         read = SPEND_FIELDS if is_text else FIELDS_READ[sheet_type]
         columns = field_columns(sheet.rows[row_number - 1], matches)
+        headers[sheet.name] = header_text(sheet.rows[row_number - 1])
+        choice = next((c for c in choices if c.header == headers[sheet.name]), None)
+        if choice is not None:
+            picked[sheet.name] = {f: c for f, c in choice.columns.items() if f in read}
+            for f, letters in picked[sheet.name].items():
+                columns[f] = [column_index(letters)]
         found[sheet_type].append(
             (sheet, row_number, {f: c for f, c in columns.items() if f in read})
         )
@@ -149,13 +190,15 @@ def find_layouts(
         for problem in check_columns(sheet.name, sheet_type, columns, settings)
     ]
     if problems:
-        raise NeedsColumns(problems)
+        raise NeedsColumns(problems, {p.sheet: headers[p.sheet] for p in problems})
     return {
         sheet_type: Layout(
             sheet,
             sheet_type,
             row_number,
             {field: found_columns[0] for field, found_columns in columns.items()},
+            headers[sheet.name],
+            picked.get(sheet.name, {}),
         )
         for sheet_type, candidates in found.items()
         for sheet, row_number, columns in candidates
@@ -275,6 +318,26 @@ def required_fields(
     if settings["actual_spend_rule"] is not None:
         required.append("value_type")
     return required
+
+
+def header_text(row: Sequence[Cell]) -> tuple[str, ...]:
+    """Return a header row's cells as text, to the last one that isn't empty."""
+    texts = [cell_text(cell) for cell in row]
+    while texts and texts[-1] == "":
+        texts.pop()
+    return tuple(texts)
+
+
+def column_index(letters: str) -> int:
+    """Return a column's index from its letters: A is 0, AA is 26. Anything but
+    capital letters is a ValueError.
+    """
+    if not LETTERS.fullmatch(letters):
+        raise ValueError(f"{letters!r} isn't a column, such as A or AB.")
+    index = 0
+    for letter in letters:
+        index = index * 26 + ord(letter) - ord("A") + 1
+    return index - 1
 
 
 def column_letter(index: int) -> str:
