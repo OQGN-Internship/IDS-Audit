@@ -125,6 +125,8 @@ def test_both_filters_change_the_panel_and_the_export_follows(
     page.select_option("select[name=exclude_outside]", "1")
     expect(page.get_by_text("Year: 2025. Outside IDS: excluded.")).to_be_visible()
     expect(page).to_have_url(re.compile(r"year=2025&exclude_outside=1$"))
+    # The panel swapped in has its charts drawn again.
+    expect(page.locator('[data-chart="chart-gl"] canvas')).to_have_count(1)
     shown = page.locator("table").first.locator("tfoot td.amount").inner_text()
 
     with page.expect_download() as download:
@@ -157,6 +159,15 @@ def test_a_bar_and_a_running_total_point_open_their_rows(
     overview = f"{live_server.url}/reports/{report.pk}/overview"
     page.goto(overview)
     page.wait_for_function("document.querySelector('[data-chart=chart-gl] canvas')")
+    # Bars run highest first from the top (ENG-03 5).
+    first, second = page.evaluate(
+        """() => {
+            const chart = echarts.getInstanceByDom(
+                document.querySelector('[data-chart=chart-gl]'));
+            return [0, 1].map((i) => chart.convertToPixel({yAxisIndex: 0}, i));
+        }"""
+    )
+    assert first < second
     click_point(page, "chart-gl", 0)
     expect(page).to_have_url(re.compile(r"/rows\?gl=610100$"))
     assert rows_said(page)[1] == "1,195,697.539"
