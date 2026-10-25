@@ -158,7 +158,7 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - The access matrix test (ENG-01, 6.2) covers every address in the table and every export address.
 - A Viewer gets 403 on the preview of an upload awaiting approval, and can open the preview of a committed one.
 - A fixed administrator creates a report, uploads a file, picks a missing column, and approves, rejects, withdraws or rolls back an upload, each from its screen. Each refusal shows its message and changes nothing.
-- Opening Uploads marks an upload read more than 10 minutes ago and never finished `failed`.
+- Opening Uploads marks `failed` an upload received more than 10 minutes ago whose read never finished, and leaves one received 5 minutes ago.
 - The preview screen shows every figure saved in the upload's preview, and each exception type's items.
 - The rollback confirmation shows the figure the rollback then gives.
 - Every list's total row equals the figure it breaks down, as the rules above say.
