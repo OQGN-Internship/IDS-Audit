@@ -36,7 +36,7 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | Layer | Choice | Version | Why | Considered instead |
 | --- | --- | --- | --- | --- |
 | Language | Python | 3.12 | Mature Excel libraries, and exact decimal arithmetic built in | Node.js: no built-in decimal type, so amounts risk float errors |
-| Web framework | Django | 5.2 LTS | Built-in sign-in, admin screens, forms and migrations, with security fixes until April 2028 | FastAPI: sign-in, admin and migrations would have to be assembled |
+| Web framework | Django | 5.2 LTS | Built-in sign-in, forms and migrations, with security fixes until April 2028 | FastAPI: sign-in, admin and migrations would have to be assembled |
 | Application server | Gunicorn | Pinned | Runs several Django processes and replaces any that crash | Django's development server, which isn't meant for real use |
 | Static files | WhiteNoise | Pinned | Serves CSS and JavaScript from Django, with no separate web server | Nginx, which is added only with a final host |
 | Database | PostgreSQL | 17 | Exact `NUMERIC` amounts, transactions, views, `COPY` for bulk loading, and role permissions | SQLite: weak with concurrent writes, and no role permissions |
@@ -165,19 +165,41 @@ The application uses a custom user model from its first migration, as Django rec
 
 | Rule in the plan | How it is implemented |
 | --- | --- |
-| Own accounts, created only by administrators | There is no sign-up page. Accounts are created in the administration screens at `/admin/`, which only fixed administrators can open |
+| Own accounts, created only by administrators | There is no sign-up page. Fixed administrators create accounts in the administration screens at `/admin/` (below) |
 | Username and password, stored hashed | Django sign-in, with Argon2 as the first entry in `PASSWORD_HASHERS` |
 | Passwords of at least 12 characters | Django's password validators: minimum length 12, plus the common-password, all-numeric and similar-to-username checks. The last compares the password with the username, the full name and the email |
-| New users change their temporary password at first sign-in | Creating a user requires a temporary password and turns on `must_change_password`. Until the user changes it, every page redirects to the change-password page, which asks for the temporary password and the new one twice. Changing it turns `must_change_password` off and writes `password_changed` |
-| Reset by an administrator, with a new password chosen at next sign-in | A reset sets a new temporary password and turns `must_change_password` on again |
+| New users change their temporary password at first sign-in | Creating a user requires a temporary password and turns on `must_change_password`. Until the user changes it, every page redirects to the change-password page, which asks for the temporary password and the new one twice. The new password can't be the one it replaces, so whoever set a temporary password never knows the password in use. Changing it turns `must_change_password` off and writes `password_changed` |
+| Reset by an administrator, with a new password chosen at next sign-in | A reset, from the user's page in the administration screens, sets a new temporary password and turns `must_change_password` on again. A fixed administrator's password is reset only from the command line (below) |
 | Locked for 15 minutes after 5 failed attempts | django-axes, with `AXES_FAILURE_LIMIT = LOCKOUT_ATTEMPTS`, `AXES_COOLOFF_TIME = timedelta(minutes=LOCKOUT_MINUTES)`, `AXES_LOCKOUT_PARAMETERS = ["username"]` and `AXES_RESET_ON_SUCCESS = True` and `AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False`. None of these is django-axes' default. Lock-out is by username because every user signs in from the same machine, so a lock-out by address would lock everyone. A successful sign-in resets the count. The lock lasts 15 minutes from the failure that started it, as the plan says, however often someone tries meanwhile: django-axes' default would start the 15 minutes again at every try. While it lasts, the sign-in page says the account is locked and for how long |
 | Session ends after 30 minutes without activity, or at sign-out | `SESSION_COOKIE_AGE = SESSION_IDLE_MINUTES * 60`, and `SESSION_SAVE_EVERY_REQUEST = True`, so each request restarts the 30 minutes. Session cookies are HttpOnly and SameSite=Lax |
-| Disabling keeps the history | Disabling sets `is_active = False`. Users are never deleted, so their audit history stays linked |
+| Disabling keeps the history | Disabling sets `is_active = False`, and a session the account still has ends at its next request. Users are never deleted, so their audit history stays linked: no screen deletes one, and `ids_app` has no `DELETE` on the user table, so the database refuses it from any other path too (6.3) |
 | Sign-ins and failures are logged | Django's `user_logged_in`, `user_logged_out` and `user_login_failed` signals write `sign_in`, `sign_out` and `sign_in_failed`. django-axes' `user_locked_out` signal writes `account_locked`, once, for the failure that locks the account (6.3). A session that times out writes nothing, since nothing signals it, so `sign_out` always means the user signed out |
 
 **Every page needs sign-in.** Every address except the sign-in page needs a signed-in user, through Django's `LoginRequiredMiddleware`, so every action is recorded against a named user from Phase 2 (the plan, Phase 2). Anyone else is sent to the sign-in page, and back to the page they asked for once signed in.
 
 **Redirects in HTMX requests.** A panel request that has to go to the sign-in page, after a time-out, or to the change-password page gets an `HX-Redirect` header instead of a redirect. HTMX then moves the whole page, so neither page lands inside a panel.
+
+**The administration screens**
+
+The administration screens are the application's own pages under `/admin/`. They extend the base template and take OQGN's theme like every other screen (ENG-03, 4). Only an active fixed administrator can open them, and anyone else gets 403.
+
+Django's own admin, `django.contrib.admin`, isn't installed. It saves through its own forms and actions: its "delete selected" deletes a whole queryset without calling the model's `delete()`, so it passes the guard on fixed administrators. It records changes only in its own `django_admin_log` table, offers `is_staff`, `is_superuser` and Django's table-wide permissions, which the application doesn't use, and has its own look. Each path would have to be overridden, and one missed would change an account with no event. On the application's own pages, every form calls one function in `accounts/services.py` or `accounts/roles.py`, which checks again that its caller is an active fixed administrator and writes its event in the same transaction (6.3).
+
+| Address | Shows or does |
+| --- | --- |
+| `/admin/` | Links to Users, Roles and the audit log |
+| `/admin/users` | Every account: its username and full name, whether it's a fixed administrator, disabled, locked out or waiting for its first password, and how many reports it has a role on |
+| `/admin/users/new` | Creates an account: username, full name, email if any, and a temporary password twice. Writes `user_created` |
+| `/admin/users/<id>` | One account. Its full name and email, which can be corrected (`user_changed`). Reset password, with a new temporary password twice (`password_reset`). Disable (`user_disabled`) or Enable (`user_changed`). Unlock, while it's locked out (`account_unlocked`). And every report, each with the user's role on it or No access, which gives, changes or takes away their role there (`access_granted`, `access_changed`, `access_removed`) |
+| `/admin/roles` | Every role, with its permissions and how many times it's given |
+| `/admin/roles/new` and `/admin/roles/<id>` | Creates or changes a role: its name and permissions (`role_created`, `role_changed`). Remove, refused while the role is given to anyone (`role_removed`) |
+| `/admin/audit` | The whole audit log (ENG-03, 4) |
+
+- **Usernames don't change.** Events keep the username they concern, so renaming an account would split its history.
+- **A fixed administrator's page only shows the account.** It's changed only from the command line, so the page has no form for it, and the functions refuse it too.
+- **Only these fields.** The forms never offer `is_fixed_admin`, `is_staff`, `is_superuser`, `can_create_reports` (8), or Django's groups and permissions.
+- **Actions are forms sent with POST,** as on the upload screens (ENG-03, 4). A refused one changes nothing, and the page says why.
+- **`createsuperuser` is replaced** by a project command of the same name that creates nothing and names `create_admin`. Django's would make an account that's neither a fixed administrator nor in the audit log.
 
 **Fixed administrator accounts**
 
@@ -204,6 +226,12 @@ The application uses a custom user model from its first migration, as Django rec
 - A fixed administrator can't be deleted or disabled from inside the application.
 - Every address but the sign-in page sends a user who isn't signed in to the sign-in page, and back once they sign in.
 - `changepassword` turns `must_change_password` on, and `axes_reset_username` lets a locked account sign in at once, each writing its event.
+- Only an active fixed administrator opens any address under `/admin/`. Anyone else gets 403.
+- A fixed administrator creates a user, who must then change the temporary password at first sign-in, corrects their full name, resets their password, disables and enables the account, unlocks it, and gives, changes and takes away their role on a report, each from its page. Each writes its one event, with the `details` 6.3 gives.
+- A disabled user can't sign in, and one still signed in when their account is disabled is signed out at their next request.
+- A fixed administrator's page has no form, and each function refuses to change a fixed administrator.
+- Entering the temporary password again as the new one is refused, and `must_change_password` stays on.
+- `createsuperuser` creates no account.
 
 ### 6.2 Authorization
 
@@ -230,7 +258,7 @@ The six permissions are fixed in code: `view`, `export`, `upload`, `approve`, `r
 
 **Tested by**
 
-- A matrix test calls every report address, export addresses and the actions' addresses included, as five users: no access, Viewer, Uploader, Approver and a fixed administrator. Each response is 404 without access, 403 without the permission, and otherwise the page or the action's result, 200 or a redirect. The Uploader is the upload's uploader, so rule 6 doesn't decide for them.
+- A matrix test calls every report address, export addresses and the actions' addresses included, as five users: no access, Viewer, Uploader, Approver and a fixed administrator, and a sixth whose role isn't preset, since every preset role holds **export**. Each response is 404 without access, 403 without the permission, and otherwise the page or the action's result, 200 or a redirect. The Uploader is the upload's uploader, so rule 6 doesn't decide for them.
 - A role that isn't preset, such as **view** and **roll\_back**, allows exactly its permissions.
 - A user with access to report A gets 404 on every address of report B.
 - `/reports/` lists only the reports a user has a `ReportAccess` row for.
@@ -267,9 +295,9 @@ Every event is one row in `audit_event`, written only through `audit.record()`.
 
 The `upload_` actions match the state changes in ENG-02, Section 6, one action for each. `upload_received` is the upload being created at `reading`. `upload_refused` is the one that changes nothing: a file refused before an upload exists (ENG-02, 6), so the plan's Phase 2 gate can show the same file sent twice in the audit log. `approval_refused` is an approval that was refused, so nothing changed: the gate's file whose control total doesn't match shows in the log as an attempt that failed (ENG-02, 10.1).
 
-The account actions cover the plan's "every change to accounts or access". `password_reset` is someone else setting a temporary password, and `password_changed` is a user choosing their own, the first time included. `account_unlocked` is a username's failed sign-ins cleared by hand, which ends a lock-out before its 15 minutes. It isn't written for a username that has none. `user_changed` is any other change to an account, such as a corrected full name or a disabled account enabled again, and it comes with the account screens in Phase 4.
+The account actions cover the plan's "every change to accounts or access". `password_reset` is someone else setting a temporary password, and `password_changed` is a user choosing their own, the first time included. `account_unlocked` is a username's failed sign-ins cleared by hand, which ends a lock-out before its 15 minutes. It isn't written for a username that has none. `user_changed` is any other change to an account, such as a corrected full name or a disabled account enabled again.
 
-**How a change reaches the log.** Whatever changes an account, a role or an access row calls `audit.record()` itself, in the same transaction as the change: the commands in 6.1 and the sign-in signals now, and the account screens from Phase 4. Django's admin screens record a change only in their own `django_admin_log` table, so each admin screen in Phase 4 saves and deletes through functions that write the event.
+**How a change reaches the log.** Whatever changes an account, a role or an access row calls `audit.record()` itself, in the same transaction as the change: the commands and the sign-in signals in 6.1, and the functions behind the administration screens. Django's own admin, which records changes only in its own table, isn't used (6.1). An event written from a screen names the administrator as its user.
 
 **Writing an event.** `audit.record(action, *, user=None, report=None, upload=None, details=None)`, in `ids_audit/audit/__init__.py`, writes one event and returns it.
 
@@ -285,8 +313,9 @@ The account actions cover the plan's "every change to accounts or access". `pass
 - **`ids_owner`** owns the application database and its tables. The migration job connects as it, and so does Django on the developer's machine, for the tests and `manage.py` (7.5). It has `CREATEDB`, so pytest-django can create the test database. It's also a member of `ids_app`, so a grant test can switch to `ids_app` with `SET ROLE`.
 - **`ids_app`** is the role the application connects as. Default privileges, set by `sql/init-roles.sh` before the first migration (7.1), give it `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table `ids_owner` creates. It has `TRUNCATE` on no table.
 - **Insert-only tables:** on `audit_event`, `posting`, `gl_ci_map`, `cc_dept_map`, `skipped_row` and `ruleset`, `ids_app` has only `SELECT` and `INSERT`.
-- **`sql/grants.sql`** runs after every migration, in one transaction, and can run any number of times. It grants `ids_app` its rights on every existing table and view, and revokes `TRUNCATE` on all of them. It then revokes `UPDATE` and `DELETE` on the insert-only tables, so a new migration can't reopen them. It also revokes `INSERT`, `UPDATE` and `DELETE` on every view, such as `posting_resolved` (ENG-02, 8.4). A simple view passes writes through to its table, with the rights of the view's owner, `ids_owner`. `posting_resolved` joins tables, so PostgreSQL refuses any write through it whatever the rights, with `55000`. The revoke still covers any simple view added later. It grants nothing on sequences: inserting into an identity column needs no right on its sequence.
-- **The admin screens** show the audit log as read-only.
+- **The user table,** `accounts_user`, can be changed but never deleted from: `ids_app` has no `DELETE` on it (6.1).
+- **`sql/grants.sql`** runs after every migration, in one transaction, and can run any number of times. It grants `ids_app` its rights on every existing table and view, and revokes `TRUNCATE` on all of them. It then revokes `UPDATE` and `DELETE` on the insert-only tables, and `DELETE` on the user table, so a new migration can't reopen them. It also revokes `INSERT`, `UPDATE` and `DELETE` on every view, such as `posting_resolved` (ENG-02, 8.4). A simple view passes writes through to its table, with the rights of the view's owner, `ids_owner`. `posting_resolved` joins tables, so PostgreSQL refuses any write through it whatever the rights, with `55000`. The revoke still covers any simple view added later. It grants nothing on sequences: inserting into an identity column needs no right on its sequence.
+- **The audit log screens** only read it (ENG-03, 4).
 
 **Who can read it:** fixed administrators see every event. A user with View audit log on a report sees that report's events.
 
@@ -294,6 +323,7 @@ The account actions cover the plan's "every change to accounts or access". `pass
 
 - An `INSERT` as `ids_app` works on every insert-only table.
 - An `UPDATE`, a `DELETE` and a `TRUNCATE` as `ids_app` each fail on every insert-only table.
+- A `DELETE` from the user table as `ids_app` fails, and an `UPDATE` works.
 - An `INSERT`, an `UPDATE` and a `DELETE` through `posting_resolved` as `ids_app` each fail, and `posting` is unchanged. `ids_app` holds only `SELECT` on every view.
 - Each action in the list writes exactly one event, with one test per action.
 - `audit.record()` refuses an action that isn't in the list.
@@ -318,6 +348,7 @@ The account actions cover the plan's "every change to accounts or access". `pass
 | Client data on the developer's machine | Full-disk encryption must be on, because the machine holds the client's real exports. Backups go to encrypted storage (see 7.2) |
 | Calls to outside services | None. The JavaScript libraries are in the repository, and nothing is sent out |
 | Error pages exposing details | `DEBUG` is off, so errors never show code or settings |
+| Report pages left in a shared browser | Every response carries `Cache-Control: no-store`, so the browser keeps no copy of a page to show again after sign-out. HTMX keeps no copies of its own for Back (`historyCacheSize` is 0), so going back asks the server, which checks the session. Signing out answers with `Clear-Site-Data: "cache", "storage"`. Every user signs in on the same machine, so the guide asks users never to let the browser save their password |
 
 **Tested by**
 
@@ -330,6 +361,8 @@ The account actions cover the plan's "every change to accounts or access". `pass
 - Git tracks no file in `backups/` or `real-export/` except its README.
 - Git ignores any new file in `backups/` or `real-export/`, including in a sub-folder, but not their READMEs.
 - `manage.py check --deploy` reports only the HTTPS warnings, which don't apply while the application runs locally over plain HTTP.
+- A report page, its panel and the sign-in page each carry `Cache-Control: no-store`, the base template sets HTMX's history cache to 0, and the sign-out response carries `Clear-Site-Data`.
+- In the browser, after signing out, going back shows the sign-in page, not the report.
 
 ## 7. Operations
 
@@ -468,7 +501,7 @@ Run `manage.py` commands as `docker compose exec app python manage.py <command>`
 | An upload fails after a long wait, and the next file is refused because the upload is still open | Reading took longer than `GUNICORN_TIMEOUT`, so Gunicorn stopped the request | Export a shorter period. The upload is marked `failed` 10 minutes after it was received, when Uploads opens. If files are often this large, it's the trigger for the background worker (Section 8) |
 | An export fails after a long wait | It had more rows than fit in `GUNICORN_TIMEOUT` on this machine. On the developer's machine an export at Excel's row limit takes about 2 minutes (ENG-03, 10) | Narrow the filters, or raise `GUNICORN_TIMEOUT` in `.env` and restart |
 | An upload is refused as an unknown type | The file isn't in a format ENG-02 accepts, such as a PDF renamed to `.xls` | Export again from SAP in an accepted format |
-| A user is locked out | Five failed sign-ins | Wait 15 minutes, or run `axes_reset_username <username>` |
+| A user is locked out | Five failed sign-ins | Wait 15 minutes, or unlock the account from its page in the administration screens (6.1). A fixed administrator is unlocked only with `axes_reset_username <username>` |
 | A fixed administrator forgot their password | Only the command line can reset it | Run `changepassword <username>` |
 | A restore reports a total that doesn't match | The backup is damaged or incomplete | Restore the backup before it, and keep the failing one for investigation |
 
