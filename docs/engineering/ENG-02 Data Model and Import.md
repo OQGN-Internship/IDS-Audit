@@ -466,7 +466,7 @@ Reconciliation proves the file was read completely: every amount in it is either
 ### 9.1 The control total
 
 - **From the file.** The total row (Section 5) on the spend sheet. Only a row below the last spend row qualifies, and if more than one does, the last is used. Any other row that looks like a total is an other row. `control_total_source` is `file`.
-- **Entered.** If the file has no total row, the uploader types the total shown in SAP for the same selection. It's typed on the upload form, with the file, so it's given before the file is read and the person typing it hasn't seen what the rows add up to. It's saved on the upload as it's received, with at most 3 decimal places, and `control_total_source` is `entered`. The preview shows it as typed by hand. It can't be changed afterwards: a wrong total is fixed by withdrawing the upload and uploading the file again.
+- **Entered.** If the file has no total row, the uploader types the total shown in SAP for the same selection. It's typed on the upload form, with the file, so it's given before the file is read and the person typing it hasn't seen what the rows add up to. It's typed as SAP shows it, and read by the rule for an amount written as text in the file (Section 5), with the report's decimal separator, so `1,234.500-` is minus 1234.5. A total that can't be read that way is refused with the file, before anything is stored. It's saved on the upload as it's received, with at most 3 decimal places, and `control_total_source` is `entered`. The preview shows it as typed by hand. It can't be changed afterwards: a wrong total is fixed by withdrawing the upload and uploading the file again.
 
 If the file has a total row, the file's total is used, and a typed total is kept only in the `upload_received` event (ENG-01, 6.3). A file with no total row, uploaded with no typed total, has no control total, so its approval is blocked (9.3).
 
@@ -511,6 +511,7 @@ Skipped rows count in reconciliation only to prove the file was read completely.
 - A row with an unclassified value type blocks approval, and so does a mapping code listed with different values.
 - Of two rows reading Total below the last spend row, the last gives the control total and the other is an other row. A Total row above the last spend row is an other row.
 - A total typed on the upload form is saved with `control_total_source` as `entered`, and ignored for a file with a total row.
+- A total typed as `1,234.500-` is saved as `-1234.500`, and one that isn't an amount is refused with nothing stored.
 - A file of actual-spend rows with one skipped row reconciles, and its report total is lower by exactly that row's amount.
 
 ## 10. Commit and rollback

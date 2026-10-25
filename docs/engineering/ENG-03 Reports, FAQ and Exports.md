@@ -120,10 +120,30 @@ Every screen except Uploads and the Audit log also exports to Excel, at its own 
 | Source rows | `rows` | The postings behind any figure (Section 6) | **view** |
 | Exceptions | `exceptions` | Section 8 | **view** |
 | FAQ | `faq` and `faq/<slug>` | Section 7 | **view** |
-| Uploads | `uploads` | Each upload with its state and preview (ENG-02, Sections 6 and 11) | **view**. The preview of an upload that was never committed also needs **upload** or **approve**. Each action needs its own permission |
+| Uploads | `uploads` | Each upload with its state and preview (ENG-02, Sections 6 and 11). Its addresses are in the table below | **view**. The preview of an upload that was never committed also needs **upload** or **approve**. Each action needs its own permission |
 | Audit log | `audit` | ENG-01, 6.3 | **view\_audit\_log** |
 
-The report list at `/reports/` shows only the reports the user can access (ENG-01, 6.2).
+The report list at `/reports/` shows only the reports the user can access (ENG-01, 6.2). Fixed administrators also see **New report** there. It opens `/reports/new`, which asks only for the report's name (ENG-02, 3), then opens the new report's Uploads. Anyone else gets 403 from that address (ENG-01, 8). Until Phase 3 builds the overview, `/reports/<id>/` opens Uploads.
+
+**Uploads and each upload**
+
+| Address under `/reports/<id>/` | Shows or does | Needs |
+| --- | --- | --- |
+| `uploads` | Every upload, newest first: its number, file name, state, who uploaded it and when, and who decided it and when. Opening it first marks any interrupted read `failed` (ENG-02, 6) | **view** |
+| `uploads/new` | The upload form: the file, and SAP's total for a file with no total row (ENG-02, 9.1). Sending it receives the file and reads it, then opens the upload | **upload** |
+| `uploads/<n>` | The upload: its file, state and decisions, the reason given for a rejection, withdrawal or rollback, its column problems at `needs_columns`, its error at `failed`, its preview once read (ENG-02, 11), and a form for each action the user may take | **view**. For an upload never committed, also **upload** or **approve** |
+| `uploads/<n>/exceptions/<type>` | The items of one exception type in the preview, each with its rows by sheet and row number | As `uploads/<n>` |
+| `uploads/<n>/approve` | Approves it. On a report's first upload, the approver also chooses the duplicate mode: replace by period, or line key where the preview offers it (ENG-02, 7.3) | **approve** |
+| `uploads/<n>/reject` | Rejects it, with a reason | **approve** |
+| `uploads/<n>/withdraw` | Withdraws it, with a reason | **upload**, as its uploader (ENG-01, 6.2, rule 6) |
+| `uploads/<n>/columns` | At `needs_columns`: each problem, with the header row and the next 5 rows of its sheet under their column letters, and a column to pick for each field (ENG-02, 4.5) | **upload**, as its uploader |
+| `uploads/<n>/roll-back` | The confirmation, with the report's actual spend now and once rolled back (ENG-02, 10.3), and a reason. Confirming rolls the upload back | **roll\_back** |
+
+- **Actions are forms.** Each action is a form sent with POST, which then opens the upload again with the result. A refused action changes nothing, and the page says why, in the refusal's own words, such as "Upload 3 is still open (awaiting approval)." The actions work without JavaScript.
+- **Only what the user may do.** An action's form appears only for a user who may take it, and its address checks the permission again (ENG-01, 6.2).
+- **Approve is offered while an upload awaits approval,** with any exceptions that block it named beside the button. Approving a blocked upload is refused by the commit's own check and kept as `approval_refused` (ENG-02, 10.1), so the screen holds no second copy of what blocks approval.
+- **Long exception lists open on request.** One exception type can list thousands of rows, so the preview shows each type's row count and amount, and its items open on request: in place, as an HTMX panel, or without JavaScript as their own page.
+- **Amounts and times** follow 2.4.
 
 **Rules**
 
@@ -137,6 +157,10 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 
 - The access matrix test (ENG-01, 6.2) covers every address in the table and every export address.
 - A Viewer gets 403 on the preview of an upload awaiting approval, and can open the preview of a committed one.
+- A fixed administrator creates a report, uploads a file, picks a missing column, and approves, rejects, withdraws or rolls back an upload, each from its screen. Each refusal shows its message and changes nothing.
+- Opening Uploads marks an upload read more than 10 minutes ago and never finished `failed`.
+- The preview screen shows every figure saved in the upload's preview, and each exception type's items.
+- The rollback confirmation shows the figure the rollback then gives.
 - Every list's total row equals the figure it breaks down, as the rules above say.
 - The same screen lists its rows in the same order every time.
 
