@@ -428,6 +428,8 @@ Then open `http://localhost:8000` and sign in as that administrator, with the in
 | `TIME_ZONE` | The time zone for displayed times | `Asia/Muscat` |
 | `DEBUG` | Shows developer error pages | `False` |
 
+`POSTGRES_PASSWORD`, `DB_OWNER_PASSWORD` and `DB_APP_PASSWORD` reach the database only on its first start, with an empty `pgdata` volume. Changing one later means changing it in the database too, with `ALTER ROLE ... PASSWORD`, then in `.env`.
+
 The session and lock-out defaults are rules in the plan. Changing them changes what the client agreed to, so agree any change with the client first.
 
 **Tested by**
