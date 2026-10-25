@@ -226,7 +226,7 @@ The six permissions are fixed in code: `view`, `export`, `upload`, `approve`, `r
 5. A fixed administrator can upload and approve the same file (rule 4). Anyone else can only if their role on that report holds both permissions, as the plan states. The audit log records who uploaded and who approved.
 6. Picking columns for an upload and withdrawing it (ENG-02, 6) are open only to the user who uploaded it, who must still hold `upload` on the report. For these two actions the check also takes the upload, as in `require(user, report, "upload", upload=upload)`. Fixed administrators pass it too, so they can clear an upload its uploader left.
 
-**Until Phase 4.** Roles and report access come in Phase 4, so until then nobody but a fixed administrator holds any permission on any report. Anyone else who signs in gets 404 on every report address, sees no report at `/reports/`, and gets 403 from the address for creating one (8). The check is written for roles from the start: it asks which permissions the user holds on the report, and Phase 4 changes only that answer.
+**Until Phase 4.** Roles and report access come in Phase 4, so until then nobody but a fixed administrator holds any permission on any report. Anyone else who signs in gets 404 on every report address, sees no report at `/reports/`, and gets 403 from the address for creating one (8). The check is written for roles from the start: it asks which permissions the user holds on the report, and Phase 4 changes that answer. Phase 4 also changes the two answers that don't concern one report: which reports the list shows (rule 3) and who may create one (8), which until then check only whether the user is a fixed administrator.
 
 **Tested by**
 
