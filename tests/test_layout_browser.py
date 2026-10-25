@@ -75,6 +75,30 @@ def test_no_button_is_stretched_past_its_words(page: Page, live_server) -> None:
         assert box["width"] < form["width"] / 2, (name, box, form)
 
 
+def test_the_preview_s_figures_sit_side_by_side_on_a_wide_screen(
+    page: Page, live_server
+) -> None:
+    """Verify an upload's preview puts its figures two by two at least 75rem
+    wide, Rows beside Reconciliation, and one under another narrower.
+    """
+    admin = make_admin()
+    report = create_report("Waiting", admin)
+    stage_upload(receive_file(report, admin, "sample.xlsx", SAMPLE.read_bytes()), admin)
+    sign_in(page, live_server, admin.username)
+    page.goto(f"{live_server.url}/reports/{report.pk}/uploads/1")
+
+    def places() -> tuple[dict, dict]:
+        rows, reconciliation = page.locator(".preview-grid section").all()[:2]
+        return rows.bounding_box(), reconciliation.bounding_box()
+
+    page.set_viewport_size({"width": 1440, "height": 900})
+    rows, reconciliation = places()
+    assert rows["y"] == reconciliation["y"] and rows["x"] < reconciliation["x"]
+    page.set_viewport_size({"width": 1000, "height": 900})
+    rows, reconciliation = places()
+    assert rows["x"] == reconciliation["x"] and rows["y"] < reconciliation["y"]
+
+
 def test_the_narrow_bar_is_short_and_nothing_scrolls_sideways(
     page: Page, live_server
 ) -> None:

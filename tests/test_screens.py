@@ -343,6 +343,20 @@ def test_the_summary_marks_what_blocks_approval(signed_in, report) -> None:
     assert tiles[3][3] == "Block approval: No control total."
 
 
+def test_the_rows_tile_names_duplicates_and_skipped_rows_apart(
+    signed_in, report
+) -> None:
+    """Verify the rows tile says how many rows are already in the report and
+    how many were skipped, each from its own figure.
+    """
+    upload = uploaded(signed_in, report, SAMPLE_XLSX, name="sample.xlsx")
+    Upload.objects.filter(pk=upload.pk).update(rows_duplicate=2, rows_skipped=5)
+    tiles = summary(page(signed_in, "upload", report.pk, upload.number))
+    assert tiles[2][3] == (
+        f"Of {upload.rows_read} read: 2 already in the report, 5 skipped."
+    )
+
+
 def test_the_summary_marks_a_difference_that_isn_t_zero(signed_in, report) -> None:
     """Verify a typed total the rows don't add up to shows its difference,
     marked as blocking approval.
