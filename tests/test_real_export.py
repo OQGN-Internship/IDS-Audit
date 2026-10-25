@@ -42,8 +42,10 @@ def test_the_real_export_gives_its_expected_figures(expected_path) -> None:
 
 def test_an_empty_folder_still_runs_the_test_to_skip_it(monkeypatch, tmp_path) -> None:
     """Verify a folder with no expected result gives the test one run, which
-    skips with its reason, rather than no run at all, which pytest wouldn't
-    mention.
+    skips with the reason naming the folder, or fails with
+    IDS_REQUIRE_REAL_EXPORT=1. With an empty parameter list, pytest would skip
+    the test itself, as "got empty parameter set", without running its body,
+    so neither would happen.
     """
     monkeypatch.setattr(real_export, "REAL_EXPORT_DIR", tmp_path)
     (param,) = real_exports()

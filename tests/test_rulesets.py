@@ -25,7 +25,7 @@ from ids_audit.imports.stage import stage_upload
 from ids_audit.ledger.models import Posting
 from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS, HEADER_NAMES, merged, problems
 from ids_audit.reports.models import Ruleset
-from tests.factories import commit, make_report, make_upload, make_user
+from tests.factories import commit, make_report, make_upload, make_user, roll_back
 from tests.files import csv_file, line, total_row
 
 # The check of a version's settings (pipeline, no database)
@@ -197,19 +197,23 @@ def test_only_an_active_fixed_administrator_changes_a_ruleset() -> None:
         (Upload.Status.COMMITTED, True),
         (Upload.Status.REJECTED, False),
         (Upload.Status.FAILED, False),
+        (Upload.Status.ROLLED_BACK, False),
     ],
 )
 def test_the_rules_shown_with_the_report_change_only_without_uploads(
     status: str, refused: bool
 ) -> None:
     """Verify mapping_rule and outside_ids_rule can't change while the report
-    has an open or a committed upload, and can with only a rejected or failed
-    one, while a header name can change either way.
+    has an open or a committed upload, and can with only a rejected, failed or
+    rolled-back one, which is never a committed upload (ENG-02 10.2), while a
+    header name can change either way.
     """
     report = make_report()
     upload = make_upload(report)
     if status == Upload.Status.COMMITTED:
         commit(upload, 0)
+    elif status == Upload.Status.ROLLED_BACK:
+        roll_back(commit(upload, 0))
     else:
         Upload.objects.filter(pk=upload.pk).update(status=status)
     admin = make_user()
