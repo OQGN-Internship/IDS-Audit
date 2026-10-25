@@ -23,7 +23,7 @@
       return {
         value: Number(point.value),
         itemStyle: {
-          color: point.outside ? colour("--chart-outside") : colour("--chart-bar"),
+          color: point.outside ? colour("--oqgn-orange-text") : colour("--oqgn-green-text"),
         },
       };
     });
@@ -56,7 +56,7 @@
       option.yAxis = { type: "value", axisLabel: { show: false } };
       option.series = [
         kind === "line"
-          ? { type: "line", data: data, lineStyle: { color: colour("--chart-line") }, itemStyle: { color: colour("--chart-line") } }
+          ? { type: "line", data: data, lineStyle: { color: colour("--oqgn-green-dark") }, itemStyle: { color: colour("--oqgn-green-dark") } }
           : { type: "bar", data: data },
       ];
     }

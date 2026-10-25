@@ -82,6 +82,10 @@ class Table:
     rows: Iterable[list[Cell]]
     total: list[Cell] | None = None
     charts: list[Chart] = field(default_factory=list)
+    # How the page draws it: "tiles" for the overview's Actual spend, and
+    # "beside" for a chart beside its table on a wide screen (ENG-03 4). The
+    # export ignores it.
+    layout: str = ""
 
 
 @dataclass(frozen=True)
@@ -286,12 +290,12 @@ def overview(report: Report, filters: Filters) -> Screen:
     months = month_table(
         links, queries.by_month(report, filters), totals, monthly=False
     )
-    tables = [
-        spend_table(report, filters, totals),
-        largest_table(report, filters, totals),
-        months,
-    ]
-    return Screen("Overview", "overview", tables, totals.lines)
+    spend = spend_table(report, filters, totals)
+    largest = largest_table(report, filters, totals)
+    # The overview is drawn as a dashboard (ENG-03 4, OQGN's theme).
+    spend.layout = "tiles"
+    largest.layout = months.layout = "beside"
+    return Screen("Overview", "overview", [spend, largest, months], totals.lines)
 
 
 def spend_table(report: Report, filters: Filters, totals: queries.Totals) -> Table:

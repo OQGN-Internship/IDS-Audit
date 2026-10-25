@@ -1,4 +1,4 @@
-{% load static access %}<!doctype html>
+{% load static access navigation %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -12,32 +12,42 @@
 </head>
 {# Every HTMX request carries the CSRF token in a header (ENG-01 6.4). #}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <header class="top">
-    <a class="brand" href="{% url 'home' %}">IDS Spend Audit</a>
+  {# The sidebar holds all the navigation (ENG-03 4, OQGN's theme). #}
+  <nav class="sidebar" aria-label="Main">
+    <a class="logo" href="{% url 'home' %}"><img src="{% static 'brand/oqgn-logo.svg' %}" alt="OQ Gas Networks" width="155" height="39"></a>
     {% if user.is_authenticated %}
-      <a href="{% url 'reports' %}">Reports</a>
-      {% if user.is_fixed_admin %}<a href="{% url 'admin_home' %}">Administration</a>{% endif %}
-      <span class="who">{{ user }}</span>
-      <form method="post" action="{% url 'sign_out' %}" class="inline">
-        {% csrf_token %}
-        <button type="submit">Sign out</button>
-      </form>
+      <p class="app-name">IDS Spend Audit</p>
+      <ul>
+        <li><a href="{% url 'reports' %}" {% open_now "reports" "new_report" %}>Reports</a></li>
+      </ul>
+      {# A report's screens, on every page of the report (ENG-03 4). #}
+      {% if report.pk %}
+        <p class="report-name">{{ report.name }}</p>
+        <ul>
+          <li><a href="{% url 'overview' report.pk %}" {% open_now "overview" "rows" %}>Overview</a></li>
+          <li><a href="{% url 'gl_accounts' report.pk %}" {% open_now "gl_accounts" "gl_account" %}>GL accounts</a></li>
+          <li><a href="{% url 'departments' report.pk %}" {% open_now "departments" "department" %}>Departments</a></li>
+          <li><a href="{% url 'budget_lines' report.pk %}" {% open_now "budget_lines" "budget_line" %}>Budget lines</a></li>
+          <li><a href="{% url 'exceptions' report.pk %}" {% open_now "exceptions" %}>Exceptions</a></li>
+          <li><a href="{% url 'faq' report.pk %}" {% open_now "faq" "faq_page" %}>FAQ</a></li>
+          <li><a href="{% url 'uploads' report.pk %}" {% open_now "uploads" "new_upload" "upload" "exception_items" "columns" "roll_back" %}>Uploads</a></li>
+          {% may "view_audit_log" as can_see_log %}{% if can_see_log %}<li><a href="{% url 'audit' report.pk %}" {% open_now "audit" %}>Audit log</a></li>{% endif %}
+        </ul>
+      {% endif %}
+      {% if user.is_fixed_admin %}
+        <ul>
+          <li><a href="{% url 'admin_home' %}" {% open_now "admin_home" "admin_users" "admin_new_user" "admin_user" "admin_roles" "admin_new_role" "admin_role" "admin_audit" %}>Administration</a></li>
+        </ul>
+      {% endif %}
+      <div class="who">
+        <p>{{ user }}</p>
+        <form method="post" action="{% url 'sign_out' %}">
+          {% csrf_token %}
+          <button type="submit" class="quiet">Sign out</button>
+        </form>
+      </div>
     {% endif %}
-  </header>
-  {# A report's screens, on every page of the report (ENG-03 4). Navigation lives only here. #}
-  {% if report.pk %}
-    <nav class="report-nav">
-      <span class="report-name">{{ report.name }}</span>
-      <a href="{% url 'overview' report.pk %}">Overview</a>
-      <a href="{% url 'gl_accounts' report.pk %}">GL accounts</a>
-      <a href="{% url 'departments' report.pk %}">Departments</a>
-      <a href="{% url 'budget_lines' report.pk %}">Budget lines</a>
-      <a href="{% url 'exceptions' report.pk %}">Exceptions</a>
-      <a href="{% url 'faq' report.pk %}">FAQ</a>
-      <a href="{% url 'uploads' report.pk %}">Uploads</a>
-      {% may "view_audit_log" as can_see_log %}{% if can_see_log %}<a href="{% url 'audit' report.pk %}">Audit log</a>{% endif %}
-    </nav>
-  {% endif %}
+  </nav>
   <main>
     {% if messages %}
       <ul class="messages">

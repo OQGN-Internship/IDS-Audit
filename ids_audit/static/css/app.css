@@ -1,141 +1,195 @@
-/* IDS Spend Audit: one plain stylesheet for every page. */
+/* IDS Spend Audit: one stylesheet for every page, in OQGN's theme (ENG-03 4). */
 
+/* Each colour once, named after its token in ENG-03 4. No other rule writes
+   a colour, and the charts read theirs from here. */
 :root {
-  --ink: #1d2733;
-  --muted: #5b6875;
-  --line: #d5dbe1;
-  --paper: #ffffff;
-  --band: #f3f5f7;
-  --accent: #0b5cad;
-  --bad: #a3261b;
-  --bad-band: #fbeceb;
-  --good: #1f6b3a;
-  --good-band: #e9f5ed;
-  /* Chart colours, which charts.js reads (ENG-03 5). */
-  --chart-bar: #4a7bb7;
-  --chart-line: #0b5cad;
-  --chart-outside: #c06a2b;
+  --oqgn-surface: #FFFFFF;
+  --oqgn-ink: #000000;
+  --oqgn-ink-subtle: #706F6F;
+  --oqgn-green-text: #587D39;
+  --oqgn-green-alt: #73A846;
+  --oqgn-surface-alt: #EDEDED;
+  --oqgn-line: #D1D3D4;
+  --oqgn-green-dark: #344E26;
+  --oqgn-danger: #E63B48;
+  --oqgn-orange-text: #AB5B16;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font: 15px/1.45 system-ui, "Segoe UI", Tahoma, sans-serif;
-  color: var(--ink);
-  background: var(--paper);
+  font: 16px/1.45 "Helvetica Neue", Arial, sans-serif;
+  color: var(--oqgn-ink);
+  background: var(--oqgn-surface);
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-a { color: var(--accent); }
+a { color: var(--oqgn-green-text); }
 
-.top {
+/* Every link, button and field focused from the keyboard shows its ring. */
+:focus-visible { outline: 2px solid var(--oqgn-green-text); outline-offset: 2px; }
+
+/* The sidebar: the logo, then the navigation, then who is signed in. */
+.sidebar {
+  background: var(--oqgn-surface-alt);
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.6rem 1.25rem;
-  background: var(--band);
-  border-bottom: 1px solid var(--line);
+  flex-direction: column;
+  padding-block-end: 1.5rem;
 }
-.top .brand { font-weight: 600; text-decoration: none; color: var(--ink); }
-.top .who { margin-left: auto; color: var(--muted); }
+.sidebar a { color: var(--oqgn-ink); text-decoration: none; }
+.sidebar a:hover { text-decoration: underline; }
+.sidebar .logo {
+  display: block;
+  padding: 1.5rem;
+  border-block-end: 4px solid var(--oqgn-green-alt);
+}
+.sidebar .logo img { display: block; width: 100%; max-width: 155px; height: auto; }
+.sidebar .app-name, .sidebar .report-name { margin: 1rem 1.25rem 0.25rem; font-weight: bold; }
+.sidebar .report-name { overflow-wrap: anywhere; }
+.sidebar ul { list-style: none; margin: 0.25rem 0 0; padding: 0; }
+.sidebar li a {
+  display: block;
+  padding-block: 0.3rem;
+  padding-inline: 1rem 1.25rem;
+  border-inline-start: 4px solid var(--oqgn-surface-alt);
+}
+.sidebar li a[aria-current="page"] {
+  border-inline-start-color: var(--oqgn-green-text);
+  font-weight: bold;
+}
+.sidebar .who { margin-block-start: auto; padding: 1.5rem 1.25rem 0; }
+.sidebar .who p { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
 
-main { max-width: 72rem; margin: 0 auto; padding: 1.25rem; }
+main { padding: 1.5rem 2rem; max-width: 84rem; min-width: 0; }
 
-h1 { font-size: 1.5rem; margin: 0.2rem 0 1rem; }
-h2 { font-size: 1.15rem; margin: 1.6rem 0 0.6rem; }
+/* Narrow screens: the sidebar becomes a band across the top. */
+@media (max-width: 60rem) {
+  body { display: block; }
+  .sidebar { padding-block-end: 0.75rem; }
+  .sidebar ul { display: flex; flex-wrap: wrap; }
+  .sidebar .who { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding-block-start: 0.75rem; }
+  .sidebar .who p { margin: 0; }
+  main { padding: 1rem; }
+}
 
+h1 { font-size: 1.6rem; margin: 0 0 1rem; }
+h2 { font-size: 1.2rem; margin: 1.6rem 0 0.6rem; }
+h3 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
+h1, h2, h3 { font-weight: bold; }
+
+/* Forms. */
+form.narrow { max-width: 28rem; display: grid; gap: 0.35rem; }
+form.narrow button { margin-block-start: 0.6rem; justify-self: start; }
 form.inline { display: inline; margin: 0; }
-form.narrow { max-width: 26rem; display: grid; gap: 0.35rem; }
-form.narrow button { margin-top: 0.6rem; justify-self: start; }
-
-input, select, textarea, button { font: inherit; }
-input[type="text"], input[type="password"], textarea, select {
+input, select, textarea, button { font: inherit; color: var(--oqgn-ink); }
+input[type="text"], input[type="password"], input[type="email"], input[type="file"], textarea, select {
   width: 100%;
   padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border: 1px solid var(--oqgn-ink-subtle);
+  background: var(--oqgn-surface);
 }
+fieldset { border: 1px solid var(--oqgn-ink-subtle); display: grid; gap: 0.3rem; }
+fieldset ul { list-style: none; padding: 0; margin: 0; }
 button {
-  padding: 0.35rem 0.9rem;
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  background: var(--accent);
-  color: #fff;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--oqgn-green-dark);
+  background: var(--oqgn-green-dark);
+  color: var(--oqgn-surface);
   cursor: pointer;
 }
-button.quiet { background: var(--paper); color: var(--accent); }
-button.danger { border-color: var(--bad); background: var(--bad); }
+/* Show, for when JavaScript is off, and Sign out are the only other buttons. */
+button.quiet {
+  border-color: var(--oqgn-ink-subtle);
+  background: var(--oqgn-surface);
+  color: var(--oqgn-ink);
+}
 
-.hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
-.error, .errorlist, .messages .error {
-  color: var(--bad);
-  background: var(--bad-band);
+/* Secondary text, on white only. */
+.hint, .filter-line, .as-of, .crumbs, .counted, figcaption, .legend {
+  color: var(--oqgn-ink-subtle);
+}
+.hint { font-size: 0.9rem; margin: 0; }
+.crumbs { margin: 0 0 0.3rem; }
+.filter-line, .as-of { margin: 0.2rem 0; }
+
+/* Problems and successes: a bar at the start, the words in ink. */
+.error, .errorlist, .messages .error, .messages .warning, .blocks {
+  border-inline-start: 4px solid var(--oqgn-danger);
   padding: 0.4rem 0.6rem;
-  border-radius: 4px;
+  color: var(--oqgn-ink);
   list-style: none;
 }
+.blocks { font-weight: bold; }
 .messages { padding: 0; margin: 0 0 1rem; list-style: none; }
-.messages li { padding: 0.4rem 0.6rem; border-radius: 4px; margin-bottom: 0.3rem; }
-.messages .success { color: var(--good); background: var(--good-band); }
+.messages li { margin-block-end: 0.3rem; }
+.messages .success { border-inline-start: 4px solid var(--oqgn-green-text); padding: 0.4rem 0.6rem; }
 
-table { border-collapse: collapse; width: 100%; margin: 0.4rem 0 1rem; }
-th, td { text-align: left; padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { background: var(--band); font-weight: 600; }
-td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
-
-.state { padding: 0.05rem 0.45rem; border-radius: 3px; background: var(--band); white-space: nowrap; }
-.blocks { color: var(--bad); font-weight: 600; }
-.actions { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0; }
-.actions form { display: grid; gap: 0.35rem; min-width: 18rem; }
-.sheet-rows { overflow-x: auto; }
-.crumbs { color: var(--muted); margin: 0 0 0.3rem; }
-table.facts { width: auto; }
-table.facts th { width: 9rem; }
-table.figures { width: auto; min-width: 28rem; }
-.items-row td:empty { padding: 0; border: 0; }
-table.items { margin: 0.3rem 0 0.8rem; background: var(--paper); }
-fieldset { border: 1px solid var(--line); border-radius: 4px; display: grid; gap: 0.3rem; }
-h3 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
-.sheet-rows td, .sheet-rows th { white-space: nowrap; font-size: 0.9rem; }
-
-/* A report's screens (ENG-03 4). */
-.report-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.45rem 1.25rem;
-  border-bottom: 1px solid var(--line);
+/* Tables, dense enough for a few dozen rows on one screen. */
+table { border-collapse: collapse; width: 100%; margin: 0.4rem 0 1rem; font-size: 14px; }
+th, td {
+  text-align: start;
+  padding: 4px 8px;
+  border-block-end: 1px solid var(--oqgn-line);
+  vertical-align: top;
 }
-.report-nav .report-name { font-weight: 600; }
-.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 0 0 0.8rem; }
-.filters label { display: grid; gap: 0.15rem; font-size: 0.9rem; color: var(--muted); }
-.filters select { width: auto; }
-.filter-line, .as-of { margin: 0.2rem 0; color: var(--muted); }
-.empty { margin: 1rem 0; padding: 0.6rem 0.8rem; background: var(--band); border-radius: 4px; }
-.table-wrap { overflow-x: auto; }
-td.share, th.share, td.count, th.count, td.exact, th.exact {
-  text-align: right;
+th { background: var(--oqgn-surface-alt); font-weight: bold; }
+th a { color: var(--oqgn-ink); }
+td.amount, th.amount, td.share, th.share, td.count, th.count, td.exact, th.exact {
+  text-align: end;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 td.code, td.date { white-space: nowrap; }
-tfoot tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
+tr.total td, tfoot tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
+.table-wrap { overflow-x: auto; }
+table.facts { width: auto; }
+table.facts th { width: 9rem; }
+table.figures { width: auto; min-width: 28rem; }
+.items-row td:empty { padding: 0; border: 0; }
+table.items { margin: 0.3rem 0 0.8rem; }
+.sheet-rows { overflow-x: auto; }
+.sheet-rows td, .sheet-rows th { white-space: nowrap; }
+table.log td { font-size: 13px; }
+.detail { display: block; overflow-wrap: anywhere; }
+
+.state { padding: 0 0.4rem; background: var(--oqgn-surface-alt); white-space: nowrap; }
+.actions { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0; }
+.actions form { display: grid; gap: 0.35rem; min-width: 18rem; }
+
+/* A report's screens (ENG-03 4). */
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 0 0 0.8rem; }
+.filters label { display: grid; gap: 0.15rem; font-size: 0.9rem; }
+.filters select { width: auto; }
+.empty { margin: 1rem 0; padding: 0.6rem 0.8rem; background: var(--oqgn-surface-alt); }
+.empty a { color: var(--oqgn-ink); }
 .pager { display: flex; gap: 1rem; }
+.export { margin: 0.4rem 0; }
+
+/* The overview as a dashboard: its Actual spend as tiles, and on a wide
+   screen each chart beside its table (ENG-03 4). */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+.tile { background: var(--oqgn-surface-alt); padding: 1rem 1.25rem; }
+.tile a { color: var(--oqgn-ink); }
+.tile p { margin: 0; }
+.tile .figure { font-size: 1.6rem; font-weight: bold; font-variant-numeric: tabular-nums; margin: 0.2rem 0; }
+@media (min-width: 75rem) {
+  .beside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+}
 
 /* Charts and FAQ pages (ENG-03 5 and 7). */
 .chart-box { margin: 0.4rem 0 1rem; }
-.chart-box figcaption { color: var(--muted); font-size: 0.9rem; }
+.chart-box figcaption { font-size: 0.9rem; }
 .chart { height: 22rem; max-width: 56rem; }
-.legend { margin: 0.2rem 0; font-size: 0.9rem; color: var(--muted); }
-.swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-right: 0.4rem; border-radius: 2px; vertical-align: -0.1rem; }
-.swatch.outside { background: var(--chart-outside); }
-.answer { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0; }
-.counted { color: var(--muted); }
+.legend { margin: 0.2rem 0; font-size: 0.9rem; }
+.swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-inline-end: 0.4rem; vertical-align: -0.1rem; }
+.swatch.outside { background: var(--oqgn-orange-text); }
+.answer { font-size: 1.1rem; font-weight: bold; margin: 0.8rem 0; }
 .questions li { margin: 0.3rem 0; }
-.export { margin: 0.4rem 0; }
-
-/* The audit log (ENG-03 4). */
-table.log td { font-size: 0.9rem; }
-.detail { display: block; overflow-wrap: anywhere; }

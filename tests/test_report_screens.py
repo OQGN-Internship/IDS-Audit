@@ -74,7 +74,7 @@ def test_a_report_s_address_opens_its_overview(client, sample_report) -> None:
     response = client.get(reverse("report", args=[sample_report.pk]))
     assert response["Location"] == reverse("overview", args=[sample_report.pk])
     page = text(get(client, "overview", sample_report))
-    page = re.search(r'<nav class="report-nav">(.*?)</nav>', page, re.S)[1]
+    page = re.search(r'<nav class="sidebar"[^>]*>(.*?)</nav>', page, re.S)[1]
     for name in (
         "overview",
         "gl_accounts",
@@ -110,6 +110,33 @@ def test_the_overview_shows_the_totals_largest_gl_accounts_and_months(
     for running in sample_expected["screens"]["running_total"].values():
         assert amount(running) in page
     assert "Figures as of upload 1, sample.xlsx, approved by " in page
+
+
+def test_the_overview_shows_its_actual_spend_as_tiles(
+    client, sample_report, sample_expected
+) -> None:
+    """Verify the overview's Actual spend shows as tiles, the total first,
+    each amount linking to rows that add up to it, with its lines, and
+    without Outside IDS once it's excluded (ENG-03 4).
+    """
+    tile = re.compile(
+        r'<div class="tile"><p>([^<]+)</p><p class="figure"><a href="([^"]+)">'
+        r"([-0-9,.]+)</a> OMR</p><p>(\d+) lines?</p></div>"
+    )
+    tiles = tile.findall(text(get(client, "overview", sample_report)))
+    spend = sample_expected["actual_spend"]
+    assert [(label, written) for label, _, written, _ in tiles] == [
+        ("Actual spend", amount(spend["total"])),
+        ("On IDS cost centers", amount(spend["inside_ids"])),
+        ("Outside IDS", amount(spend["outside_ids"])),
+    ]
+    for _, url, written, lines in tiles:
+        assert rows_said(client, url) == (int(lines), written)
+    page = text(get(client, "overview", sample_report, query="?exclude_outside=1"))
+    assert [label for label, *_ in tile.findall(page)] == [
+        "Actual spend",
+        "On IDS cost centers",
+    ]
 
 
 @pytest.mark.parametrize(

@@ -74,6 +74,7 @@ def share(value: Decimal | None) -> str:
     return "–" if value is None else f"{value * 100:.1f}%"
 
 
+@register.filter
 def shown(cell) -> str:
     """Write a table cell as its kind says (ENG-03 2.4). An exact amount, such
     as a skipped row's, is written as read, never rounded.

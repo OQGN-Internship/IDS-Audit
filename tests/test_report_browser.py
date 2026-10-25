@@ -95,7 +95,10 @@ def test_overview_to_gl_account_to_source_rows(page: Page, live_server) -> None:
     sign_in(page, live_server, admin.username)
     page.goto(f"{live_server.url}/reports/{report.pk}/")
     expect(page.get_by_role("heading", name="Overview")).to_be_visible()
-    page.locator("table").nth(1).get_by_role("link", name="610100").click()
+    largest = page.locator(
+        "table", has=page.get_by_role("cell", name="Software licences")
+    )
+    largest.get_by_role("link", name="610100").click()
     expect(
         page.get_by_role("heading", name="GL account 610100: Software licences")
     ).to_be_visible()
@@ -127,7 +130,8 @@ def test_both_filters_change_the_panel_and_the_export_follows(
     expect(page).to_have_url(re.compile(r"year=2025&exclude_outside=1$"))
     # The panel swapped in has its charts drawn again.
     expect(page.locator('[data-chart="chart-gl"] canvas')).to_have_count(1)
-    shown = page.locator("table").first.locator("tfoot td.amount").inner_text()
+    # The Actual spend tile, the total first (ENG-03 4).
+    shown = page.locator(".tile .figure a").first.inner_text()
 
     with page.expect_download() as download:
         page.get_by_role("link", name="Export to Excel").click()
@@ -261,3 +265,26 @@ def test_a_name_with_a_script_shows_as_text_in_the_tooltip(
     )
     expect(page.get_by_text(f"610100 {name}")).to_be_visible()
     assert page.evaluate("window.ran") is None
+
+
+def test_the_logo_is_drawn_and_a_focused_link_shows_its_ring(
+    page: Page, live_server
+) -> None:
+    """Verify the browser draws OQGN's logo, and the first link reached with
+    the keyboard, the logo's, shows the 2px green-text ring 2px outside it
+    (ENG-03 4).
+    """
+    sign_in(page, live_server, make_admin().username)
+    logo = page.get_by_role("img", name="OQ Gas Networks")
+    expect(logo).to_be_visible()
+    assert logo.evaluate("image => image.complete && image.naturalWidth") > 0
+    page.keyboard.press("Tab")
+    ring = page.evaluate(
+        """() => {
+            const focused = document.activeElement;
+            const style = getComputedStyle(focused);
+            return [focused.className, style.outlineStyle, style.outlineWidth,
+                    style.outlineColor, style.outlineOffset];
+        }"""
+    )
+    assert ring == ["logo", "solid", "2px", "rgb(88, 125, 57)", "2px"]
