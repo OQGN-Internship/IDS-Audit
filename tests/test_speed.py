@@ -8,6 +8,7 @@ its end. PostgreSQL's autovacuum analyzes a table after a large insert; the
 fixture runs ANALYZE at once instead of waiting for it.
 """
 
+import datetime
 import time
 import tracemalloc
 
@@ -19,6 +20,7 @@ from django.urls import reverse
 
 from config import gunicorn
 from ids_audit.reports import export, queries
+from ids_audit.reports.queries import ALL, Keys
 from tests.factories import make_user
 from tests.speed_data import UPLOADS, build
 
@@ -151,3 +153,23 @@ def test_an_export_s_memory_stays_flat_as_its_rows_grow(reports, client) -> None
     fewer = peak_memory(client, url + "?gl=600001")
     more = peak_memory(client, url + "?through=2025-01")
     assert more < fewer + 5_000_000, (fewer, more)
+
+
+@pytest.mark.parametrize(
+    ("keys", "index"),
+    [
+        (Keys(gl="600001"), "posting_report_gl"),
+        (Keys(cc="4001"), "posting_report_cc"),
+        (Keys(month=datetime.date(2025, 3, 1)), "posting_report_date"),
+    ],
+)
+def test_each_drill_down_uses_its_posting_index(reports, keys, index) -> None:
+    """Verify PostgreSQL reads a drill-down by GL account, cost center or
+    month through its own index on posting (ENG-03 10).
+    """
+    _, large = reports
+    sql, params = queries.source_rows(large, ALL, keys).query.sql_with_params()
+    with connection.cursor() as cursor:
+        cursor.execute("EXPLAIN " + sql, params)
+        plan = "\n".join(row[0] for row in cursor.fetchall())
+    assert index in plan, plan

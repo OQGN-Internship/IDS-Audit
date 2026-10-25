@@ -99,14 +99,6 @@ class Upload(models.Model):
                 fields=["report", "number"], name="upload_one_row_per_number"
             )
         ]
-        # Finding a report's committed uploads in the order of commits
-        # (ENG-03 10).
-        indexes = [
-            models.Index(
-                fields=["report", "status", "decided_at"],
-                name="upload_report_status_decided",
-            )
-        ]
 
     def __str__(self):
         # "upload n, file name", as in the as-of line (ENG-03 3.2).
