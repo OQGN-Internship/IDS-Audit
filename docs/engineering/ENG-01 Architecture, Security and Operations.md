@@ -459,6 +459,7 @@ Run `manage.py` commands as `docker compose exec app python manage.py <command>`
 | "Bad Request (400)" | The address isn't in `ALLOWED_HOSTS` | Add it in `.env`, then run `docker compose up -d` |
 | An upload is refused as too large | It's over `MAX_UPLOAD_MB` | Raise the limit in `.env` and restart, or export a shorter period |
 | An upload fails after a long wait, and the next file is refused because the upload is still open | Reading took longer than `GUNICORN_TIMEOUT`, so Gunicorn stopped the request | Export a shorter period. The upload is marked `failed` 10 minutes after it was received, when Uploads opens. If files are often this large, it's the trigger for the background worker (Section 8) |
+| An export fails after a long wait | It had more rows than fit in `GUNICORN_TIMEOUT` on this machine. On the developer's machine an export at Excel's row limit takes about 2 minutes (ENG-03, 10) | Narrow the filters, or raise `GUNICORN_TIMEOUT` in `.env` and restart |
 | An upload is refused as an unknown type | The file isn't in a format ENG-02 accepts, such as a PDF renamed to `.xls` | Export again from SAP in an accepted format |
 | A user is locked out | Five failed sign-ins | Wait 15 minutes, or run `axes_reset_username <username>` |
 | A fixed administrator forgot their password | Only the command line can reset it | Run `changepassword <username>` |

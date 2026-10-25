@@ -456,12 +456,27 @@ The plan's default is files of up to tens of thousands of rows. The speed test b
 | `cc_dept_map` | `(upload_id, cc_code)`, unique (ENG-02, 2) | The cost center mapping in force |
 | `upload` | `(report_id, status, decided_at)` | Finding the committed uploads, in order |
 
+**How `posting_resolved` stays fast.** Every screen reads the view, so its form decides most of a screen's time. A later migration of the view (ENG-02, 8.4) returns exactly the same rows as the first, in a form PostgreSQL can work out in one pass over a report's postings:
+
+- **Replacement by date.** A posting is replaced when an upload committed after its own covers its month (ENG-02, 10.2). The view compares the posting's date with the first and last day of the months the later upload covers, rather than working out a month for every posting.
+- **One condition.** Line-key mode, which replaces nothing, is decided where the pairs of uploads are listed, not beside the replacement check, so that check stands alone and PostgreSQL can make it a single anti-join. Those pairs are worked out once per query.
+- **One row per report.** The mapping rule and the uploads whose mappings the latest rule takes are joined to each posting as one row, not three.
+
+The first form took about 0.3 seconds a query over 200,000 postings, and the overview about 2.2 seconds. This form takes about 0.1 seconds a query.
+
+**The speed test's data.** `tests/speed_data.py` makes a report of 10 committed uploads, each covering a month of its own, with 45 GL accounts and 30 cost centers, mapped with gaps so every catch-all and exception list has rows. Its postings go in with `COPY`. The 100-posting report used for counting queries has the same uploads, codes and mappings. After loading, the test runs `ANALYZE`, which PostgreSQL's autovacuum does by itself after a large insert, since a query planned without statistics can take ten times longer.
+
+**Measured on the developer's machine,** with 200,000 postings: every screen answered in 0.2 to 1.2 seconds, and an export of every source row, 196,000 of them, took about 20 seconds. At that rate an export at Excel's limit takes about 2 minutes, inside `GUNICORN_TIMEOUT`'s 5 minutes (ENG-01, 7.1), so exports run inside the request and Excel's limit stays the export's limit (9.4). Its memory stayed at about 7 MB however many rows it wrote.
+
 **If it's still too slow.** `posting_resolved` becomes a materialized view, refreshed inside the commit and rollback transactions (ENG-02, 10), so it's never out of date. This is done only if the speed test fails. The refresh runs as `ids_app`, and PostgreSQL 17 lets only the owner or a role with the `MAINTAIN` privilege refresh a materialized view, so `sql/grants.sql` then grants `MAINTAIN` on it to `ids_app`.
 
 **Tested by**
 
 - With 200,000 generated postings over 10 uploads, every screen responds within 2 seconds on the developer's machine.
 - The number of queries per screen is the same with 100 postings as with 200,000.
+- An export of the 200,000 postings' source rows runs at a rate that would write Excel's limit within `GUNICORN_TIMEOUT`.
+- An export of about 20,000 rows holds no more memory than one of about 4,000, give or take 5 MB.
+- The view's own tests (ENG-02, 8.4) pass on the later form unchanged, and so does the sum rule (Section 11).
 
 ## 11. Testing
 
