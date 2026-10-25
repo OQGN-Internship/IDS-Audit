@@ -11,6 +11,7 @@ from django.db.models import Count, Sum
 from django.utils import timezone
 
 from ids_audit import audit
+from ids_audit.accounts.access import APPROVE, require
 from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import StagingRow, Upload
@@ -56,8 +57,8 @@ def commit_upload(
     awaiting_approval is refused with WrongState. One whose preview lists an
     exception that blocks approval, whose preview is out of date, or that
     can't take the mode chosen is refused with ApprovalRefused, which an
-    approval_refused event keeps. The check that needs sign-in comes with it:
-    the user's access (ENG-01 4, Build order).
+    approval_refused event keeps. A user who no longer holds approve gets the
+    access check's 404 or 403, with no event (ENG-01 6.2).
     """
     try:
         return approve(upload, user, duplicate_mode)
@@ -78,7 +79,8 @@ def approve(upload: Upload, user: User, duplicate_mode: str | None) -> Upload:
     with transaction.atomic():
         # Step 1. A second approval for the same report waits here.
         report = Report.objects.select_for_update().get(pk=upload.report_id)
-        # Step 2.
+        # Step 2. The view checked approve too, before the report was locked.
+        require(user, report, APPROVE)
         upload = lock_upload(upload, Upload.Status.AWAITING_APPROVAL)
         preview = upload.preview or {}
         blocking = [

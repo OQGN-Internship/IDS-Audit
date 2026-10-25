@@ -16,11 +16,17 @@ from ids_audit.reports.models import Report, Ruleset
 FIRST_COMMIT = datetime.datetime(2026, 7, 1, 9, 0, tzinfo=datetime.UTC)
 
 
-def make_user() -> User:
-    """A new user, with a username no other test user has."""
+def make_user(fixed_admin: bool = True) -> User:
+    """A new user, with a username no other test user has.
+
+    A fixed administrator unless fixed_admin is False, since until Phase 4
+    adds roles nobody else can act on a report (ENG-01 6.2).
+    """
     number = User.objects.count() + 1
     return User.objects.create(
-        username=f"user{number}", full_name=f"Test User {number}"
+        username=f"user{number}",
+        full_name=f"Test User {number}",
+        is_fixed_admin=fixed_admin,
     )
 
 
@@ -33,7 +39,6 @@ def make_admin(must_change_password: bool = False) -> User:
     chosen it unless must_change_password.
     """
     user = make_user()
-    user.is_fixed_admin = True
     user.must_change_password = must_change_password
     user.set_password(PASSWORD)
     user.save()

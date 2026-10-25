@@ -92,7 +92,7 @@ def test_create_admin_refuses_a_taken_username_before_asking_anything(typed) -> 
     """Verify create_admin refuses a username that exists, without asking for
     a name or a password.
     """
-    existing = make_user()
+    existing = make_user(fixed_admin=False)
     asked = typed()
     with pytest.raises(CommandError, match="already taken"):
         run("create_admin", existing.username)
@@ -143,7 +143,7 @@ def test_disable_admin_refuses_anyone_else_and_a_disabled_admin() -> None:
     and one already disabled, writing nothing.
     """
     with pytest.raises(CommandError, match="No fixed administrator"):
-        run("disable_admin", make_user().username)
+        run("disable_admin", make_user(fixed_admin=False).username)
     admin = make_admin()
     run("disable_admin", admin.username)
     with pytest.raises(CommandError, match="already disabled"):
@@ -153,7 +153,7 @@ def test_disable_admin_refuses_anyone_else_and_a_disabled_admin() -> None:
 
 def test_list_admins_lists_only_fixed_administrators() -> None:
     """Verify list_admins shows each fixed administrator and no one else."""
-    admin, user = make_admin(), make_user()
+    admin, user = make_admin(), make_user(fixed_admin=False)
     out = run("list_admins")
     assert admin.username in out
     assert user.username not in out
@@ -177,7 +177,7 @@ def test_a_fixed_admin_cant_be_deleted_disabled_or_demoted_from_the_app() -> Non
 
     admin.full_name = "Corrected Name"
     admin.save()
-    user = make_user()
+    user = make_user(fixed_admin=False)
     user.is_active = False
     user.save()
     assert not User.objects.get(pk=user.pk).is_active
