@@ -291,7 +291,7 @@ Every event is one row in `audit_event`, written only through `audit.record()`.
 | `upload` | The upload concerned, if any |
 | `details` | Structured data such as the username tried, the role granted, the file hash, or the filters used in an export |
 
-**Actions recorded:** `sign_in`, `sign_out`, `sign_in_failed`, `account_locked`, `account_unlocked`, `user_created`, `user_changed`, `user_disabled`, `password_reset`, `password_changed`, `role_created`, `role_changed`, `role_removed`, `access_granted`, `access_changed`, `access_removed`, `report_created`, `ruleset_changed`, `upload_refused`, `upload_received`, `upload_needs_columns`, `upload_columns_picked`, `upload_awaiting_approval`, `upload_failed`, `upload_approved`, `upload_rejected`, `upload_withdrawn`, `upload_rolled_back`, `approval_refused`, `export_downloaded`.
+**Actions recorded:** `sign_in`, `sign_out`, `sign_in_failed`, `account_locked`, `account_unlocked`, `user_created`, `user_changed`, `user_disabled`, `password_reset`, `password_changed`, `role_created`, `role_changed`, `role_removed`, `access_granted`, `access_changed`, `access_removed`, `database_restored`, `report_created`, `ruleset_changed`, `upload_refused`, `upload_received`, `upload_needs_columns`, `upload_columns_picked`, `upload_awaiting_approval`, `upload_failed`, `upload_approved`, `upload_rejected`, `upload_withdrawn`, `upload_rolled_back`, `approval_refused`, `export_downloaded`.
 
 The `upload_` actions match the state changes in ENG-02, Section 6, one action for each. `upload_received` is the upload being created at `reading`. `upload_refused` is the one that changes nothing: a file refused before an upload exists (ENG-02, 6), so the plan's Phase 2 gate can show the same file sent twice in the audit log. `approval_refused` is an approval that was refused, so nothing changed: the gate's file whose control total doesn't match shows in the log as an attempt that failed (ENG-02, 10.1).
 
@@ -306,9 +306,9 @@ The account actions cover the plan's "every change to accounts or access". `pass
 - It runs inside its caller's transaction, so an action and its event are saved together or not at all.
 - `at` is set when the row is saved, so no event can be backdated.
 
-**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `sign_in_failed` and `account_locked` keep the `username` tried, never the password. `user_created` keeps the account's `username`, `full_name` and `is_fixed_admin`. `user_disabled`, `password_reset` and `account_unlocked` keep the account's `username`. `user_changed` keeps each field changed, with its value before and after, and never a password. `role_created` and `role_removed` keep the role's `name` and `permissions`. `role_changed` keeps the role's `name` as it is now, and each field changed with its value before and after. `access_granted` and `access_removed` keep the user's `username` and the `role`'s name, and `access_changed` keeps the `username` and the role before and after. All three name the report in the event's `report`. A value before and after is kept under its field's name in `changed`, as `{"before": ..., "after": ...}`. An event written from the command line has no user, and keeps the `command` it was run with, such as `create_admin`. `report_created` keeps the report's `name`. `upload_refused` keeps the `reason`, which is `too_large`, `unknown_format`, `already_committed` or `open_upload`, the file's `original_name` and `size_bytes`, its `file_sha256` once it's been hashed, and for the last two reasons the `number` of the upload it matches or that's open. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`, and the `control_total` the uploader typed, if they typed one (ENG-02, 9.1). `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it, and each of those sheets' header as text. `upload_columns_picked` keeps every column picked for the upload so far, by sheet and field. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_rejected`, `upload_withdrawn` and `upload_rolled_back` keep the `reason`. `upload_approved` keeps the number and total of the postings written, how many items each exception type in the preview listed (ENG-02, 11.2) and, on the report's first commit, the duplicate mode (ENG-02, 10.1). `approval_refused` keeps the `reasons`, each an exception type that blocks approval or one of `preview_out_of_date`, `mode_not_allowed` and `commit_check_failed`, and the `message` shown. `export_downloaded` keeps the `view`, its address under the report such as `gl/610100`, the `filters` as the address gives them, with `year` and `exclude_outside` always and any keys and pick, the number of data `rows` on all its sheets, and the `file_name`. Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
+**What `details` keeps.** An event keeps the facts it records, because `ids_app` can update a `report` or `upload` row and can never change an event. `sign_in_failed` and `account_locked` keep the `username` tried, never the password. `user_created` keeps the account's `username`, `full_name` and `is_fixed_admin`. `user_disabled`, `password_reset` and `account_unlocked` keep the account's `username`. `user_changed` keeps each field changed, with its value before and after, and never a password. `role_created` and `role_removed` keep the role's `name` and `permissions`. `role_changed` keeps the role's `name` as it is now, and each field changed with its value before and after. `access_granted` and `access_removed` keep the user's `username` and the `role`'s name, and `access_changed` keeps the `username` and the role before and after. All three name the report in the event's `report`. A value before and after is kept under its field's name in `changed`, as `{"before": ..., "after": ...}`. An event written from the command line has no user, and keeps the `command` it was run with, such as `create_admin`. `report_created` keeps the report's `name`. `database_restored` keeps the `backup` folder's name, whether `totals_match` and `files_match`, and the `command`, `restore.sh`. `upload_refused` keeps the `reason`, which is `too_large`, `unknown_format`, `already_committed` or `open_upload`, the file's `original_name` and `size_bytes`, its `file_sha256` once it's been hashed, and for the last two reasons the `number` of the upload it matches or that's open. `upload_received` keeps the upload's `number`, `original_name`, `size_bytes` and `file_sha256`, and the `control_total` the uploader typed, if they typed one (ENG-02, 9.1). `upload_needs_columns` keeps the column problems (ENG-02, 4.5), each with its sheet, its field and the letters of the columns that match it, and each of those sheets' header as text. `upload_columns_picked` keeps every column picked for the upload so far, by sheet and field. `upload_awaiting_approval` keeps the five `rows_` figures and `reconciliation_difference` (ENG-02, 11.1). `upload_failed` keeps the `error`. `upload_rejected`, `upload_withdrawn` and `upload_rolled_back` keep the `reason`. `upload_approved` keeps the number and total of the postings written, how many items each exception type in the preview listed (ENG-02, 11.2) and, on the report's first commit, the duplicate mode (ENG-02, 10.1). `approval_refused` keeps the `reasons`, each an exception type that blocks approval or one of `preview_out_of_date`, `mode_not_allowed` and `commit_check_failed`, and the `message` shown. `export_downloaded` keeps the `view`, its address under the report such as `gl/610100`, the `filters` as the address gives them, with `year` and `exclude_outside` always and any keys and pick, the number of data `rows` on all its sheets, and the `file_name`. Amounts are kept as text, as in `upload.preview`. Each other action's `details` are set when it's built.
 
-**Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way:
+**Nobody can change or delete an event.** The database enforces this, not just the application, and it protects the other tables that are written once (ENG-02, 2) the same way. A restore from a backup is the one exception: it replaces the whole log with the backup's copy. So `restore.sh` first backs up the log it replaces, and the restored log records the restore as `database_restored` (7.2). `ids_owner` and the database superuser, whose passwords are in `.env`, could change an event too, which is one reason `.env` is kept as carefully as the database (6.4).
 
 - **`ids_owner`** owns the application database and its tables. The migration job connects as it, and so does Django on the developer's machine, for the tests and `manage.py` (7.5). It has `CREATEDB`, so pytest-django can create the test database. It's also a member of `ids_app`, so a grant test can switch to `ids_app` with `SET ROLE`.
 - **`ids_app`** is the role the application connects as. Default privileges, set by `sql/init-roles.sh` before the first migration (7.1), give it `SELECT`, `INSERT`, `UPDATE` and `DELETE` on every table `ids_owner` creates. It has `TRUNCATE` on no table.
@@ -446,31 +446,48 @@ The session and lock-out defaults are rules in the plan. Changing them changes w
 
 A backup always holds both the database and the uploads volume. Postings point to their source files by hash, so one without the other is incomplete.
 
-**`scripts/backup.sh`** creates a folder `backups/YYYY-MM-DD_HHMM/` containing:
+**`scripts/backup.sh`** creates a folder `backups/YYYY-MM-DD_HHMMSS/` containing:
 
 - **`db.dump`:** the database, from `pg_dump --format=custom`
 - **`uploads.tar`:** the uploads volume
 - **`totals.json`:** every report's totals, from `manage.py report_totals`
 - **`SHA256SUMS`:** hashes of the three files above, used to detect damage
 
+It takes another parent folder in place of `backups/` as its argument, which only the tests use (below). The time goes to the second, so a backup taken just before a restore never shares a folder with another.
+
+**How the scripts work**
+
+- **Both run on the machine that runs Docker,** in Bash: Git Bash on the developer's Windows machine. They call `docker compose` from the repository root, so they act on the same Compose project as `docker compose up -d`, or on the one `COMPOSE_PROJECT_NAME` names.
+- **`app` is stopped while a backup is taken,** if it was running, and started again at the end, even when a step fails. No upload or approval can then land between the dump, the files and the totals. On the plan's data a backup takes seconds.
+- **`pg_dump` and `pg_restore` run inside the `db` container,** through `docker compose exec`, as `ids_owner` over the container's own socket, which the `postgres` image lets in without a password. `ids_owner` owns every table, so the dump keeps the owners, the grants and the default privileges, and a restore brings them back. They never run as `ids_app`, which can't drop or create a table.
+- **The uploads volume is read and written by a one-off container** of the application image (`docker compose run --no-deps app`), which mounts it at `/uploads`. Nothing else is installed or downloaded.
+- **`totals.json`** comes from `manage.py report_totals`, run the same way.
+
 **When and where**
 
 - Run a backup at the end of every working day while client data is on the machine, and before every update (see 7.3).
-- Copy each backup folder off the machine to encrypted storage, and keep at least the last 7.
+- Copy each backup folder off the machine to encrypted storage, keep the last 7, and delete older ones. Where that storage is, who holds it, and what happens to the copies when the work ends is an open question in the plan. Until it's answered, the plan's default applies (8).
 - Git ignores everything in `backups/` except its README (6.4).
 
 **`scripts/restore.sh backups/<folder>`** runs these steps in order:
 
-1. Checks the files against `SHA256SUMS`, and stops if any don't match.
-2. Stops `app`.
-3. Restores the database with `pg_restore --clean --if-exists`.
-4. Restores the uploads volume.
-5. Starts `app`.
-6. Runs `manage.py report_totals` and compares the result with `totals.json`. It reports success only if every total matches.
+1. Checks the files against `SHA256SUMS`, and stops if any don't match. Nothing has changed yet.
+2. Backs up what it's about to replace, with `backup.sh` into the same parent folder, so the audit events written since the chosen backup aren't lost. It stops if that backup fails. `--no-safety-backup` skips this step, for a database too damaged to back up.
+3. Stops `app`.
+4. Restores the database with `pg_restore --clean --if-exists --single-transaction`, so a restore that fails leaves the database as it was.
+5. Restores the uploads volume from `uploads.tar`. Files are named by their hash, so a file already there under the same name is the same file. A file the restored database doesn't name is left, and harms nothing.
+6. Runs `docker compose up -d`, so `migrate` applies the grants again before `app` starts.
+7. Runs `manage.py report_totals` and compares the result with `totals.json`, and runs `manage.py check_uploads`, which checks that every upload's file is in the volume with its SHA-256.
+8. Writes `database_restored` to the restored audit log, as a command-line action (6.3).
+9. Reports success only if every total and every file matches. Otherwise it says which didn't, and exits with an error.
 
 **`manage.py report_totals`** prints JSON with one entry per report, in the order reports were created. Each entry holds the report's id and name, its actual spend in all, inside IDS and outside IDS, its number of lines, and its actual spend by GL account, budget line, department and month (ENG-03, 2.3), all under the default filters (ENG-03, 3.1). Amounts are strings with exactly three decimal places, so no figure passes through a float. The catch-all groups are named `none` and `outside` and months are written as `2026-03`, as in the golden files' expected results (ENG-02, 12.3). Keys are sorted, so the same data always prints the same text, and the restore compares the two files whole. The budget-line and department totals are included so a restore that brings back the mapping rows wrong is caught too.
 
-**Tested by:** the Phase 4 gate. The latest backup is restored into an empty database and an empty volume, and `restore.sh` reports that every total matches.
+**Tested by**
+
+- The Phase 4 gate: a second Compose project, `ids-audit-gate`, with its own image, volumes, ports and made-up passwords, holds the sample file, approved. `compose.yaml` names the image after the project, `ids-audit-gate-app`, so the gate never replaces the live project's `ids-audit-app`. `backup.sh` backs it up, the project's volumes are removed, and an empty database and volume are started. `restore.sh` then reports that every total and every file matches, and the restored log holds `database_restored`. The live project and its volumes are never touched.
+- A backup folder with one changed byte is refused by `restore.sh` before anything changes.
+- `check_uploads` reports an upload whose file is missing or whose bytes don't match its hash.
 
 ### 7.3 Updating
 
@@ -528,6 +545,7 @@ As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production
 - pytest-django creates the test database `test_<DB_NAME>`, migrates it, and drops it at the end.
 - Default privileges belong to one database, so they never reach the test database. A session fixture in `tests/conftest.py` applies `sql/grants.sql` to the test database once it's migrated, so the tests see the same grants as the application.
 - A grant test switches to the application's role with `SET LOCAL ROLE ids_app` before the statement it checks, so the database refuses that statement as it would refuse the application. The switch ends with the test's transaction.
+- The backup and restore gate (7.2) builds the application image and runs a second Compose project, which takes a few minutes, so a plain `uv run pytest` leaves it out. It runs with `uv run pytest -m docker`, which needs Docker and Git Bash: before every release, and after any change to the scripts, `compose.yaml`, the `Dockerfile` or a migration.
 - Every test that a statement is refused has a matching test that an allowed statement works (6.3), so a refusal can't come from missing grants.
 - The browser tests (ENG-02, 12.1) drive Chromium with Playwright against pytest-django's live server, which serves the application from the test process. Chromium is installed once, with `uv run playwright install chromium`. They run after every other test: Playwright keeps an event loop running in the main thread until the session ends, and Django refuses database work in a thread with one.
 - A test that needs time to pass, such as a lock-out ending, moves the clock with time-machine (3) instead of waiting. The clock it moves is the application's, so times PostgreSQL sets itself, with `now()`, don't move. None of the tables uses them (ENG-02, 10.2).
@@ -559,6 +577,6 @@ Each decision waits on an answer. Until it arrives, the default below is what ge
 | --- | --- | --- |
 | Add the background worker | The plan's open question on rows per file and files per month | No worker. Imports run inside the web request |
 | Add Nginx and HTTPS | The plan's open question on where the application runs after sign-off | Not used. The port is published on 127.0.0.1 only |
-| Where off-machine backups go | Same question | Encrypted external storage kept by the developer |
+| Where off-machine backups go, and what happens to them when the work ends | The plan's open question on copies of OQGN's data | The plan's default: one encrypted external drive kept by the developer, holding the last 7 backups, and every copy handed over or deleted when the work ends |
 | Who can create reports, and what access the creator gets | The plan's open question on creating reports | Only fixed administrators. `can_create_reports` stays off for everyone else, and nothing in the application turns it on (6.2) |
 | Which file formats are accepted | ENG-02, once the real export arrives | `.xlsx`, `.xls` and `.csv` |

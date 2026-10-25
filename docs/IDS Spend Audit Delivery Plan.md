@@ -219,6 +219,7 @@ Each answer is needed by the day shown, or that phase uses the default.
 | The first users, the reports each one can use, and their role on each | Day 5 | One demo account per preset role, used only for the demo and disabled before real use |
 | Who validates the numbers? | Before acceptance | Acceptance can't start |
 | Where the application runs after sign-off | After sign-off | The developer's machine |
+| Where may copies of OQGN's data and its backups be kept, who holds them, and what happens to them when the work ends? | Before the real export arrives | Each backup is copied to one encrypted external drive kept by the developer, which holds only the last 7. When the work ends, the developer hands OQGN the latest backup and deletes every copy of its data from their machine and drive |
 
 ## Glossary
 
