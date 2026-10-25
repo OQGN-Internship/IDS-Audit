@@ -78,6 +78,7 @@
 
 <h3>Exceptions</h3>
 {% if exceptions %}
+  <div class="table-wrap">
   <table class="exceptions">
     <thead><tr><th>Exception</th><th>Blocks approval</th><th class="amount">Rows</th><th class="amount">Amount</th><th></th></tr></thead>
     <tbody>
@@ -93,6 +94,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 {% else %}
-  <p>None.</p>
+  <p class="none">None.</p>
 {% endif %}

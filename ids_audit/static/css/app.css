@@ -19,116 +19,206 @@
 
 body {
   margin: 0;
-  font: 16px/1.45 "Helvetica Neue", Arial, sans-serif;
+  font: 16px/1.5 "Helvetica Neue", Arial, sans-serif;
   color: var(--oqgn-ink);
   background: var(--oqgn-surface);
+}
+body.with-sidebar {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-columns: 16rem minmax(0, 1fr);
   min-height: 100vh;
 }
 
-a { color: var(--oqgn-green-text); }
+a { color: var(--oqgn-green-text); text-underline-offset: 0.15em; }
+a:hover { text-decoration-thickness: 2px; }
 
 /* Every link, button and field focused from the keyboard shows its ring. */
 :focus-visible { outline: 2px solid var(--oqgn-green-text); outline-offset: 2px; }
 
-/* The sidebar: the logo, then the navigation, then who is signed in. */
+/* Icons draw in the colour of their words (ENG-03 4, Icons). */
+.icon { width: 1.125rem; height: 1.125rem; flex: none; vertical-align: -0.2em; }
+
+/* The sidebar: the logo, the navigation in groups, then who is signed in. */
 .sidebar {
-  background: var(--oqgn-surface-alt);
+  background: var(--oqgn-surface);
+  border-inline-end: 1px solid var(--oqgn-line);
   display: flex;
   flex-direction: column;
-  padding-block-end: 1.5rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding-block-end: 1rem;
 }
-.sidebar a { color: var(--oqgn-ink); text-decoration: none; }
-.sidebar a:hover { text-decoration: underline; }
-.sidebar .logo {
-  display: block;
-  padding: 1.5rem;
-  border-block-end: 4px solid var(--oqgn-green-alt);
-}
-.sidebar .logo img { display: block; width: 100%; max-width: 155px; height: auto; }
-.sidebar .app-name, .sidebar .report-name { margin: 1rem 1.25rem 0.25rem; font-weight: bold; }
-.sidebar .report-name { overflow-wrap: anywhere; }
-.sidebar ul { list-style: none; margin: 0.25rem 0 0; padding: 0; }
+.logo { display: block; }
+.logo img { display: block; width: 100%; max-width: 155px; height: auto; }
+.sidebar .logo { padding: 1.5rem; border-block-end: 4px solid var(--oqgn-green-alt); }
+.nav-links { padding-block-start: 0.5rem; }
+.sidebar ul { list-style: none; margin: 0; padding: 0; }
+.sidebar ul + ul { margin-block-start: 0.4rem; padding-block-start: 0.4rem; border-block-start: 1px solid var(--oqgn-line); }
 .sidebar li a {
-  display: block;
-  padding-block: 0.3rem;
-  padding-inline: 1rem 1.25rem;
-  border-inline-start: 4px solid var(--oqgn-surface-alt);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-block: 0.4rem;
+  padding-inline: 1.25rem;
+  color: var(--oqgn-ink);
+  text-decoration: none;
+  border-inline-start: 4px solid var(--oqgn-surface);
 }
+.sidebar li a:hover { background: var(--oqgn-surface-alt); border-inline-start-color: var(--oqgn-surface-alt); }
 .sidebar li a[aria-current="page"] {
+  background: var(--oqgn-surface-alt);
   border-inline-start-color: var(--oqgn-green-text);
   font-weight: bold;
 }
-.sidebar .who { margin-block-start: auto; padding: 1.5rem 1.25rem 0; }
-.sidebar .who p { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
-
-main { padding: 1.5rem 2rem; max-width: 84rem; min-width: 0; }
-
-/* Narrow screens: the sidebar becomes a band across the top. */
-@media (max-width: 60rem) {
-  body { display: block; }
-  .sidebar { padding-block-end: 0.75rem; }
-  .sidebar ul { display: flex; flex-wrap: wrap; }
-  .sidebar .who { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding-block-start: 0.75rem; }
-  .sidebar .who p { margin: 0; }
-  main { padding: 1rem; }
+.sidebar li a .badge { margin-inline-start: auto; font-weight: normal; }
+.group-label, .app-name, .tile .label, .card .label {
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--oqgn-ink-subtle);
 }
+.group-label { margin: 1.25rem 1.5rem 0.25rem; }
+.report-name { margin: 0 1.5rem 0.4rem; font-weight: bold; overflow-wrap: anywhere; }
+.who {
+  margin-block-start: auto;
+  margin-inline: 1.5rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--oqgn-line);
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+.who-name { margin: 0; font-weight: bold; overflow-wrap: anywhere; }
+.who-name span { display: block; font-weight: normal; font-size: 0.875rem; color: var(--oqgn-ink-subtle); }
+.who form { margin: 0; }
+a.who-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--oqgn-ink); font-size: 0.875rem; }
 
-h1 { font-size: 1.6rem; margin: 0 0 1rem; }
-h2 { font-size: 1.2rem; margin: 1.6rem 0 0.6rem; }
-h3 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
+/* The page: its header, then the messages, then what it shows. */
+main { padding: 1.75rem 2.5rem 3rem; min-width: 0; max-width: 90rem; }
+.page-head { border-block-end: 1px solid var(--oqgn-line); padding-block-end: 1rem; margin-block-end: 1.5rem; }
+.crumbs ol {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  color: var(--oqgn-ink-subtle);
+}
+.crumbs li + li::before { content: "/"; margin-inline-end: 0.4rem; color: var(--oqgn-ink-subtle); }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; }
+.title-row h1 { margin: 0; }
+.page-actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.page-actions:empty { display: none; }
+
+h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 1rem; }
+h2 { font-size: 1.2rem; line-height: 1.3; margin: 2rem 0 0.75rem; }
+h3 { font-size: 1rem; margin: 1.25rem 0 0.5rem; }
 h1, h2, h3 { font-weight: bold; }
 
+/* Pages without the sidebar: one panel in the middle (ENG-03 4). */
+body.plain { padding: 4rem 1rem; }
+main.panel { max-width: 27rem; margin: 0 auto; padding: 2rem; border: 1px solid var(--oqgn-line); }
+.panel .logo { padding-block-end: 1rem; margin-block-end: 1.25rem; border-block-end: 4px solid var(--oqgn-green-alt); }
+.panel .app-name { margin: 0 0 0.25rem; }
+.panel .page-head { border: 0; padding: 0; margin-block-end: 1rem; }
+.panel form.narrow { max-width: none; }
+
 /* Forms. */
-form.narrow { max-width: 28rem; display: grid; gap: 0.35rem; }
-form.narrow button { margin-block-start: 0.6rem; justify-self: start; }
-form.inline { display: inline; margin: 0; }
+form.narrow { max-width: 30rem; display: grid; gap: 0.4rem; }
+form.narrow label, .actions form > label { font-weight: bold; }
+form.narrow button { margin-block-start: 0.75rem; }
+form.inline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; }
+form.inline select { width: auto; min-width: 12rem; }
 input, select, textarea, button { font: inherit; color: var(--oqgn-ink); }
-input[type="text"], input[type="password"], input[type="email"], input[type="file"], textarea, select {
+input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="file"], textarea, select {
   width: 100%;
-  padding: 0.35rem 0.5rem;
+  padding: 0.45rem 0.6rem;
   border: 1px solid var(--oqgn-ink-subtle);
   background: var(--oqgn-surface);
 }
-fieldset { border: 1px solid var(--oqgn-ink-subtle); display: grid; gap: 0.3rem; }
-fieldset ul { list-style: none; padding: 0; margin: 0; }
-button {
-  padding: 0.4rem 1rem;
+fieldset { border: 1px solid var(--oqgn-line); margin: 0; padding: 0.75rem 1rem; display: grid; gap: 0.4rem; }
+legend { font-weight: bold; padding-inline: 0.25rem; }
+fieldset label { display: flex; gap: 0.5rem; align-items: baseline; font-weight: normal; }
+fieldset ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
+
+/* Buttons: main, secondary and quiet, each as wide as its words (ENG-03 4). */
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: start;
+  align-self: start;
+  padding: 0.45rem 1rem;
   border: 1px solid var(--oqgn-green-dark);
   background: var(--oqgn-green-dark);
   color: var(--oqgn-surface);
+  font-weight: bold;
+  line-height: 1.25;
+  text-decoration: none;
   cursor: pointer;
 }
-/* Show, for when JavaScript is off, and Sign out are the only other buttons. */
+button:hover, .button:hover { text-decoration: underline; }
+button.secondary, .button.secondary { background: var(--oqgn-surface); color: var(--oqgn-green-dark); }
+/* Show, for when JavaScript is off, and Sign out are the only quiet buttons. */
 button.quiet {
   border-color: var(--oqgn-ink-subtle);
   background: var(--oqgn-surface);
   color: var(--oqgn-ink);
+  font-weight: normal;
 }
 
 /* Secondary text, on white only. */
-.hint, .filter-line, .as-of, .crumbs, .counted, figcaption, .legend {
+.hint, .filter-line, .as-of, .counted, figcaption, .legend, .none, .sub {
   color: var(--oqgn-ink-subtle);
 }
-.hint { font-size: 0.9rem; margin: 0; }
-.crumbs { margin: 0 0 0.3rem; }
-.filter-line, .as-of { margin: 0.2rem 0; }
+.hint { font-size: 0.875rem; margin: 0; }
+.meta { margin: 0 0 1rem; font-size: 0.875rem; }
+.filter-line, .as-of { margin: 0.15rem 0; }
 
-/* Problems and successes: a bar at the start, the words in ink. */
-.error, .errorlist, .messages .error, .messages .warning, .blocks {
+/* Messages, notices and problems: words in ink, a line around them and a
+   bar at the start whose colour says what kind they are. */
+.messages { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; gap: 0.5rem; }
+.messages li, .notice, p.error, div.error, ul.errorlist {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--oqgn-line);
   border-inline-start: 4px solid var(--oqgn-danger);
-  padding: 0.4rem 0.6rem;
+  background: var(--oqgn-surface);
   color: var(--oqgn-ink);
-  list-style: none;
 }
-.blocks { font-weight: bold; }
-.messages { padding: 0; margin: 0 0 1rem; list-style: none; }
-.messages li { margin-block-end: 0.3rem; }
-.messages .success { border-inline-start: 4px solid var(--oqgn-green-text); padding: 0.4rem 0.6rem; }
+.messages li { margin: 0; display: flex; gap: 0.6rem; align-items: baseline; }
+.messages li .icon, .notice .icon { vertical-align: -0.2em; }
+.messages .success { border-inline-start-color: var(--oqgn-green-text); }
+.notice { border-inline-start-color: var(--oqgn-orange-text); }
+.notice a { margin-inline-start: 0.5rem; white-space: nowrap; }
+ul.errorlist { list-style: none; }
+td.error { border-inline-start: 4px solid var(--oqgn-danger); }
+.blocks { font-weight: bold; border-inline-start: 4px solid var(--oqgn-danger); padding-inline-start: 0.4rem; }
+
+/* Badges: a state in words, with the bar its state has (ENG-03 4). */
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  background: var(--oqgn-surface-alt);
+  color: var(--oqgn-ink);
+  border-inline-start: 4px solid var(--oqgn-ink-subtle);
+  font-size: 0.8125rem;
+  font-weight: bold;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.badge.good { border-inline-start-color: var(--oqgn-green-text); }
+.badge.open { border-inline-start-color: var(--oqgn-orange-text); }
+.badge.bad { border-inline-start-color: var(--oqgn-danger); }
+.for-you { display: block; margin-block-start: 0.2rem; font-weight: bold; }
 
 /* Tables, dense enough for a few dozen rows on one screen. */
-table { border-collapse: collapse; width: 100%; margin: 0.4rem 0 1rem; font-size: 14px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 0.5rem 0 1.25rem; font-size: 14px; }
 th, td {
   text-align: start;
   padding: 4px 8px;
@@ -143,53 +233,162 @@ td.amount, th.amount, td.share, th.share, td.count, th.count, td.exact, th.exact
   white-space: nowrap;
 }
 td.code, td.date { white-space: nowrap; }
-tr.total td, tfoot tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
-.table-wrap { overflow-x: auto; }
+tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
+.table-wrap { overflow: auto; margin: 0.5rem 0 1.25rem; border: 1px solid var(--oqgn-line); }
+.table-wrap table { margin: 0; }
+/* A long table scrolls in its box, its headings and total held in view. */
+@media (min-width: 60rem) {
+  .table-wrap { max-height: calc(100vh - 2rem); }
+  .table-wrap thead th { position: sticky; top: 0; z-index: 1; }
+  .table-wrap tfoot td { position: sticky; bottom: 0; background: var(--oqgn-surface); }
+}
+/* Source rows keep each value on one line, except the item text. */
+table.wide th, table.wide td { white-space: nowrap; }
+table.wide td.item { white-space: normal; min-width: 16rem; }
 table.facts { width: auto; }
-table.facts th { width: 9rem; }
-table.figures { width: auto; min-width: 28rem; }
+table.facts th { width: 10rem; }
+table.facts td { overflow-wrap: anywhere; }
+table.figures { max-width: 40rem; }
 .items-row td:empty { padding: 0; border: 0; }
 table.items { margin: 0.3rem 0 0.8rem; }
 .sheet-rows { overflow-x: auto; }
 .sheet-rows td, .sheet-rows th { white-space: nowrap; }
 table.log td { font-size: 13px; }
 .detail { display: block; overflow-wrap: anywhere; }
-
-.state { padding: 0 0.4rem; background: var(--oqgn-surface-alt); white-space: nowrap; }
-.actions { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0; }
-.actions form { display: grid; gap: 0.35rem; min-width: 18rem; }
-
-/* A report's screens (ENG-03 4). */
-.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 0 0 0.8rem; }
-.filters label { display: grid; gap: 0.15rem; font-size: 0.9rem; }
-.filters select { width: auto; }
-.empty { margin: 1rem 0; padding: 0.6rem 0.8rem; background: var(--oqgn-surface-alt); }
+.none { margin: 0.5rem 0 1.25rem; padding: 0.6rem 0.9rem; border: 1px solid var(--oqgn-line); }
+.empty { margin: 1rem 0; padding: 0.75rem 1rem; background: var(--oqgn-surface-alt); }
 .empty a { color: var(--oqgn-ink); }
 .pager { display: flex; gap: 1rem; }
-.export { margin: 0.4rem 0; }
 
-/* The overview as a dashboard: its Actual spend as tiles, and on a wide
-   screen each chart beside its table (ENG-03 4). */
+/* A report's screens: the toolbar, then what the figures are (ENG-03 4). */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem 1rem;
+  padding-block-end: 1rem;
+  margin-block-end: 0.75rem;
+  border-block-end: 1px solid var(--oqgn-line);
+}
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem 1rem; margin: 0; }
+.filters label { display: grid; gap: 0.2rem; font-size: 0.875rem; font-weight: bold; }
+.filters select { width: auto; min-width: 9rem; font-weight: normal; }
+.toolbar .export { margin-inline-start: auto; }
+
+/* Tiles and cards: white boxes with a line around them (ENG-03 4). */
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: 1rem;
-  margin: 1rem 0 1.5rem;
+  margin: 0.75rem 0 1.75rem;
 }
-.tile { background: var(--oqgn-surface-alt); padding: 1rem 1.25rem; }
-.tile a { color: var(--oqgn-ink); }
-.tile p { margin: 0; }
-.tile .figure { font-size: 1.6rem; font-weight: bold; font-variant-numeric: tabular-nums; margin: 0.2rem 0; }
+.tile, .card { border: 1px solid var(--oqgn-line); background: var(--oqgn-surface); padding: 1rem 1.25rem; }
+.tile.problem { border-inline-start: 4px solid var(--oqgn-danger); }
+.tile p, .card p { margin: 0; }
+.tile .figure, .card .figure {
+  font-size: 1.6rem;
+  font-weight: bold;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  margin: 0.35rem 0 0.2rem;
+  overflow-wrap: anywhere;
+}
+.tile .figure a, .card .figure a { color: var(--oqgn-ink); }
+.figure .unit { font-size: 1rem; font-weight: normal; }
+.sub { font-size: 0.875rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1rem; margin: 0.5rem 0 1.5rem; }
+.card { display: grid; gap: 0.35rem; align-content: start; }
+.card h2 { margin: 0; font-size: 1.15rem; }
+.card h2 a { display: inline-flex; align-items: center; gap: 0.5rem; }
 @media (min-width: 75rem) {
   .beside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  .preview-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 2.5rem; align-items: start; }
 }
 
+/* An upload's page: the summary, the preview, then the actions (ENG-03 4). */
+.jump { margin: -0.75rem 0 1.5rem; }
+.jump a { display: inline-flex; align-items: center; gap: 0.4rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: start; margin: 0.75rem 0; }
+.actions form { display: grid; gap: 0.4rem; flex: 1 1 18rem; max-width: 32rem; padding: 1rem 1.25rem; border: 1px solid var(--oqgn-line); }
+.actions form.approve { flex-basis: 100%; max-width: 48rem; }
+.actions > p { margin: 0; }
+.change { font-size: 1.1rem; font-weight: bold; }
+
 /* Charts and FAQ pages (ENG-03 5 and 7). */
-.chart-box { margin: 0.4rem 0 1rem; }
-.chart-box figcaption { font-size: 0.9rem; }
+.chart-box { margin: 0.5rem 0 1rem; }
+.chart-box figcaption { font-size: 0.875rem; }
 .chart { height: 22rem; max-width: 56rem; }
-.legend { margin: 0.2rem 0; font-size: 0.9rem; }
+.legend { margin: 0.2rem 0; font-size: 0.875rem; }
 .swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-inline-end: 0.4rem; vertical-align: -0.1rem; }
 .swatch.outside { background: var(--oqgn-orange-text); }
 .answer { font-size: 1.1rem; font-weight: bold; margin: 0.8rem 0; }
-.questions li { margin: 0.3rem 0; }
+.questions li { margin: 0.4rem 0; }
+
+/* Narrow screens: the sidebar becomes a bar across the top, its links in
+   one row that scrolls sideways, with no menu to open (ENG-03 4). */
+@media (max-width: 60rem) {
+  body.with-sidebar { display: block; }
+  .sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    padding: 0;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--oqgn-line);
+  }
+  .sidebar .logo { padding: 0.75rem 1rem; border-block-end: 0; }
+  .sidebar .logo img { max-width: 110px; }
+  .who {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    border: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: end;
+    align-items: center;
+    gap: 0.25rem 1rem;
+    font-size: 0.875rem;
+  }
+  .who-name span { display: none; }
+  .who button { padding-block: 0.25rem; }
+  .nav-links {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 0;
+    border-block-start: 4px solid var(--oqgn-green-alt);
+  }
+  .sidebar ul { display: flex; }
+  .sidebar ul + ul { margin: 0; padding: 0; border: 0; }
+  .group-label, .sidebar .icon { display: none; }
+  .report-name { margin: 0; padding-inline: 0.75rem; font-size: 0.875rem; }
+  .sidebar li a { padding: 0.6rem 0.75rem; border-inline-start: 0; border-block-end: 4px solid var(--oqgn-surface); }
+  .sidebar li a:hover { border-block-end-color: var(--oqgn-surface-alt); }
+  .sidebar li a[aria-current="page"] { border-block-end-color: var(--oqgn-green-text); }
+  main { padding: 1rem; }
+  body.plain { padding: 1rem; }
+  main.panel { padding: 1.25rem; }
+}
+
+/* Printing: the figures and what they are, without the navigation and the
+   controls; tables whole, out of their boxes (ENG-03 4). */
+@media print {
+  body.with-sidebar { display: block; }
+  .sidebar, .toolbar, .page-actions, .actions, .jump, .pager, form, button, .button { display: none !important; }
+  main { padding: 0; max-width: none; }
+  .page-head { margin-block-end: 1rem; }
+  .table-wrap { max-height: none; overflow: visible; border: 0; }
+  .table-wrap thead th, .table-wrap tfoot td { position: static; }
+  thead { display: table-header-group; }
+  tr, .tile, .chart-box { break-inside: avoid; }
+  a { color: var(--oqgn-ink); text-decoration: none; }
+  .beside, .preview-grid { display: block; }
+}

@@ -56,7 +56,8 @@ def test_the_faq_lists_the_eight_default_questions_in_order(client) -> None:
     """
     report = make_report()
     text = client.get(reverse("faq", args=[report.pk])).content.decode()
-    links = re.findall(r'<li><a href="([^"]+)">([^<]+)</a></li>', text)
+    questions = re.search(r'<ol class="questions">(.*?)</ol>', text, re.S)[1]
+    links = re.findall(r'<li><a href="([^"]+)">([^<]+)</a></li>', questions)
     assert [html.unescape(q) for _, q in links] == [e.question for e in faq.ENTRIES]
     assert [url for url, _ in links] == [
         reverse("faq_page", args=[report.pk, e.slug]) for e in faq.ENTRIES
@@ -90,7 +91,7 @@ def test_every_answer_for_the_sample_equals_its_expected_answer(
     )
     assert '<p class="counted">Counted: the actual spend' in text
     assert "<h2>How to check it by hand</h2>" in text
-    assert "Figures as of upload 1, sample.xlsx" in text
+    assert "Figures as of upload 1, sample.xlsx" in re.sub(r"<[^>]+>", "", text)
 
 
 def test_q1_with_outside_ids_excluded_says_so(

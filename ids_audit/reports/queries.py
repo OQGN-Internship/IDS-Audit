@@ -637,6 +637,20 @@ def awaiting_approval(report: Report) -> Upload | None:
     return report.uploads.filter(status=Status.AWAITING_APPROVAL).first()
 
 
+def waiting(report: Report) -> Upload | None:
+    """Return the upload waiting for someone, awaiting approval or needing its
+    columns picked, if there is one. A report has at most one open upload
+    (ENG-02 6).
+    """
+    return (
+        report.uploads.filter(
+            status__in=(Status.NEEDS_COLUMNS, Status.AWAITING_APPROVAL)
+        )
+        .order_by("number")
+        .first()
+    )
+
+
 @dataclass(frozen=True)
 class CommittedUpload:
     """A committed upload, with the lines and actual spend it still counts

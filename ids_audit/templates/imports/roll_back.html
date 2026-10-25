@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load figures %}
 {% block title %}Roll back upload {{ upload.number }} · IDS Spend Audit{% endblock %}
+{% block heading %}Roll back upload {{ upload.number }}{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / <a href="{% url 'uploads' report.pk %}">{{ report.name }}</a> / <a href="{% url 'upload' report.pk upload.number %}">Upload {{ upload.number }}</a></p>
-<h1>Roll back upload {{ upload.number }}</h1>
 {% if refusal %}
   <p class="error">{{ refusal }}</p>
 {% else %}

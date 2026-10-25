@@ -82,9 +82,10 @@ class Table:
     rows: Iterable[list[Cell]]
     total: list[Cell] | None = None
     charts: list[Chart] = field(default_factory=list)
-    # How the page draws it: "tiles" for the overview's Actual spend, and
-    # "beside" for a chart beside its table on a wide screen (ENG-03 4). The
-    # export ignores it.
+    # How the page draws it: "tiles" for the overview's Actual spend,
+    # "beside" for a chart beside its table on a wide screen, and "wide" for
+    # source rows, whose values keep to one line (ENG-03 4). The export
+    # ignores it.
     layout: str = ""
 
 
@@ -757,6 +758,7 @@ def source_rows(
     total = total_row(ROW_COLUMNS, totals.total, None, "")
     total[0] = text(f"Total of {totals.lines} rows")
     table = Table("Source rows", "Source rows", ROW_COLUMNS, cells, total)
+    table.layout = "wide"
     pager = []
     if page is not None and pages > 1:
         url = reverse("rows", args=[report.pk])

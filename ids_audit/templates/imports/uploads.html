@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% load figures %}
+{% load figures navigation %}
 {% block title %}Uploads · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}Uploads{% endblock %}
+{% block actions %}{% if can_upload %}<a class="button" href="{% url 'new_upload' report.pk %}">{% icon "uploads" %}Upload a file</a>{% endif %}{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / {{ report.name }}</p>
-<h1>Uploads</h1>
-{% if can_upload %}<p><a href="{% url 'new_upload' report.pk %}">Upload a file</a></p>{% endif %}
 {% if uploads %}
+  <div class="table-wrap">
   <table>
     <thead>
       <tr><th>Upload</th><th>File</th><th>State</th><th>Uploaded</th><th>Decided</th></tr>
@@ -22,6 +22,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 {% else %}
   <p>No uploads yet.</p>
 {% endif %}

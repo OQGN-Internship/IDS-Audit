@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% load figures %}
+{% load figures navigation %}
 {% block title %}Reports · IDS Spend Audit{% endblock %}
+{% block heading %}Reports{% endblock %}
+{% block actions %}{% if can_create %}<a class="button" href="{% url 'new_report' %}">{% icon "plus" %}New report</a>{% endif %}{% endblock %}
 {% block content %}
-<h1>Reports</h1>
-{% if can_create %}<p><a href="{% url 'new_report' %}">New report</a></p>{% endif %}
 {% if reports %}
   <table>
     <thead><tr><th>Report</th><th>Created by</th><th>Created</th></tr></thead>

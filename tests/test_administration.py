@@ -99,14 +99,22 @@ def test_only_a_fixed_admin_opens_the_administration_screens(client) -> None:
 
 
 def test_the_header_links_administration_only_for_a_fixed_admin(client) -> None:
-    """Verify the base template links the administration screens for a fixed
-    administrator, and not for anyone else.
+    """Verify the sidebar's Administration group links Users, Roles and the
+    whole audit log for a fixed administrator, and none for anyone else
+    (ENG-03 4, The sidebar).
     """
-    link = f'href="{reverse("admin_home")}"'
-    assert link in client.get(reverse("reports")).content.decode()
+    links = [
+        f'href="{reverse(name)}"'
+        for name in ("admin_users", "admin_roles", "admin_audit")
+    ]
+    page = client.get(reverse("reports")).content.decode()
+    assert '<p class="group-label">Administration</p>' in page
+    assert all(link in page for link in links)
     other = Client()
     other.force_login(a_user())
-    assert link not in other.get(reverse("reports")).content.decode()
+    page = other.get(reverse("reports")).content.decode()
+    assert "Administration" not in page
+    assert not any(link in page for link in links)
 
 
 def test_a_new_user_must_choose_a_password_at_first_sign_in(client, admin):

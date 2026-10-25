@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from ids_audit import audit
 from ids_audit.accounts.access import (
+    APPROVE,
     EXPORT,
     UPLOAD,
     VIEW,
@@ -119,6 +120,7 @@ def show(
         require(request.user, report, VIEW, EXPORT)
         return excel(request, report, filters, keys, build())
     latest = queries.latest_committed(report)
+    awaiting = queries.awaiting_approval(report)
     screen = build() if latest else None
     years = queries.years(report)
     if filters.year is not None and filters.year not in years:
@@ -133,7 +135,10 @@ def show(
             filters, screen.outside_applies if screen else True
         ),
         "latest": latest,
-        "awaiting": queries.awaiting_approval(report),
+        "awaiting": awaiting,
+        # Its preview needs upload or approve as well as view (ENG-03 4).
+        "can_open_awaiting": bool(awaiting)
+        and allowed(request.user, report, VIEW, any_of=(UPLOAD, APPROVE)),
         "years": years,
         "can_upload": allowed(request.user, report, UPLOAD),
         "can_export": allowed(request.user, report, VIEW, EXPORT),

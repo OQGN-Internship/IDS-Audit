@@ -11,49 +11,67 @@
   {% block scripts %}{% endblock %}
 </head>
 {# Every HTMX request carries the CSRF token in a header (ENG-01 6.4). #}
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="{% if user.is_authenticated %}with-sidebar{% else %}plain{% endif %}">
+{% if user.is_authenticated %}
   {# The sidebar holds all the navigation (ENG-03 4, OQGN's theme). #}
   <nav class="sidebar" aria-label="Main">
     <a class="logo" href="{% url 'home' %}"><img src="{% static 'brand/oqgn-logo.svg' %}" alt="OQ Gas Networks" width="155" height="39"></a>
-    {% if user.is_authenticated %}
-      <p class="app-name">IDS Spend Audit</p>
+    <div class="nav-links">
       <ul>
-        <li><a href="{% url 'reports' %}" {% open_now "reports" "new_report" %}>Reports</a></li>
+        <li><a href="{% url 'reports' %}" {% open_now "reports" "new_report" %}>{% icon "reports" %}Reports</a></li>
       </ul>
-      {# A report's screens, on every page of the report (ENG-03 4). #}
+      {# A report's screens, on every page of the report, in two groups (ENG-03 4). #}
       {% if report.pk %}
+        <p class="group-label">Report</p>
         <p class="report-name">{{ report.name }}</p>
         <ul>
-          <li><a href="{% url 'overview' report.pk %}" {% open_now "overview" "rows" %}>Overview</a></li>
-          <li><a href="{% url 'gl_accounts' report.pk %}" {% open_now "gl_accounts" "gl_account" %}>GL accounts</a></li>
-          <li><a href="{% url 'departments' report.pk %}" {% open_now "departments" "department" %}>Departments</a></li>
-          <li><a href="{% url 'budget_lines' report.pk %}" {% open_now "budget_lines" "budget_line" %}>Budget lines</a></li>
-          <li><a href="{% url 'exceptions' report.pk %}" {% open_now "exceptions" %}>Exceptions</a></li>
-          <li><a href="{% url 'faq' report.pk %}" {% open_now "faq" "faq_page" %}>FAQ</a></li>
-          <li><a href="{% url 'uploads' report.pk %}" {% open_now "uploads" "new_upload" "upload" "exception_items" "columns" "roll_back" %}>Uploads</a></li>
-          {% may "view_audit_log" as can_see_log %}{% if can_see_log %}<li><a href="{% url 'audit' report.pk %}" {% open_now "audit" %}>Audit log</a></li>{% endif %}
+          <li><a href="{% url 'overview' report.pk %}" {% open_now "overview" "rows" %}>{% icon "overview" %}Overview</a></li>
+          <li><a href="{% url 'gl_accounts' report.pk %}" {% open_now "gl_accounts" "gl_account" %}>{% icon "gl" %}GL accounts</a></li>
+          <li><a href="{% url 'departments' report.pk %}" {% open_now "departments" "department" %}>{% icon "departments" %}Departments</a></li>
+          <li><a href="{% url 'budget_lines' report.pk %}" {% open_now "budget_lines" "budget_line" %}>{% icon "budget" %}Budget lines</a></li>
+          <li><a href="{% url 'exceptions' report.pk %}" {% open_now "exceptions" %}>{% icon "exceptions" %}Exceptions</a></li>
+          <li><a href="{% url 'faq' report.pk %}" {% open_now "faq" "faq_page" %}>{% icon "faq" %}FAQ</a></li>
+        </ul>
+        <ul>
+          {% waiting report as open_upload %}
+          <li><a href="{% url 'uploads' report.pk %}" {% open_now "uploads" "new_upload" "upload" "exception_items" "columns" "roll_back" %}>{% icon "uploads" %}Uploads{% if open_upload %} <span class="badge open">Waiting</span>{% endif %}</a></li>
+          {% may "view_audit_log" as can_see_log %}{% if can_see_log %}<li><a href="{% url 'audit' report.pk %}" {% open_now "audit" %}>{% icon "audit" %}Audit log</a></li>{% endif %}
         </ul>
       {% endif %}
       {% if user.is_fixed_admin %}
+        <p class="group-label">Administration</p>
         <ul>
-          <li><a href="{% url 'admin_home' %}" {% open_now "admin_home" "admin_users" "admin_new_user" "admin_user" "admin_roles" "admin_new_role" "admin_role" "admin_audit" %}>Administration</a></li>
+          <li><a href="{% url 'admin_users' %}" {% open_now "admin_users" "admin_new_user" "admin_user" %}>{% icon "users" %}Users</a></li>
+          <li><a href="{% url 'admin_roles' %}" {% open_now "admin_roles" "admin_new_role" "admin_role" %}>{% icon "roles" %}Roles</a></li>
+          <li><a href="{% url 'admin_audit' %}" {% open_now "admin_audit" %}>{% icon "audit" %}Whole audit log</a></li>
         </ul>
       {% endif %}
-      <div class="who">
-        <p>{{ user }}</p>
-        <form method="post" action="{% url 'sign_out' %}">
-          {% csrf_token %}
-          <button type="submit" class="quiet">Sign out</button>
-        </form>
-      </div>
-    {% endif %}
+    </div>
+    <div class="who">
+      <p class="who-name">{{ user.full_name|default:user.username }} <span>{{ user.username }}</span></p>
+      <a class="who-link" href="{% url 'password_change' %}">{% icon "lock" %}Change password</a>
+      <form method="post" action="{% url 'sign_out' %}">
+        {% csrf_token %}
+        <button type="submit" class="quiet">{% icon "sign-out" %}Sign out</button>
+      </form>
+    </div>
   </nav>
-  <main>
-    {% if messages %}
-      <ul class="messages">
-        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
-      </ul>
+{% endif %}
+  {# The sign-in page, and an error page shown before signing in, are one panel with no sidebar (ENG-03 4). #}
+  <main{% if not user.is_authenticated %} class="panel"{% endif %}>
+    {% if not user.is_authenticated %}
+      <a class="logo" href="{% url 'home' %}"><img src="{% static 'brand/oqgn-logo.svg' %}" alt="OQ Gas Networks" width="155" height="39"></a>
+      <p class="app-name">IDS Spend Audit</p>
     {% endif %}
+    <header class="page-head">
+      {% crumbs %}
+      <div class="title-row">
+        <h1>{% block heading %}{% endblock %}</h1>
+        {% block beside_heading %}{% endblock %}
+        <div class="page-actions">{% block actions %}{% endblock %}</div>
+      </div>
+    </header>
+    {% include "_messages.html" %}
     {% block content %}{% endblock %}
   </main>
 </body>

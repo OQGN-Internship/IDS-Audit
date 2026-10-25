@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Pick columns · Upload {{ upload.number }} · IDS Spend Audit{% endblock %}
+{% block heading %}Pick columns for upload {{ upload.number }}{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / <a href="{% url 'uploads' report.pk %}">{{ report.name }}</a> / <a href="{% url 'upload' report.pk upload.number %}">Upload {{ upload.number }}</a></p>
-<h1>Pick columns for upload {{ upload.number }}</h1>
 <p>For each problem, pick the column that holds the field. The file is then read again with them, and the choice is used again for later files whose sheet has exactly this header, once this upload is approved.</p>
 <form method="post" action="{% url 'columns' report.pk upload.number %}">
   {% csrf_token %}

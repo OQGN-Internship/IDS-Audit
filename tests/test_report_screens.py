@@ -22,6 +22,7 @@ from ids_audit.reports.templatetags.figures import amount
 from tests.factories import (
     add_posting,
     commit,
+    grant,
     make_report,
     make_upload,
     make_user,
@@ -56,6 +57,13 @@ def text(response) -> str:
     """Return a response's page, checking it opened."""
     assert response.status_code == 200, response.status_code
     return response.content.decode()
+
+
+def words(page: str) -> str:
+    """Return a page's words without its tags, as a sentence with a link in
+    it reads.
+    """
+    return re.sub(r"<[^>]+>", "", page)
 
 
 def rows_said(client: Client, url: str) -> tuple[int, str]:
@@ -109,7 +117,7 @@ def test_the_overview_shows_the_totals_largest_gl_accounts_and_months(
     assert "All other GL accounts (2)" in page
     for running in sample_expected["screens"]["running_total"].values():
         assert amount(running) in page
-    assert "Figures as of upload 1, sample.xlsx, approved by " in page
+    assert "Figures as of upload 1, sample.xlsx, approved by " in words(page)
 
 
 def test_the_overview_shows_its_actual_spend_as_tiles(
@@ -120,8 +128,9 @@ def test_the_overview_shows_its_actual_spend_as_tiles(
     without Outside IDS once it's excluded (ENG-03 4).
     """
     tile = re.compile(
-        r'<div class="tile"><p>([^<]+)</p><p class="figure"><a href="([^"]+)">'
-        r"([-0-9,.]+)</a> OMR</p><p>(\d+) lines?</p></div>"
+        r'<div class="tile"><p class="label">([^<]+)</p><p class="figure">'
+        r'<a href="([^"]+)">([-0-9,.]+)</a> <span class="unit">OMR</span></p>'
+        r'<p class="sub">(\d+) lines?</p></div>'
     )
     tiles = tile.findall(text(get(client, "overview", sample_report)))
     spend = sample_expected["actual_spend"]
@@ -540,11 +549,13 @@ def test_the_as_of_line_names_the_upload_before_a_rolled_back_one(client) -> Non
     add_posting(second, JUL, "2.000")
     commit(first, minute=1)
     commit(second, minute=2)
-    assert "Figures as of upload 2, file2.xlsx" in text(get(client, "overview", report))
+    assert "Figures as of upload 2, file2.xlsx" in words(
+        text(get(client, "overview", report))
+    )
     mark_rolled_back(second)
     make_upload(report, status=Upload.Status.AWAITING_APPROVAL)
     page = text(get(client, "overview", report))
-    assert "Figures as of upload 1, file1.xlsx, approved by Test User" in page
+    assert "Figures as of upload 1, file1.xlsx, approved by Test User" in words(page)
     assert "Upload 3 is awaiting approval and isn't included." in page
 
 
@@ -560,6 +571,59 @@ def test_a_report_with_no_approved_upload_shows_no_figures(client, name) -> None
     assert "No approved uploads yet." in page
     assert "<table" not in page
     assert f'<a href="{reverse("uploads", args=[report.pk])}">Go to Uploads</a>' in page
+
+
+def test_the_as_of_line_links_its_upload(client) -> None:
+    """Verify the as-of line links the upload its figures are as of, which
+    anyone with view may open, since it's committed (ENG-03 4).
+    """
+    report = make_report()
+    upload = make_upload(report)
+    add_posting(upload, JUL, "1.000")
+    commit(upload, minute=1)
+    page = text(get(client, "overview", report))
+    link = reverse("upload", args=[report.pk, upload.number])
+    assert f'Figures as of <a href="{link}">upload 1</a>, file1.xlsx,' in page
+
+
+@pytest.mark.parametrize(
+    "role, linked",
+    [("Viewer", False), ("Uploader", True), ("Approver", True)],
+)
+def test_the_notice_of_a_waiting_upload_links_it_for_who_may_open_it(
+    role, linked
+) -> None:
+    """Verify an upload awaiting approval is a notice on every screen, which
+    links the upload only for a user with upload or approve, who may open
+    its preview (ENG-03 4).
+    """
+    report = make_report()
+    first = make_upload(report)
+    add_posting(first, JUL, "1.000")
+    commit(first, minute=1)
+    make_upload(report, status=Upload.Status.AWAITING_APPROVAL)
+    user = make_user(fixed_admin=False)
+    grant(user, report, role)
+    browser = Client()
+    browser.force_login(user)
+    link = f'<a href="{reverse("upload", args=[report.pk, 2])}">Open upload 2</a>'
+    for name in ("overview", "gl_accounts", "exceptions"):
+        page = text(get(browser, name, report))
+        notice = re.search(r'<p class="notice">(.*?)</p>', page)[1]
+        assert "Upload 2 is awaiting approval and isn't included." in notice
+        assert (link in notice) is linked, name
+        response = browser.get(reverse("upload", args=[report.pk, 2]))
+        assert (response.status_code == 200) is linked
+
+
+def test_source_rows_keep_each_value_on_one_line(client, sample_report) -> None:
+    """Verify the source rows' table is drawn wide, so its values keep to one
+    line, except the item text, and no other screen's table is.
+    """
+    page = text(get(client, "rows", sample_report))
+    assert '<table class="figures-table wide">' in page
+    assert '<td class="item" dir="auto">' in page
+    assert " wide" not in text(get(client, "gl_accounts", sample_report))
 
 
 def test_no_uploads_link_for_a_user_without_upload(monkeypatch) -> None:
@@ -601,7 +665,7 @@ def test_the_exceptions_screen_lists_the_sample_s_exceptions(
         assert amount(found["amount"]) in page
     assert "Missing from the GL mapping" in page
     assert "Listed without a commitment item" in page
-    assert page.count("<p>None</p>") == 4
+    assert page.count('<p class="none">None.</p>') == 4
     assert "Outside IDS: included, since this filter doesn" in page
 
 

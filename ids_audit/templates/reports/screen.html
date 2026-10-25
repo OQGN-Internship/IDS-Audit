@@ -7,7 +7,7 @@
     <script src="{% static 'js/charts.js' %}" defer></script>
   {% endif %}
 {% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
 {% block content %}
-<h1>{{ heading }}</h1>
 <div id="panel">{% include "reports/_panel.html" %}</div>
 {% endblock %}

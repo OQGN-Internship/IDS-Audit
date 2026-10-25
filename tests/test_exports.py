@@ -357,7 +357,11 @@ def test_the_export_link_carries_the_screen_s_filters_keys_and_pick(
     for name, args, query, link in cases:
         url = reverse(name, args=[sample_report.pk, *args]) + query
         page = client.get(url).content.decode()
-        assert f'<a href="{link}">Export to Excel</a>' in page, name
+        assert re.search(
+            rf'<a class="button secondary export" href="{re.escape(link)}">'
+            r"<svg [^>]*>.*?</svg>Export to Excel</a>",
+            page,
+        ), name
 
 
 def test_source_rows_export_takes_no_page(client, sample_report) -> None:

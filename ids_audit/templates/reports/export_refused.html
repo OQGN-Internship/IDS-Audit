@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Export refused · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
 {% block content %}
-<h1>{{ heading }}</h1>
 <p class="error">This export has {{ rows }} rows, more than Excel's limit of {{ limit }}. Narrow the filters and export again.</p>
 <p><a href="{{ back }}">Back to the screen</a></p>
 {% endblock %}

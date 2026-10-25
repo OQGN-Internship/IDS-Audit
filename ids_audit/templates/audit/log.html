@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load figures %}
 {% block title %}Audit log{% if report %} · {{ report.name }}{% endif %} · IDS Spend Audit{% endblock %}
+{% block heading %}Audit log{% endblock %}
 {% block content %}
-{% if full %}<p class="crumbs"><a href="{% url 'admin_home' %}">Administration</a></p>{% endif %}
-<h1>Audit log</h1>
 <p class="hint">{% if full %}Every event, newest first.{% else %}The events of this report, newest first.{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }}.</p>
 {% if rows %}
   <div class="table-wrap">

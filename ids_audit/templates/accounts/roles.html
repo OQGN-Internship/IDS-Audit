@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load navigation %}
 {% block title %}Roles · Administration · IDS Spend Audit{% endblock %}
+{% block heading %}Roles{% endblock %}
+{% block actions %}<a class="button" href="{% url 'admin_new_role' %}">{% icon "plus" %}New role</a>{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'admin_home' %}">Administration</a></p>
-<h1>Roles</h1>
-<p><a href="{% url 'admin_new_role' %}">New role</a></p>
+<div class="table-wrap">
 <table>
   <thead>
     <tr><th>Role</th>{% for label in labels.values %}<th>{{ label }}</th>{% endfor %}<th class="count">Given</th></tr>
@@ -18,4 +19,5 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

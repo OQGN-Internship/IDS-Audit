@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load figures %}
 {% block title %}{{ exception.name }} · Upload {{ upload.number }} · IDS Spend Audit{% endblock %}
+{% block heading %}{{ exception.name }}{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / <a href="{% url 'uploads' report.pk %}">{{ report.name }}</a> / <a href="{% url 'upload' report.pk upload.number %}">Upload {{ upload.number }}</a></p>
-<h1>{{ exception.name }}</h1>
 <p>{% if exception.blocks_approval %}<span class="blocks">Blocks approval.</span> {% endif %}{{ exception.items|length }} item{{ exception.items|length|pluralize }}{% if exception.amount %}, amounting to {{ exception.amount|amount }}{% endif %}.</p>
-{% include "imports/_exception_items.html" %}
+<div class="table-wrap">{% include "imports/_exception_items.html" %}</div>
 {% endblock %}

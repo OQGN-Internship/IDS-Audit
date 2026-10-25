@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{% if role %}{{ role.name }}{% else %}New role{% endif %} · Administration · IDS Spend Audit{% endblock %}
+{% block heading %}{% if role %}Role {{ role.name }}{% else %}New role{% endif %}{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'admin_home' %}">Administration</a> / <a href="{% url 'admin_roles' %}">Roles</a></p>
-<h1>{% if role %}Role {{ role.name }}{% else %}New role{% endif %}</h1>
 <form method="post" action="{% if role %}{% url 'admin_role' role.pk %}{% else %}{% url 'admin_new_role' %}{% endif %}" class="narrow">
   {% csrf_token %}
   {{ form.non_field_errors }}
@@ -22,7 +21,7 @@
   {% else %}
     <form method="post" action="{% url 'admin_role_remove' role.pk %}">
       {% csrf_token %}
-      <button type="submit">Remove {{ role.name }}</button>
+      <button type="submit" class="secondary">Remove {{ role.name }}</button>
     </form>
   {% endif %}
 {% endif %}

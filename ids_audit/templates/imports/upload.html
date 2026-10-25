@@ -1,9 +1,8 @@
 {% extends "base.html" %}
-{% load figures %}
+{% load figures navigation %}
 {% block title %}Upload {{ upload.number }} · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}Upload {{ upload.number }}: {{ upload.original_name }}{% endblock %}
 {% block content %}
-<p class="crumbs"><a href="{% url 'reports' %}">Reports</a> / <a href="{% url 'uploads' report.pk %}">{{ report.name }}</a></p>
-<h1>Upload {{ upload.number }}: {{ upload.original_name }}</h1>
 
 <table class="facts">
   <tr><th>State</th><td><span class="state">{{ upload.get_status_display }}</span></td></tr>
@@ -30,7 +29,7 @@
 <h2>Actions</h2>
 <div class="actions">
   {% if can_pick %}
-    <p><a href="{% url 'columns' report.pk upload.number %}">Pick the columns</a></p>
+    <p><a class="button" href="{% url 'columns' report.pk upload.number %}">{% icon "columns" %}Pick the columns</a></p>
   {% endif %}
   {% if can_approve %}
     <form method="post" action="{% url 'approve' report.pk upload.number %}">
@@ -54,7 +53,7 @@
       {% csrf_token %}
       <label for="reject-reason">Reason for rejecting</label>
       <textarea id="reject-reason" name="reason" rows="2"></textarea>
-      <button type="submit">Reject upload {{ upload.number }}</button>
+      <button type="submit" class="secondary">Reject upload {{ upload.number }}</button>
     </form>
   {% endif %}
   {% if can_withdraw %}
@@ -62,11 +61,11 @@
       {% csrf_token %}
       <label for="withdraw-reason">Reason for withdrawing</label>
       <textarea id="withdraw-reason" name="reason" rows="2"></textarea>
-      <button type="submit">Withdraw upload {{ upload.number }}</button>
+      <button type="submit" class="secondary">Withdraw upload {{ upload.number }}</button>
     </form>
   {% endif %}
   {% if can_roll_back %}
-    <p><a href="{% url 'roll_back' report.pk upload.number %}">Roll back upload {{ upload.number }}</a></p>
+    <p><a class="button secondary" href="{% url 'roll_back' report.pk upload.number %}">{% icon "undo" %}Roll back upload {{ upload.number }}</a></p>
   {% endif %}
 </div>
 {% endif %}
