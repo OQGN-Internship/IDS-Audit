@@ -309,7 +309,7 @@ table.log td { font-size: 13px; }
 /* An upload's page: the summary, the preview, then the actions (ENG-03 4). */
 .jump { margin: -0.75rem 0 1.5rem; }
 .jump a { display: inline-flex; align-items: center; gap: 0.4rem; }
-.actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: start; margin: 0.75rem 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.75rem 0; }
 .actions form { display: grid; gap: 0.4rem; flex: 1 1 18rem; max-width: 32rem; padding: 1rem 1.25rem; border: 1px solid var(--oqgn-line); }
 .actions form.approve { flex-basis: 100%; max-width: none; }
 .actions > p { margin: 0; }
