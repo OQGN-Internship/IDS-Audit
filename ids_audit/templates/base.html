@@ -20,6 +20,18 @@
       </form>
     {% endif %}
   </header>
+  {# A report's screens, on every page of the report (ENG-03 4). Navigation lives only here. #}
+  {% if report.pk %}
+    <nav class="report-nav">
+      <span class="report-name">{{ report.name }}</span>
+      <a href="{% url 'overview' report.pk %}">Overview</a>
+      <a href="{% url 'gl_accounts' report.pk %}">GL accounts</a>
+      <a href="{% url 'departments' report.pk %}">Departments</a>
+      <a href="{% url 'budget_lines' report.pk %}">Budget lines</a>
+      <a href="{% url 'exceptions' report.pk %}">Exceptions</a>
+      <a href="{% url 'uploads' report.pk %}">Uploads</a>
+    </nav>
+  {% endif %}
   <main>
     {% if messages %}
       <ul class="messages">

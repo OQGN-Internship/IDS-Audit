@@ -119,6 +119,8 @@ def test_a_missing_column_is_picked_from_the_file_s_first_rows(
 
     sign_in(page, live_server, admin.username)
     page.get_by_role("link", name=report.name).click()
+    expect(page.get_by_text("No approved uploads yet.")).to_be_visible()
+    page.get_by_role("link", name="Go to Uploads").click()
     upload_file(page, path)
     expect(page.get_by_text("In the file, no column matches amount.")).to_be_visible()
     page.get_by_role("link", name="Pick the columns").click()

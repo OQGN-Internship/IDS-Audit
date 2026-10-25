@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block content %}
+<h1>{{ heading }}</h1>
+{# Changing a filter swaps the panel and updates the address (ENG-01 5.2). Without JavaScript, Show loads the page. #}
+<form method="get" action="{{ request.path }}" class="filters" hx-get="{{ request.path }}" hx-target="#panel" hx-push-url="true" hx-trigger="change">
+  {% for key, value in hidden.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  <label>Year
+    <select name="year">
+      <option value="all">All years</option>
+      {% for year in years %}<option value="{{ year }}"{% if filters.year == year %} selected{% endif %}>{{ year }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Outside IDS
+    <select name="exclude_outside">
+      <option value="0">Included</option>
+      <option value="1"{% if filters.exclude_outside %} selected{% endif %}>Excluded</option>
+    </select>
+  </label>
+  <button type="submit" class="quiet">Show</button>
+</form>
+<div id="panel">{% include "reports/_panel.html" %}</div>
+{% endblock %}

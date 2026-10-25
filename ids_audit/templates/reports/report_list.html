@@ -10,7 +10,7 @@
     <tbody>
       {% for report in reports %}
         <tr>
-          <td><a href="{% url 'uploads' report.pk %}">{{ report.name }}</a></td>
+          <td><a href="{% url 'report' report.pk %}">{{ report.name }}</a></td>
           <td>{{ report.created_by }}</td>
           <td>{{ report.created_at|moment }}</td>
         </tr>

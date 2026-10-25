@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from django import template
 from django.utils import timezone
+from django.utils.html import format_html
 
 register = template.Library()
 
@@ -55,3 +56,42 @@ def places(rows: list) -> str:
         + ", ".join(numbers)
         for sheet, numbers in by_sheet.items()
     )
+
+
+@register.filter
+def share(value: Decimal | None) -> str:
+    """Write a share, kept as a fraction such as 0.124, as 12.4%, or – when
+    there's none (ENG-03 2.2).
+    """
+    return "–" if value is None else f"{value * 100:.1f}%"
+
+
+def shown(cell) -> str:
+    """Write a table cell as its kind says (ENG-03 2.4). An exact amount, such
+    as a skipped row's, is written as read, never rounded.
+    """
+    value = cell.value
+    if cell.kind == "amount":
+        return amount(value)
+    if cell.kind == "exact":
+        return "" if value is None else f"{value:,f}"
+    if cell.kind == "share":
+        return share(value)
+    if cell.kind == "date":
+        return day(value)
+    return "" if value is None else str(value)
+
+
+@register.simple_tag
+def td(cell) -> str:
+    """Write a table cell, escaped, with its link if it has one. Item text has
+    its direction set automatically, so Arabic reads right to left (ENG-03
+    6.2).
+    """
+    if cell.kind == "item":
+        return format_html('<td class="item" dir="auto">{}</td>', shown(cell))
+    if cell.link:
+        return format_html(
+            '<td class="{}"><a href="{}">{}</a></td>', cell.kind, cell.link, shown(cell)
+        )
+    return format_html('<td class="{}">{}</td>', cell.kind, shown(cell))

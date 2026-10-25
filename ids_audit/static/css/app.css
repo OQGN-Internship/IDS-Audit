@@ -94,3 +94,28 @@ table.items { margin: 0.3rem 0 0.8rem; background: var(--paper); }
 fieldset { border: 1px solid var(--line); border-radius: 4px; display: grid; gap: 0.3rem; }
 h3 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
 .sheet-rows td, .sheet-rows th { white-space: nowrap; font-size: 0.9rem; }
+
+/* A report's screens (ENG-03 4). */
+.report-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.45rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.report-nav .report-name { font-weight: 600; }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 0 0 0.8rem; }
+.filters label { display: grid; gap: 0.15rem; font-size: 0.9rem; color: var(--muted); }
+.filters select { width: auto; }
+.filter-line, .as-of { margin: 0.2rem 0; color: var(--muted); }
+.empty { margin: 1rem 0; padding: 0.6rem 0.8rem; background: var(--band); border-radius: 4px; }
+.table-wrap { overflow-x: auto; }
+td.share, th.share, td.count, th.count, td.exact, th.exact {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+td.code, td.date { white-space: nowrap; }
+tfoot tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
+.pager { display: flex; gap: 1rem; }

@@ -14,7 +14,18 @@ from decimal import Decimal
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import models
-from django.db.models import Count, F, Func, Max, Q, QuerySet, Sum, Window
+from django.db.models import (
+    Count,
+    Exists,
+    F,
+    Func,
+    Max,
+    OuterRef,
+    Q,
+    QuerySet,
+    Sum,
+    Window,
+)
 from django.db.models.functions import TruncMonth
 
 from ids_audit.imports.models import SkippedRow, Upload
@@ -811,6 +822,21 @@ class MappingChange:
     uploads: list[MappedBy]
 
 
+def changed_codes(report: Report, spec: MapSpec) -> QuerySet:
+    """Return, as a subquery, the codes whose value differs between the
+    mappings of the report's committed uploads.
+    """
+    return (
+        spec.model.objects.filter(
+            upload__report=report, upload__status=Status.COMMITTED
+        )
+        .values(spec.code)
+        .annotate(values=Count(spec.value, distinct=True))
+        .filter(values__gt=1)
+        .values(spec.code)
+    )
+
+
 def mapping_changes(
     report: Report, spec: MapSpec, filters: Filters = ALL
 ) -> list[MappingChange]:
@@ -818,13 +844,7 @@ def mapping_changes(
     report's committed uploads, by code.
     """
     committed = report.uploads.filter(status=Status.COMMITTED)
-    changed = (
-        spec.model.objects.filter(upload__in=committed)
-        .values(spec.code)
-        .annotate(values=Count(spec.value, distinct=True))
-        .filter(values__gt=1)
-        .values(spec.code)
-    )
+    changed = changed_codes(report, spec)
     rows = (
         spec.model.objects.filter(upload__in=committed)
         .filter(**{f"{spec.code}__in": changed})
@@ -852,6 +872,25 @@ def mapping_changes(
             )
         )
     return [MappingChange(code, uploads) for code, uploads in found.items()]
+
+
+def mapping_changes_total(
+    report: Report, spec: MapSpec, filters: Filters = ALL
+) -> tuple[Decimal, int]:
+    """Return the actual spend still counting, and its lines, over every row of
+    the changes between files: each upload's spend on a changed code its
+    mapping lists, added up by PostgreSQL.
+    """
+    listed = spec.model.objects.filter(
+        upload=OuterRef("upload"), **{spec.code: OuterRef(spec.posting_code)}
+    )
+    found = (
+        actual_spend(report, filters)
+        .filter(**{f"{spec.posting_code}__in": changed_codes(report, spec)})
+        .filter(Exists(listed))
+        .aggregate(amount=Sum("amount"), lines=Count("pk"))
+    )
+    return found["amount"] or ZERO, found["lines"]
 
 
 @dataclass(frozen=True)
@@ -887,3 +926,22 @@ def skipped(report: Report) -> list[Skipped]:
         )
         for r in rows
     ]
+
+
+@dataclass(frozen=True)
+class SkippedTotal:
+    """Every committed upload's skipped rows, and their readable amount."""
+
+    rows: int
+    amount: Decimal | None
+
+
+def skipped_total(report: Report) -> SkippedTotal:
+    """Return the number and amount of the skipped rows of every committed
+    upload, added up by PostgreSQL. The amount is None when none could be
+    read.
+    """
+    found = SkippedRow.objects.filter(
+        upload__report=report, upload__status=Status.COMMITTED
+    ).aggregate(rows=Count("pk"), amount=Sum("amount"))
+    return SkippedTotal(found["rows"], found["amount"])

@@ -149,11 +149,11 @@ def test_until_phase_4_anyone_else_sees_no_report_and_cant_create_one() -> None:
 
 def test_home_and_a_report_s_own_address_open_the_right_pages(signed_in, report):
     """Verify signing in lands on the report list, and a report's address
-    opens its Uploads until Phase 3 builds the overview.
+    opens its overview (ENG-03 4).
     """
     assert signed_in.get(reverse("home"))["Location"] == reverse("reports")
     response = signed_in.get(reverse("report", args=[report.pk]))
-    assert response["Location"] == reverse("uploads", args=[report.pk])
+    assert response["Location"] == reverse("overview", args=[report.pk])
     assert signed_in.get(reverse("report", args=[report.pk + 99])).status_code == 404
 
 
@@ -688,6 +688,15 @@ def addresses(report: Report) -> list[tuple[str, str]]:
     one = [report.pk, 1]
     return [
         ("get", reverse("report", args=base)),
+        ("get", reverse("overview", args=base)),
+        ("get", reverse("gl_accounts", args=base)),
+        ("get", reverse("gl_account", args=[*base, "610100"])),
+        ("get", reverse("departments", args=base)),
+        ("get", reverse("department", args=[*base, "outside"])),
+        ("get", reverse("budget_lines", args=base)),
+        ("get", reverse("budget_line", args=[*base, "none"])),
+        ("get", reverse("rows", args=base)),
+        ("get", reverse("exceptions", args=base)),
         ("get", reverse("uploads", args=base)),
         ("get", reverse("new_upload", args=base)),
         ("get", reverse("upload", args=one)),

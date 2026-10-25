@@ -1,0 +1,16 @@
+{% load figures %}
+{# Everything the filters change is in this panel, so nothing keeps the old filters after a change (ENG-03 4). #}
+<p class="filter-line">{{ filter_line }}</p>
+{% if latest %}
+  <p class="as-of">Figures as of upload {{ latest.number }}, {{ latest.original_name }}, approved by {{ latest.decided_by }} on {{ latest.decided_at|moment }}.</p>
+{% endif %}
+{% if awaiting %}<p class="as-of">Upload {{ awaiting.number }} is awaiting approval and isn't included.</p>{% endif %}
+{% if not latest %}
+  <p class="empty">No approved uploads yet.{% if can_upload %} <a href="{% url 'uploads' report.pk %}">Go to Uploads</a>{% endif %}</p>
+{% elif screen.lines == 0 %}
+  <p class="empty">No actual spend for these filters.</p>
+{% else %}
+  {% for note in screen.notes %}<p class="hint">{{ note }}</p>{% endfor %}
+  {% for table in screen.tables %}{% include "reports/_table.html" %}{% endfor %}
+  {% if screen.pager %}<p class="pager">{% for label, url in screen.pager %}<a href="{{ url }}">{{ label }}</a>{% endfor %}</p>{% endif %}
+{% endif %}

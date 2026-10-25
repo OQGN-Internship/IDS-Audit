@@ -1,22 +1,35 @@
-"""The report list and creating a report (ENG-03 4). Phase 3 adds the report
-screens.
+"""The report list, creating a report, and the report screens (ENG-03 4).
+
+Each screen's view checks access with the one access check (ENG-01 6.2),
+reads its filters and keys from the address, and shows the tables
+reports/screens.py builds. A panel request from HTMX gets the panel alone.
 """
+
+from collections.abc import Callable
 
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
 from django.db.models.functions import Lower
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from ids_audit.accounts.access import (
+    EXPORT,
+    UPLOAD,
     VIEW,
+    allowed,
     may_create_reports,
     report_permission,
     visible_reports,
 )
+from ids_audit.accounts.middleware import is_htmx
 from ids_audit.imports.services import create_report
+from ids_audit.reports import filters as addresses
+from ids_audit.reports import queries, screens
 from ids_audit.reports.models import Report
+from ids_audit.reports.queries import NONE, OUTSIDE, Filters
 
 
 class ReportForm(forms.Form):
@@ -64,7 +77,168 @@ def new_report(request):
 
 @report_permission(VIEW)
 def report_home(request, report: Report):
-    """A report's own address. Until Phase 3 builds the overview, it opens
-    Uploads (ENG-03 4).
+    """A report's own address, which opens its overview (ENG-03 4)."""
+    return redirect("overview", report.pk)
+
+
+def panel_only(request: HttpRequest) -> bool:
+    """Return whether to send the panel alone: for an HTMX request, but not
+    HTMX's request for a whole page that's no longer in its history.
     """
-    return redirect("uploads", report.pk)
+    restoring = request.headers.get("HX-History-Restore-Request") == "true"
+    return is_htmx(request) and not restoring
+
+
+def show(
+    request: HttpRequest,
+    report: Report,
+    filters: Filters,
+    name: str,
+    build: Callable[[], screens.Screen],
+    hidden: dict[str, str] | None = None,
+) -> HttpResponse:
+    """Render a screen: the whole page, or for HTMX its panel, which holds
+    everything the filters change (ENG-03 4). A report with no committed
+    upload shows no figures, so its screen isn't built.
+
+    name is the screen's heading until it's built, and hidden holds the
+    screen's own keys, which its filter form sends again with the filters.
+    """
+    latest = queries.latest_committed(report)
+    screen = build() if latest else None
+    years = queries.years(report)
+    if filters.year is not None and filters.year not in years:
+        years = sorted([*years, filters.year], reverse=True)
+    context = {
+        "report": report,
+        "screen": screen,
+        "heading": screen.title if screen else name,
+        "hidden": hidden or {},
+        "filters": filters,
+        "filter_line": addresses.in_words(
+            filters, screen.outside_applies if screen else True
+        ),
+        "latest": latest,
+        "awaiting": queries.awaiting_approval(report),
+        "years": years,
+        "can_upload": allowed(request.user, report, UPLOAD),
+        "can_export": allowed(request.user, report, VIEW, EXPORT),
+    }
+    template = "reports/_panel.html" if panel_only(request) else "reports/screen.html"
+    return render(request, template, context)
+
+
+def filters_only(request: HttpRequest) -> Filters:
+    """Return the filters of a screen that takes no keys of its own."""
+    return addresses.filters_from(addresses.read(request.GET))
+
+
+@report_permission(VIEW)
+def overview(request, report: Report):
+    filters = filters_only(request)
+    return show(
+        request, report, filters, "Overview", lambda: screens.overview(report, filters)
+    )
+
+
+@report_permission(VIEW)
+def gl_accounts(request, report: Report):
+    filters = filters_only(request)
+    return show(
+        request,
+        report,
+        filters,
+        "GL accounts",
+        lambda: screens.gl_accounts(report, filters),
+    )
+
+
+@report_permission(VIEW)
+def gl_account(request, report: Report, code: str):
+    filters = filters_only(request)
+    gl = addresses.code(code)
+    return show(
+        request,
+        report,
+        filters,
+        f"GL account {gl}",
+        lambda: screens.gl_account(report, filters, gl),
+    )
+
+
+@report_permission(VIEW)
+def departments(request, report: Report):
+    filters = filters_only(request)
+    return show(
+        request,
+        report,
+        filters,
+        "Departments",
+        lambda: screens.departments(report, filters),
+    )
+
+
+@report_permission(VIEW)
+def department(request, report: Report, code: str):
+    filters = filters_only(request)
+    key = addresses.code(code, (NONE, OUTSIDE))
+    return show(
+        request,
+        report,
+        filters,
+        screens.department_title(key, ""),
+        lambda: screens.department(report, filters, key),
+    )
+
+
+@report_permission(VIEW)
+def budget_lines(request, report: Report):
+    filters = filters_only(request)
+    return show(
+        request,
+        report,
+        filters,
+        "Budget lines",
+        lambda: screens.budget_lines(report, filters),
+    )
+
+
+@report_permission(VIEW)
+def budget_line(request, report: Report, code: str):
+    filters = filters_only(request)
+    key = addresses.code(code, (NONE,))
+    return show(
+        request,
+        report,
+        filters,
+        queries.NO_BUDGET_LINE if key == NONE else f"Budget line {key}",
+        lambda: screens.budget_line(report, filters, key),
+    )
+
+
+@report_permission(VIEW)
+def source_rows(request, report: Report):
+    values = addresses.read(request.GET, addresses.ROW_KEYS)
+    filters = addresses.filters_from(values)
+    keys = addresses.keys_from(values)
+    page = addresses.page_from(values)
+    return show(
+        request,
+        report,
+        filters,
+        addresses.keys_in_words(keys),
+        lambda: screens.source_rows(report, filters, keys, page),
+        addresses.key_values(keys),
+    )
+
+
+@report_permission(VIEW)
+def exceptions(request, report: Report):
+    filters = filters_only(request)
+    return show(
+        request,
+        report,
+        filters,
+        "Exceptions",
+        lambda: screens.exceptions(report, filters),
+    )
