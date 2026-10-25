@@ -1,6 +1,8 @@
 """The access matrix (ENG-01 6.2, ENG-03 4 and 11): every address under a
-report, export addresses and actions included, called by five users, each of
-whom must get 404, 403, or the page or the action's result.
+report, export addresses and actions included, called by the five users ENG-01
+names and a sixth whose role isn't preset. Each must get 404, 403, or the page
+or the action's result. Every preset role holds export, so only the sixth can
+show an export refused.
 
 What each address needs is written here from ENG-03 4's tables, apart from
 the views, so a view that checks the wrong permission disagrees with it.
@@ -20,7 +22,7 @@ from ids_audit.imports.models import Upload
 from ids_audit.imports.services import create_report, receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.reports.models import Report
-from tests.factories import grant, make_user
+from tests.factories import grant, make_role, make_user
 from tests.files import LINE, csv_file, line, total_row
 
 pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("uploads_dir")]
@@ -61,7 +63,8 @@ SCREENS = [
     ("faq_page", ["total-spend"]),
 ]
 
-# What each user holds on the report, by their role (the plan's presets).
+# What each user holds on the report: the plan's presets, and a role of view
+# and roll_back (ENG-01 6.2).
 HELD = {
     "no access": frozenset(),
     "Viewer": frozenset({"view", "export"}),
@@ -70,6 +73,7 @@ HELD = {
     "fixed administrator": frozenset(
         {"view", "export", "upload", "approve", "roll_back", "view_audit_log"}
     ),
+    "view and roll back": frozenset({"view", "roll_back"}),
 }
 
 
@@ -130,7 +134,7 @@ def outcome(client: Client, method: str, url: str) -> str:
 
 def build(name: str) -> tuple[Report, dict, str]:
     """A report with upload 1 committed and upload 2 awaiting approval, both
-    from its Uploader, and a user with each preset role on it. Return the
+    from its Uploader, and a user with each role in HELD on it. Return the
     report, the users by who they are, and an exception type in upload 2's
     preview.
     """
@@ -140,6 +144,8 @@ def build(name: str) -> tuple[Report, dict, str]:
     for role in ("Viewer", "Uploader", "Approver"):
         users[role] = make_user(fixed_admin=False)
         grant(users[role], report, role)
+    users["view and roll back"] = make_user(fixed_admin=False)
+    grant(users["view and roll back"], report, make_role("view", "roll_back"))
     uploader = users["Uploader"]
     first = receive_file(
         report, uploader, "first.csv", csv_file(LINE, total_row("1000.000"))
@@ -158,8 +164,8 @@ def build(name: str) -> tuple[Report, dict, str]:
 
 @pytest.mark.parametrize("who", list(HELD))
 def test_each_user_gets_404_403_or_the_page_on_every_address(who) -> None:
-    """Verify every address under a report answers each of the five users as
-    its permission says (ENG-01 6.2, ENG-03 4).
+    """Verify every address under a report answers each user as its
+    permission says (ENG-01 6.2, ENG-03 4).
     """
     report, users, kind = build("Matrix")
     client = Client()
