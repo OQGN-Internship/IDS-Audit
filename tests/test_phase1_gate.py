@@ -33,12 +33,13 @@ SAMPLE_CSV = "sample_semicolon.csv"
 
 def expected(fixture: str) -> dict:
     """Return a fixture's expected result, without its file name and the
-    upload it describes.
+    upload it describes, and without the screen figures and FAQ answers,
+    which the report's own tests compare (ENG-03 11).
     """
     path = FIXTURES_DIR / f"{Path(fixture).stem}.expected.json"
     with open(path, encoding="utf-8") as file:
         result = json.load(file)
-    for key in ("fixture", "scenario"):
+    for key in ("fixture", "scenario", "screens", "faq", "faq_excluding_outside"):
         del result[key]
     return result
 

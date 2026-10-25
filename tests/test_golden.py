@@ -28,11 +28,19 @@ SAMPLE_CSV = (FIXTURES_DIR / "sample_semicolon.csv").read_bytes()
 
 def expected(name: str) -> dict:
     """Return an expected result, without the keys a later step works out:
-    the replaced postings come from the commit (ENG-02 7.3).
+    the replaced postings come from the commit (ENG-02 7.3), and the screen
+    figures and FAQ answers from the report (ENG-03 11).
     """
     with open(FIXTURES_DIR / name, encoding="utf-8") as file:
         result = json.load(file)
-    for key in ("fixture", "scenario", "replaced"):
+    for key in (
+        "fixture",
+        "scenario",
+        "replaced",
+        "screens",
+        "faq",
+        "faq_excluding_outside",
+    ):
         result.pop(key, None)
     return result
 

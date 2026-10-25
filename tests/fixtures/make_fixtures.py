@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from itertools import groupby
 from pathlib import Path
 
@@ -339,12 +339,177 @@ def money(amount: Decimal) -> str:
     return f"{amount:.3f}"
 
 
-def totals_by(key: Callable[[Posting], str]) -> dict[str, str]:
-    """Add up every posting by key(p), sorted by key, as money strings."""
+def totals_by(
+    key: Callable[[Posting], str], postings: list[Posting] = POSTINGS
+) -> dict[str, str]:
+    """Add up the postings by key(p), sorted by key, as money strings."""
     totals: defaultdict[str, Decimal] = defaultdict(Decimal)
-    for p in POSTINGS:
+    for p in postings:
         totals[key(p)] += p.amount
     return {k: money(totals[k]) for k in sorted(totals)}
+
+
+def nested_totals(
+    outer: Callable[[Posting], str], inner: Callable[[Posting], str]
+) -> dict[str, dict[str, str]]:
+    """Add up every posting by outer(p), then within it by inner(p)."""
+    keys = sorted({outer(p) for p in POSTINGS})
+    return {
+        key: totals_by(inner, [p for p in POSTINGS if outer(p) == key]) for key in keys
+    }
+
+
+def inside(p: Posting) -> bool:
+    """True for a posting on a cost center inside IDS."""
+    return department(p) != "outside"
+
+
+def screen_figures() -> dict:
+    """The figures the report screens show for the sample, beyond the groups
+    above (ENG-03 4 and 11): by year, with outside IDS excluded, each GL
+    account by cost center, each department and budget line by GL account,
+    and the running total.
+    """
+    ids_only = [p for p in POSTINGS if inside(p)]
+    running: dict[str, str] = {}
+    so_far = Decimal("0.000")
+    for month, amount in totals_by(lambda p: p.posting_date.strftime("%Y-%m")).items():
+        so_far += Decimal(amount)
+        running[month] = money(so_far)
+    return {
+        "lines": len(POSTINGS),
+        "by_year": totals_by(lambda p: str(p.posting_date.year)),
+        "excluding_outside": {
+            "total": money(sum((p.amount for p in ids_only), Decimal("0.000"))),
+            "lines": len(ids_only),
+            "by_gl": totals_by(lambda p: p.gl, ids_only),
+            "by_department": totals_by(department, ids_only),
+        },
+        "gl_by_cost_center": nested_totals(lambda p: p.gl, lambda p: p.cost_center),
+        "department_by_gl": nested_totals(department, lambda p: p.gl),
+        "budget_line_by_gl": nested_totals(budget_line, lambda p: p.gl),
+        "running_total": running,
+    }
+
+
+# --- FAQ answers (ENG-03 7.2) ------------------------------------------------
+# Written here from the true values, apart from the app's own sentences.
+
+
+def omr(amount: Decimal) -> str:
+    """An amount as the screens write it: Decimal('-1250') -> '-1,250.000'."""
+    return f"{amount:,.3f}"
+
+
+def plural(count: int, noun: str) -> str:
+    """'1 GL account', '2 GL accounts'."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def largest(totals: dict[str, Decimal]) -> tuple[str, Decimal]:
+    """The key with the largest amount, the smaller key on a tie."""
+    return min(totals.items(), key=lambda item: (-item[1], item[0]))
+
+
+def sums(key: Callable[[Posting], str], postings: list[Posting]) -> dict[str, Decimal]:
+    """Add up the postings by key(p), as Decimals."""
+    totals: defaultdict[str, Decimal] = defaultdict(Decimal)
+    for p in postings:
+        totals[key(p)] += p.amount
+    return dict(totals)
+
+
+def faq_answers(postings: list[Posting], outside_excluded: bool) -> dict[str, str]:
+    """The answer sentence of each default question for these postings, with
+    the default picks: the largest GL account and the largest department.
+    """
+    total = sum((p.amount for p in postings), Decimal("0.000"))
+    ids_total = sum((p.amount for p in postings if inside(p)), Decimal("0.000"))
+    if outside_excluded:
+        q1 = (
+            f"Actual spend on IDS cost centers is {omr(total)} OMR across "
+            f"{len(postings)} lines. Cost centers outside IDS are excluded."
+        )
+    else:
+        q1 = (
+            f"Actual spend is {omr(total)} OMR across {len(postings)} lines: "
+            f"{omr(ids_total)} OMR on IDS cost centers and "
+            f"{omr(total - ids_total)} OMR outside IDS."
+        )
+
+    gl, gl_amount = largest(sums(lambda p: p.gl, postings))
+    percent = (gl_amount / total * 100).quantize(Decimal("0.1"), ROUND_HALF_UP)
+    q2 = (
+        f"The largest is {GL_ACCOUNTS[gl].name} ({gl}), with {omr(gl_amount)} OMR, "
+        f"{percent}% of the total shown."
+    )
+
+    gls = {p.gl for p in postings}
+    mapped = {gl for gl in gls if budget_line_of(gl) != "none"}
+    items = {budget_line_of(gl) for gl in mapped}
+    q3 = (
+        f"{plural(len(mapped), 'GL account')} "
+        f"{'maps' if len(mapped) == 1 else 'map'} to "
+        f"{plural(len(items), 'budget line')}"
+    )
+    unmapped = len(gls) - len(mapped)
+    if unmapped:
+        q3 += f", and {unmapped} {'has' if unmapped == 1 else 'have'} no budget line"
+    q3 += "."
+
+    used = [p for p in postings if p.gl == gl]
+    ids_centers = {p.cost_center for p in used if inside(p)}
+    departments = {department(p) for p in used if inside(p)}
+    outside_centers = {p.cost_center for p in used if not inside(p)}
+    q4 = (
+        f"{GL_ACCOUNTS[gl].name} ({gl}) was used by "
+        f"{plural(len(ids_centers), 'cost center')} in "
+        f"{plural(len(departments), 'department')}"
+    )
+    if outside_centers:
+        q4 += f", and by {plural(len(outside_centers), 'cost center')} outside IDS"
+    q4 += "."
+
+    dept, dept_amount = largest(sums(department, [p for p in postings if inside(p)]))
+    q5 = f"The largest is {DEPARTMENTS[dept]} ({dept}), with {omr(dept_amount)} OMR."
+
+    dept_gl, dept_gl_amount = largest(
+        sums(lambda p: p.gl, [p for p in postings if department(p) == dept])
+    )
+    q6 = (
+        f"{DEPARTMENTS[dept]} ({dept}) spent most on "
+        f"{GL_ACCOUNTS[dept_gl].name} ({dept_gl}): {omr(dept_gl_amount)} OMR."
+    )
+
+    last = max(p.posting_date for p in postings)
+    q7 = f"Spending reached {omr(total)} OMR by the end of {last:%B %Y}."
+
+    no_ci = [p for p in postings if budget_line(p) == "none"]
+    no_dept = [p for p in postings if not inside(p)]
+    both = [p for p in no_ci if not inside(p)]
+    either = {id(p) for p in no_ci + no_dept}
+    in_all = sum((p.amount for p in postings if id(p) in either), Decimal("0.000"))
+    q8 = (
+        f"{omr(sum((p.amount for p in no_ci), Decimal('0.000')))} OMR has no budget "
+        f"line, and {omr(sum((p.amount for p in no_dept), Decimal('0.000')))} OMR "
+        "is outside IDS."
+    )
+    if both:
+        q8 += (
+            f" {omr(sum((p.amount for p in both), Decimal('0.000')))} OMR is in both, "
+            f"so {omr(in_all)} OMR couldn't be matched in all."
+        )
+    else:
+        q8 += f" In all, {omr(in_all)} OMR couldn't be matched."
+    return {"1": q1, "2": q2, "3": q3, "4": q4, "5": q5, "6": q6, "7": q7, "8": q8}
+
+
+def budget_line_of(gl: str) -> str:
+    """A GL account's commitment item, or "none" for no budget line."""
+    account = GL_ACCOUNTS.get(gl)
+    if account is None or account.commitment_item is None:
+        return "none"
+    return account.commitment_item
 
 
 def amount_and_rows(items: list[tuple[int, Posting]]) -> dict:
@@ -426,6 +591,11 @@ def expected_result(fixture: str, scenario: str) -> dict:
         "by_month": totals_by(lambda p: p.posting_date.strftime("%Y-%m")),
         "exceptions": exceptions(),
         "skipped_rows": [],
+        "screens": screen_figures(),
+        "faq": faq_answers(POSTINGS, outside_excluded=False),
+        "faq_excluding_outside": faq_answers(
+            [p for p in POSTINGS if inside(p)], outside_excluded=True
+        ),
     }
 
 
