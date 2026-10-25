@@ -151,7 +151,12 @@ def test_a_report_with_nothing_committed_has_zero_totals_and_no_groups() -> None
     zero = Decimal("0.000")
     assert queries.totals(report) == Totals(zero, zero, zero, 0)
     assert str(queries.totals(report).total) == "0.000"
-    for by in (queries.by_gl_account, queries.by_department, queries.by_month):
+    for by in (
+        queries.by_gl_account,
+        queries.by_budget_line,
+        queries.by_department,
+        queries.by_month,
+    ):
         assert by(report) == []
 
 

@@ -291,24 +291,31 @@ def test_mapping_rows_are_saved_and_a_skipped_one_isn_t_a_spend_row() -> None:
     assert (upload.rows_read, upload.rows_new, upload.rows_skipped) == (1, 1, 0)
 
 
-def test_rows_are_read_with_the_upload_s_ruleset_version() -> None:
-    """Verify the upload is read with the settings of the ruleset version it
-    was received under, and an unclassified value type is staged as not
-    actual spend (ENG-02 3 and 5).
-    """
-    report = make_report()
-    rule = {"actual": ["Actual"], "not_actual": ["Commitment"]}
+def add_version(report: Report, version: int, actual_spend_rule) -> None:
+    """Give the report a ruleset version with this actual-spend rule."""
     Ruleset.objects.create(
         report=report,
-        version=2,
-        settings={**DEFAULT_SETTINGS, "actual_spend_rule": rule},
+        version=version,
+        settings={**DEFAULT_SETTINGS, "actual_spend_rule": actual_spend_rule},
         created_by=report.created_by,
     )
+
+
+def test_rows_are_read_with_the_upload_s_ruleset_version() -> None:
+    """Verify the upload is read with the settings of the ruleset version it
+    was received under, not one made after it, and an unclassified value type
+    is staged as not actual spend (ENG-02 3 and 5).
+    """
+    report = make_report()
+    add_version(report, 2, {"actual": ["Actual"], "not_actual": ["Commitment"]})
     rows = [
         (*line(DocumentNo=f"510000010{n}"), value_type)
         for n, value_type in enumerate(["Actual", "Commitment", "Plan"])
     ]
-    staged(csv_file(*rows, header=(*HEADER, "Value Type")), report)
+    upload = received(csv_file(*rows, header=(*HEADER, "Value Type")), report)
+    # Made after the upload was received, so it isn't the upload's version.
+    add_version(report, 3, None)
+    stage_upload(upload, upload.uploaded_by)
     staged_rows = StagingRow.objects.order_by("row_number")
     assert [(r.value_type, r.is_actual) for r in staged_rows] == [
         ("Actual", True),
