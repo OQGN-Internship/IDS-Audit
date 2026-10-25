@@ -30,6 +30,7 @@ OTHER_ROW = "other_row"
 MISSING_FROM_GL_MAP = "missing_from_gl_map"
 LISTED_WITHOUT_CI = "listed_without_ci"
 OUTSIDE_IDS = "outside_ids"
+LISTED_WITHOUT_DEPARTMENT = "listed_without_department"
 MAPPING_CHANGE = "mapping_change"
 # SHEET_AND_SPEND_DISAGREE = "sheet_and_spend_disagree", from results.
 # NAMES_DIFFER = "names_differ", from results.
@@ -48,6 +49,7 @@ ORDER = (
     MISSING_FROM_GL_MAP,
     LISTED_WITHOUT_CI,
     OUTSIDE_IDS,
+    LISTED_WITHOUT_DEPARTMENT,
     MAPPING_CHANGE,
     SHEET_AND_SPEND_DISAGREE,
     NAMES_DIFFER,

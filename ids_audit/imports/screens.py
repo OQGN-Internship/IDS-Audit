@@ -25,6 +25,7 @@ EXCEPTION_NAMES = {
     types.MISSING_FROM_GL_MAP: "GL account with no budget line",
     types.LISTED_WITHOUT_CI: "GL account listed without a commitment item",
     types.OUTSIDE_IDS: "Cost center outside IDS",
+    types.LISTED_WITHOUT_DEPARTMENT: "Cost center listed without a department",
     types.MAPPING_CHANGE: "Mapping change",
     types.SHEET_AND_SPEND_DISAGREE: "Mapping sheet and spend sheet disagree",
     types.NAMES_DIFFER: "Names differ for one code",

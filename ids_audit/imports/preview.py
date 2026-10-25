@@ -21,6 +21,7 @@ from ids_audit.ledger.models import CcDeptMap, GlCiMap, PostingResolved
 from ids_audit.pipeline import preview as file_preview
 from ids_audit.pipeline.preview import (
     LISTED_WITHOUT_CI,
+    LISTED_WITHOUT_DEPARTMENT,
     MAPPING_CHANGE,
     MISSING_FROM_GL_MAP,
     OUTSIDE_IDS,
@@ -223,6 +224,7 @@ def as_if_approved(upload: Upload, result: ReadResult) -> Approved:
                     "cost_center_code",
                     "ci_status",
                     "is_outside_ids",
+                    "dept_code",
                 )
             ),
             values={m.name: values(upload.report, m) for m in (GL, CC)},
@@ -232,9 +234,9 @@ def as_if_approved(upload: Upload, result: ReadResult) -> Approved:
 
 
 def mapped_exceptions(rows: list[dict]) -> list[dict]:
-    """Return the exceptions for the upload's actual spend with no budget line
-    or outside IDS, as the report will show them (ENG-02 11.2), each code
-    with its rows and amount, in code order.
+    """Return the exceptions for the upload's actual spend with no budget
+    line, outside IDS or with no department, as the report will show them
+    (ENG-02 11.2), each code with its rows and amount, in code order.
     """
     found = []
     for kind, code_field, applies in (
@@ -249,6 +251,11 @@ def mapped_exceptions(rows: list[dict]) -> list[dict]:
             lambda r: r["ci_status"] == CiStatus.LISTED_WITHOUT_CI,
         ),
         (OUTSIDE_IDS, "cost_center_code", lambda r: r["is_outside_ids"]),
+        (
+            LISTED_WITHOUT_DEPARTMENT,
+            "cost_center_code",
+            lambda r: not r["is_outside_ids"] and not r["dept_code"],
+        ),
     ):
         by_code: dict[str, list[dict]] = {}
         for row in filter(applies, rows):

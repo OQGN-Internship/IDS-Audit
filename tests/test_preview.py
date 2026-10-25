@@ -155,6 +155,52 @@ def test_a_first_upload_with_no_mapping_sheets_names_no_mapping() -> None:
     assert upload.preview["mappings"] == {"gl": None, "cc": None}
 
 
+# A cost center listed without a department (ENG-02 8.2 and 11.2)
+
+# 4570 is on the cost center mapping with an empty department code.
+NO_DEPARTMENT_CC = [*FIRST_CC, ("4570", "Projects office", "", "")]
+ON_4570 = line(
+    DocumentNo="4", Pstng_Date="12.08.2025", Cost_Ctr="4570", Amount_in_LC="250.000"
+)
+
+
+def test_a_cost_center_listed_without_a_department_is_its_own_exception() -> None:
+    """Verify its rows and actual spend are listed as their own type, inside
+    IDS rather than outside it, and that it doesn't block approval.
+    """
+    data = workbook([LINE, ON_4570, total_row("1250.000")], FIRST_GL, NO_DEPARTMENT_CC)
+    upload = staged(data, make_report())
+    found = exceptions(upload)
+    assert found["listed_without_department"] == {
+        "type": "listed_without_department",
+        "blocks_approval": False,
+        "amount": "250.000",
+        "items": [{"rows": [["Spend", 3]], "amount": "250.000", "code": "4570"}],
+    }
+    assert "outside_ids" not in found
+    assert upload.preview["actual_spend"]["outside_ids"] == "0.000"
+    assert approve(upload).status == Upload.Status.COMMITTED
+
+
+def test_the_mapping_in_force_raises_it_for_a_file_without_one() -> None:
+    """Verify a CSV, which has no mapping of its own, lists a cost center that
+    the mapping in force gives no department, and that a department code
+    leaves it out.
+    """
+    report = make_report()
+    first = workbook([LINE, total_row("1000.000")], FIRST_GL, NO_DEPARTMENT_CC)
+    approve(staged(first, report))
+    later = csv_file(
+        line(DocumentNo="8", Pstng_Date="05.09.2025"),
+        line(DocumentNo="9", Pstng_Date="06.09.2025", Cost_Ctr="4570"),
+        total_row("2000.000"),
+    )
+    upload = staged(later, report)
+    assert exceptions(upload)["listed_without_department"]["items"] == [
+        {"rows": [["", 3]], "amount": "1000.000", "code": "4570"}
+    ]
+
+
 # Report actual spend before and after approval (ENG-02 11.1)
 
 
