@@ -1,0 +1,29 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}IDS Spend Audit{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="{% url 'home' %}">IDS Spend Audit</a>
+    {% if user.is_authenticated %}
+      <span class="who">{{ user }}</span>
+      <form method="post" action="{% url 'sign_out' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit">Sign out</button>
+      </form>
+    {% endif %}
+  </header>
+  <main>
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

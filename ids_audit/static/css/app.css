@@ -1,0 +1,88 @@
+/* IDS Spend Audit: one plain stylesheet for every page. */
+
+:root {
+  --ink: #1d2733;
+  --muted: #5b6875;
+  --line: #d5dbe1;
+  --paper: #ffffff;
+  --band: #f3f5f7;
+  --accent: #0b5cad;
+  --bad: #a3261b;
+  --bad-band: #fbeceb;
+  --good: #1f6b3a;
+  --good-band: #e9f5ed;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 15px/1.45 system-ui, "Segoe UI", Tahoma, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+a { color: var(--accent); }
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--band);
+  border-bottom: 1px solid var(--line);
+}
+.top .brand { font-weight: 600; text-decoration: none; color: var(--ink); }
+.top .who { margin-left: auto; color: var(--muted); }
+
+main { max-width: 72rem; margin: 0 auto; padding: 1.25rem; }
+
+h1 { font-size: 1.5rem; margin: 0.2rem 0 1rem; }
+h2 { font-size: 1.15rem; margin: 1.6rem 0 0.6rem; }
+
+form.inline { display: inline; margin: 0; }
+form.narrow { max-width: 26rem; display: grid; gap: 0.35rem; }
+form.narrow button { margin-top: 0.6rem; justify-self: start; }
+
+input, select, textarea, button { font: inherit; }
+input[type="text"], input[type="password"], textarea, select {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+button {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+button.quiet { background: var(--paper); color: var(--accent); }
+button.danger { border-color: var(--bad); background: var(--bad); }
+
+.hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.error, .errorlist, .messages .error {
+  color: var(--bad);
+  background: var(--bad-band);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  list-style: none;
+}
+.messages { padding: 0; margin: 0 0 1rem; list-style: none; }
+.messages li { padding: 0.4rem 0.6rem; border-radius: 4px; margin-bottom: 0.3rem; }
+.messages .success { color: var(--good); background: var(--good-band); }
+
+table { border-collapse: collapse; width: 100%; margin: 0.4rem 0 1rem; }
+th, td { text-align: left; padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--band); font-weight: 600; }
+td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
+
+.state { padding: 0.05rem 0.45rem; border-radius: 3px; background: var(--band); white-space: nowrap; }
+.blocks { color: var(--bad); font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0; }
+.actions form { display: grid; gap: 0.35rem; min-width: 18rem; }
+.sheet-rows { overflow-x: auto; }
+.sheet-rows td, .sheet-rows th { white-space: nowrap; font-size: 0.9rem; }

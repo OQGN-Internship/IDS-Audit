@@ -5,7 +5,9 @@ description = "A small application for OQGN that shows how much IDS has actually
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
+    "argon2-cffi>=25.1.0",
     "django>=5.2,<5.3",
+    "django-axes>=8.3.1",
     "openpyxl>=3.1.5",
     "psycopg[binary]>=3.3.6",
     "python-calamine>=0.9.0",
@@ -46,4 +48,5 @@ dev = [
     "pytest>=9.1.1",
     "pytest-django>=4.14.0",
     "ruff>=0.17.1",
+    "time-machine>=3.5.1",
 ]

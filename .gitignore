@@ -226,3 +226,4 @@ __marimo__/
 !/backups/README.md
 /real-export/*
 !/real-export/README.md
+staticfiles/

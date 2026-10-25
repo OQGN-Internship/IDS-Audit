@@ -24,6 +24,22 @@ def make_user() -> User:
     )
 
 
+# A password every validator accepts (ENG-01 6.1).
+PASSWORD = "plain-tulip-harbour-61"
+
+
+def make_admin(must_change_password: bool = False) -> User:
+    """A new fixed administrator who signs in with PASSWORD, and has already
+    chosen it unless must_change_password.
+    """
+    user = make_user()
+    user.is_fixed_admin = True
+    user.must_change_password = must_change_password
+    user.set_password(PASSWORD)
+    user.save()
+    return user
+
+
 def make_report(mapping_rule: str = "latest") -> Report:
     """A report with its ruleset version 1, created by a new user.
 
