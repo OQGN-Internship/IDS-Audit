@@ -189,14 +189,20 @@ class TestTheCheck:
 def test_a_folder_with_no_expected_result_skips_or_fails(tmp_path, monkeypatch) -> None:
     """Verify the skip names the folder, and fails instead with
     IDS_REQUIRE_REAL_EXPORT=1.
+
+    Skipped and Failed are both caught as BaseException and told apart by
+    type, since a skip that escaped would skip this test, not fail it.
     """
     monkeypatch.delenv(real_export.REQUIRE, raising=False)
-    with pytest.raises(pytest.skip.Exception, match="holds no expected result"):
+    with pytest.raises(BaseException) as stopped:
         real_export.skip_or_fail(tmp_path)
+    assert stopped.type is pytest.skip.Exception
+    assert str(tmp_path) in str(stopped.value)
     monkeypatch.setenv(real_export.REQUIRE, "1")
-    with pytest.raises(pytest.fail.Exception) as failed:
+    with pytest.raises(BaseException) as stopped:
         real_export.skip_or_fail(tmp_path)
-    assert str(tmp_path) in str(failed.value)
+    assert stopped.type is pytest.fail.Exception
+    assert str(tmp_path) in str(stopped.value)
 
 
 def test_an_export_without_its_expected_result_is_found(tmp_path) -> None:
