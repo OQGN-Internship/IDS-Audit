@@ -137,8 +137,8 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 
 **Each screen's page**
 
-- **The filter form.** Above the figures, a form holds the two filters (3.1). Changing either sends them with HTMX, which swaps the panel below the form and updates the address (ENG-01, 5.2). Without JavaScript, the form's Show button loads the page with them.
-- **The panel holds everything the filters change:** the filter line, the as-of line, the tables, the chart data, and every link that carries the filters, which are the drill-down links, the FAQ pickers, the pages of source rows and the Export link. So after a change nothing on screen keeps the old filters, and Export downloads what's shown. Export is a plain link, never an HTMX request, since a download can't be swapped into a page.
+- **The filter form.** Above the figures, a form holds the two filters (3.1), and on FAQ pages 4 and 6 the picker (7.2). Changing any of them sends them with HTMX, which swaps the panel and updates the address (ENG-01, 5.2). Without JavaScript, the form's Show button loads the page with them.
+- **The panel holds everything the filters change:** the filter form itself, the filter line, the as-of line, the tables, the chart data, and every link that carries the filters, which are the drill-down links, the pages of source rows and the Export link. The form is inside the panel because a picker's choices follow the filters, largest first, so the form is drawn again with them. So after a change nothing on screen keeps the old filters, and Export downloads what's shown. Export is a plain link, never an HTMX request, since a download can't be swapped into a page.
 - **A panel or a page.** An HTMX request gets the panel alone. Any other request gets the whole page, and so does HTMX's request for a page that's no longer in its history, after the user goes back.
 - **Navigation.** On every page of a report, the base template names the report and links its screens: Overview, GL accounts, Departments, Budget lines, Exceptions, FAQ and Uploads, and in Phase 4 the Audit log for users with **view\_audit\_log**.
 - **One source for a screen and its export.** Each screen's tables are built once, in `reports/screens.py`, from the functions in `reports/queries.py`. The page shows them and the export writes them (Section 9), so the two can't differ.
@@ -221,10 +221,16 @@ A chart is a picture of a table on the same screen, never a source of figures on
 - **Nothing hidden.** Bars start at zero, and a negative total, from credits, draws to the left of zero.
 - **Clickable.** Clicking a bar or point opens its source rows (Section 6). A running-total point opens every month up to it, with `through`, and the bar for all the others opens the GL accounts screen (6.2).
 - **Outside IDS stands out.** It has its own colour wherever it appears, and the legend names it.
+- **Built from the table.** `reports/screens.py` builds each chart's data from the rows of the table it pictures, so the two can't differ: for each bar or point its label, its amount as text for drawing, its amount formatted for the tooltip, its link, and whether it's Outside IDS.
+- **Data, never code.** The data reaches the page through Django's `json_script`, and the application's own `static/js/charts.js` reads it with `JSON.parse`. No chart's data is written into a script or an HTML string. Names come from uploaded mapping sheets, so the tooltip, which ECharts writes as HTML, escapes every text with `echarts.format.encodeHTML`, and a name such as `<img src=x onerror=...>` shows as written (ENG-01, 6.4).
+- **Drawn after every swap.** `charts.js` draws the charts of the page when it loads and of each panel HTMX swaps in, through `htmx.onLoad`.
+- **Colours from the stylesheet.** A chart takes its colours from custom properties in `static/css/app.css`, so OQGN's theme changes them with the rest of the look (Section 4).
+- **One pinned copy.** ECharts 5.6.0 is kept as `static/js/echarts-5.6.0.min.js`, copied from the npm package after checking it against the registry's published hash. Only pages with a chart load it.
 
 **Tested by**
 
 - For each chart, the values it receives equal the table beside it.
+- A GL account named `<img src=x onerror=alert(1)>` shows that text in its chart's data and table, escaped, and in the browser the tooltip shows it as text and runs nothing.
 - In the browser, clicking a bar or a running-total point opens source rows that add up to its amount, except the bar for all the others.
 - With the network cut off, the overview still draws its charts.
 - A GL account whose credits exceed its spend draws to the left of zero.
@@ -288,12 +294,15 @@ The list is fixed in code, in `reports/faq.py`, since the client confirmed that 
 | Field | Holds |
 | --- | --- |
 | `slug` | The page's address, such as `faq/total-spend` |
+| `counted` | The line saying exactly what was counted |
 | `question` | The question, as agreed with the client |
 | `query` | The function in `reports/queries.py` that produces the table |
 | `answer` | The sentence pattern, filled from the table's own figures |
 | `check` | How to check the answer by hand |
 
 Adding or changing a question is a code change, with its own test.
+
+`/reports/<id>/faq` lists the questions in order, each linking to its page. It's an index, so it has no export. Each page shows the filter line and the as-of line like any screen, then the question, the answer, its tables, what was counted, and the check by hand. The pages' slugs are, in the plan's order, `total-spend`, `largest-gl-accounts`, `gl-budget-lines`, `gl-account-cost-centers`, `department-spend`, `department-gl-accounts`, `spend-over-time` and `unmatched-spend`.
 
 ### 7.2 The default questions
 
