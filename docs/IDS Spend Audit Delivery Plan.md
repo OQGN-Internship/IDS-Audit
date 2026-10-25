@@ -37,6 +37,7 @@ The goal is an auditable view of cumulative IDS actual spend by GL account, show
 - An audit log of every sign-in, upload, approval, rollback, export and access change.
 - User accounts with per-report access, managed by administrators.
 - Packaged to run on one machine with a single command, with backup and restore.
+- OQGN's theme: every screen in OQGN's colours, with its logo, as the client asked.
 
 ## Users, sign-in and access
 
@@ -180,8 +181,9 @@ The dashed line marks the end of Day 5. After it, timing depends on the client's
   - the application packaged with Docker, starting on the developer's machine with one command
   - backup and restore of the database and the uploaded files
   - a short guide for users and administrators
+  - OQGN's theme on every screen: its colours and logo, applied once the screens are complete
   - a demo to the client
-- **From the client:** the first users, the reports each one can use, and their role on each.
+- **From the client:** the first users, the reports each one can use, and their role on each. OQGN's colours and logo, for the theme.
 - **Done when:**
   1. Automated tests show each user sees only their reports, and can do only what their role allows on each.
   2. A locked or disabled account can't sign in.
@@ -217,6 +219,7 @@ Each answer is needed by the day shown, or that phase uses the default.
 | Who can create a new report, and what access does its creator get? | Day 3 | Administrators only |
 | The final FAQ list | Day 4 | The eight default questions |
 | The first users, the reports each one can use, and their role on each | Day 5 | One demo account per preset role, used only for the demo and disabled before real use |
+| OQGN's colours and logo, for the theme | Day 5 | The screens keep their plain look until they arrive |
 | Who validates the numbers? | Before acceptance | Acceptance can't start |
 | Where the application runs after sign-off | After sign-off | The developer's machine |
 
