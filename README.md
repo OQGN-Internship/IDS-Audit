@@ -39,7 +39,7 @@ Start with the plan. The engineering documents implement it.
 
 ## Built with
 
-Python 3.12, Django 5.2, PostgreSQL 17, HTMX, Alpine.js and ECharts, packaged with Docker Compose. Dependencies are managed with uv; ruff, pytest, Hypothesis and Playwright check the code. ENG-01 explains each choice.
+Python 3.12, Django 5.2, PostgreSQL 17, HTMX and ECharts, packaged with Docker Compose. Dependencies are managed with uv; ruff, pytest, Hypothesis and Playwright check the code. ENG-01 explains each choice.
 
 ## Getting started
 
