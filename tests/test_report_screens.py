@@ -74,6 +74,7 @@ def test_a_report_s_address_opens_its_overview(client, sample_report) -> None:
     response = client.get(reverse("report", args=[sample_report.pk]))
     assert response["Location"] == reverse("overview", args=[sample_report.pk])
     page = text(get(client, "overview", sample_report))
+    page = re.search(r'<nav class="report-nav">(.*?)</nav>', page, re.S)[1]
     for name in (
         "overview",
         "gl_accounts",
@@ -331,6 +332,7 @@ def test_no_department_has_its_screen_rows_and_list(client) -> None:
     assert "<h1>No department</h1>" in page and "7.000" in page
     url = reverse("rows", args=[report.pk]) + "?dept=none"
     assert rows_said(client, url) == (1, "7.000")
+    assert '<td class="text">No department</td>' in text(client.get(url))
     page = text(get(client, "exceptions", report))
     table = re.search(r"Cost centers with no department</h2>(.*?)</table>", page, re.S)
     assert "4520" in table[1] and "7.000" in table[1]
@@ -600,6 +602,10 @@ def test_a_budget_line_change_is_listed_with_both_uploads(client) -> None:
         map_gl(upload, "610100", ci)
         add_posting(upload, JUL, f"{minute}.000")
         commit(upload, minute=minute, mode=Report.DuplicateMode.LINE_KEY)
+    # A third file with no GL mapping isn't in the change, nor its spend.
+    third = make_upload(report)
+    add_posting(third, JUL, "4.000")
+    commit(third, minute=3)
     page = text(get(client, "exceptions", report))
     table = re.search(
         r"Budget-line changes between files</h2>(.*?)</table>", page, re.S
@@ -641,6 +647,10 @@ def test_skipped_rows_are_listed_by_upload_and_reason_as_read(client) -> None:
     assert f'<td class="count"><a href="{preview}">1</a></td>' in table
     assert '<td class="count">2</td><td class="exact">13.3456</td>' in table
     assert "99.000" not in table
+    footer = re.search(r"<tfoot>(.*?)</tfoot>", table, re.S)[1]
+    assert footer.endswith(
+        '<td class="count">2</td><td class="exact">13.3456</td></tr>'
+    )
 
 
 # One look for every screen (ENG-03 4)
