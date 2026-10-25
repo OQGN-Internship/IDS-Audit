@@ -366,7 +366,7 @@ Each report uses one of two modes, set in `report.duplicate_mode`.
 | A posting that disappears from a later export | Disappears from the report too | Stays in the report |
 | Rows without a full line key | Accepted | Skipped with the reason "No line key", and counted in reconciliation (Section 5) |
 
-The mode can't change once a report has a committed upload. A report's first upload means any upload made before the report's first commit (10.1), such as a new try after a rejected file. Nothing is in the report yet, so both modes give the same preview figures.
+The mode can't change once a report has a committed upload, and a rollback doesn't clear it: a report whose only commit was rolled back keeps the mode that commit chose. A report's first upload means any upload made before the report's first commit (10.1), such as a new try after a rejected file. Nothing is in the report yet, so both modes give the same preview figures.
 
 Replacement never deletes or edits a posting. A replaced posting simply stops counting (Section 10.2), so rolling back the upload that replaced it makes it count again.
 
@@ -600,7 +600,7 @@ Each exception lists the rows it covers, by sheet and row number in the original
 | Key | Holds |
 | --- | --- |
 | `amounts` | `to_commit`, `duplicates`, `skipped` and `replaced`: the amounts of the row figures above |
-| `line_key_offered` | `true` when the report has no committed upload and line-key mode can be chosen for this file (7.3) |
+| `line_key_offered` | `true` when the report's duplicate mode isn't set yet, so this is its first upload, and line-key mode can be chosen for this file (7.3) |
 | `committed_uploads` | The numbers of the report's committed uploads in the order of commits (10.2) when the preview was built, which the commit checks (10.1, step 3) |
 | `months_replaced` | Each month from `period_start` to `period_end`, such as `"2026-03"`, unless the report is in line-key mode (7.3) |
 | `actual_spend` | `total`, `inside_ids` and `outside_ids`: the rows to commit with `is_actual` true |
