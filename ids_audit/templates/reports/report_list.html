@@ -4,20 +4,25 @@
 {% block heading %}Reports{% endblock %}
 {% block actions %}{% if can_create %}<a class="button" href="{% url 'new_report' %}">{% icon "plus" %}New report</a>{% endif %}{% endblock %}
 {% block content %}
-{% if reports %}
-  <table>
-    <thead><tr><th>Report</th><th>Created by</th><th>Created</th></tr></thead>
-    <tbody>
-      {% for report in reports %}
-        <tr>
-          <td><a href="{% url 'report' report.pk %}">{{ report.name }}</a></td>
-          <td>{{ report.created_by }}</td>
-          <td>{{ report.created_at|moment }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% if cards %}
+  <div class="cards">
+    {% for card in cards %}
+      <section class="card">
+        <h2><a href="{% url 'report' card.report.pk %}">{{ card.report.name }}</a></h2>
+        {% if card.latest %}
+          <p class="label">Actual spend</p>
+          <p class="figure"><a href="{{ card.rows }}">{{ card.totals.total|amount }}</a> <span class="unit">OMR</span></p>
+          <p class="sub">{{ card.totals.lines }} line{{ card.totals.lines|pluralize }}. As of upload {{ card.latest.number }}, approved on {{ card.latest.decided_at|moment }}.</p>
+        {% else %}
+          <p class="sub">No approved uploads yet.</p>
+        {% endif %}
+        {% if card.waiting %}
+          <p class="notice">{% icon "alert" %} Upload {{ card.waiting.number }} {% if card.waiting.status == "needs_columns" %}needs its columns picked{% else %}is awaiting approval{% endif %}.{% if card.can_open_waiting %} <a href="{% url 'upload' card.report.pk card.waiting.number %}">Open upload {{ card.waiting.number }}</a>{% endif %}</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
 {% else %}
-  <p>There are no reports you can open.</p>
+  <p class="none">There are no reports you can open.</p>
 {% endif %}
 {% endblock %}

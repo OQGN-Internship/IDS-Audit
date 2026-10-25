@@ -98,17 +98,32 @@ def uploads(request, report: Report):
     interrupted read failed (ENG-02 6).
     """
     fail_interrupted_reads(report)
+    uploads = report.uploads.select_related("uploaded_by", "decided_by")
     return render(
         request,
         "imports/uploads.html",
         {
             "report": report,
-            "uploads": report.uploads.select_related(
-                "uploaded_by", "decided_by"
-            ).order_by("-number"),
+            "rows": [
+                {"upload": upload, "for_you": for_you(request.user, report, upload)}
+                for upload in uploads.order_by("-number")
+            ],
             "can_upload": allowed(request.user, report, UPLOAD),
         },
     )
+
+
+def for_you(user, report: Report, upload: Upload) -> str:
+    """Say when an open upload waits for the user: their approval, or their
+    columns to pick, as its uploader (ENG-03 4).
+    """
+    if upload.status == Status.AWAITING_APPROVAL and allowed(user, report, APPROVE):
+        return "Waiting for your approval"
+    if upload.status == Status.NEEDS_COLUMNS and allowed(
+        user, report, UPLOAD, upload=upload
+    ):
+        return "Waiting for you to pick columns"
+    return ""
 
 
 @report_permission(UPLOAD)

@@ -1,29 +1,29 @@
 {% extends "base.html" %}
-{% load figures navigation %}
+{% load figures navigation uploads %}
 {% block title %}Uploads · {{ report.name }} · IDS Spend Audit{% endblock %}
 {% block heading %}Uploads{% endblock %}
 {% block actions %}{% if can_upload %}<a class="button" href="{% url 'new_upload' report.pk %}">{% icon "uploads" %}Upload a file</a>{% endif %}{% endblock %}
 {% block content %}
-{% if uploads %}
+{% if rows %}
   <div class="table-wrap">
   <table>
     <thead>
       <tr><th>Upload</th><th>File</th><th>State</th><th>Uploaded</th><th>Decided</th></tr>
     </thead>
     <tbody>
-      {% for upload in uploads %}
+      {% for row in rows %}{% with upload=row.upload %}
         <tr>
           <td><a href="{% url 'upload' report.pk upload.number %}">Upload {{ upload.number }}</a></td>
           <td>{{ upload.original_name }}</td>
-          <td><span class="state">{{ upload.get_status_display }}</span></td>
+          <td><span class="badge {{ upload|tone }}">{{ upload.get_status_display }}</span>{% if row.for_you %}<span class="for-you">{{ row.for_you }}</span>{% endif %}</td>
           <td>{{ upload.uploaded_by }}<br>{{ upload.uploaded_at|moment }}</td>
           <td>{% if upload.decided_by %}{{ upload.decided_by }}<br>{{ upload.decided_at|moment }}{% endif %}</td>
         </tr>
-      {% endfor %}
+      {% endwith %}{% endfor %}
     </tbody>
   </table>
   </div>
 {% else %}
-  <p>No uploads yet.</p>
+  <p class="none">No uploads yet.</p>
 {% endif %}
 {% endblock %}

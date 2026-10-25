@@ -47,16 +47,30 @@ class ReportForm(forms.Form):
 
 
 def report_list(request):
-    """Every report the user can open (ENG-01 6.2, rule 3), by name."""
+    """Every report the user can open (ENG-01 6.2, rule 3), by name, each as a
+    card with its actual spend, the upload its figures are as of, and the
+    upload waiting for someone (ENG-03 4).
+    """
+    cards = []
+    for report in visible_reports(request.user).order_by(Lower("name")):
+        latest = queries.latest_committed(report)
+        waiting = queries.waiting(report)
+        cards.append(
+            {
+                "report": report,
+                "totals": queries.totals(report) if latest else None,
+                "rows": screens.Links(report, queries.ALL).rows(),
+                "latest": latest,
+                "waiting": waiting,
+                # Its page needs upload or approve as well as view (ENG-03 4).
+                "can_open_waiting": bool(waiting)
+                and allowed(request.user, report, VIEW, any_of=(UPLOAD, APPROVE)),
+            }
+        )
     return render(
         request,
         "reports/report_list.html",
-        {
-            "reports": visible_reports(request.user)
-            .select_related("created_by")
-            .order_by(Lower("name")),
-            "can_create": may_create_reports(request.user),
-        },
+        {"cards": cards, "can_create": may_create_reports(request.user)},
     )
 
 
