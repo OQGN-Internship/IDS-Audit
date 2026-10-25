@@ -14,15 +14,16 @@ Things to know:
 
 - After 5 wrong passwords, your account is locked for 15 minutes. Wait, or ask an administrator to unlock it.
 - After 30 minutes without using the application, you're signed out.
-- Everyone uses the same machine, so **sign out when you finish**, with **Sign out** at the bottom of the sidebar on every page, and **never let the browser save your password**. After you sign out, the browser's Back button shows the sign-in page, not your reports.
+- Everyone uses the same machine, so **sign out when you finish**, with **Sign out** under your name at the bottom of the sidebar on every page, or at the top of the page on a narrow screen, and **never let the browser save your password**. After you sign out, the browser's Back button shows the sign-in page, not your reports.
+- **Change password**, under your name, changes your password whenever you want.
 - If you forget your password, ask an administrator to reset it. You then choose a new one at your next sign-in.
 - Everything you do is recorded in the audit log under your name.
 
 ### Your reports
 
-**Reports**, in the sidebar at the start of every page, lists the reports you can use. You see only the reports an administrator gave you a role on, and you can do only what that role allows on each (see "Roles" below).
+**Reports**, at the top of the sidebar on every page, lists the reports you can use, each with its actual spend, the upload its figures are as of, and any upload waiting for approval. You see only the reports an administrator gave you a role on, and you can do only what that role allows on each (see "Roles" below).
 
-Each report has these screens, linked in the sidebar on its pages:
+Each report has these screens, linked in the sidebar on its pages under the report's name:
 
 | Screen | Shows |
 | --- | --- |
@@ -32,15 +33,16 @@ Each report has these screens, linked in the sidebar on its pages:
 | Budget lines | Every budget line (commitment item) with its GL accounts and spend |
 | Exceptions | GL accounts with no budget line, cost centers outside IDS, IDS cost centers with no department, budget-line and department changes between files, and rows skipped while reading |
 | FAQ | The eight questions in the plan, each answered on its own page |
-| Uploads | Every file uploaded to the report, and its state |
+| Uploads | Every file uploaded to the report, and its state. It says **Waiting** in the sidebar while an upload awaits approval or needs its columns picked |
 | Audit log | Who did what on this report, and when. Only for users whose role holds View audit log |
 
 On every screen:
 
-- **Year** shows one year's postings, or all years. **Outside IDS** includes or excludes cost centers outside IDS. The line under the form says which filters are on.
-- **The as-of line** says which upload the figures come from, and who approved it. It also says when another upload is waiting for approval and isn't counted yet.
+- **Year** shows one year's postings, or all years. **Outside IDS** includes or excludes cost centers outside IDS. The line under the filters says which are on.
+- **The as-of line** says which upload the figures come from, and who approved it, with a link to that upload. When another upload is waiting for approval and isn't counted yet, a notice says so, with a link to it if your role lets you open it.
 - **Every amount is a link** to the rows of the SAP export behind it, with the file, sheet and row each came from.
-- **Export to Excel** downloads what's on screen, with a Source sheet naming the filters and the uploads used. It's there only if your role holds Export, and every export is recorded in the audit log.
+- **Export to Excel**, at the end of the filters, downloads what's on screen, with a Source sheet naming the filters and the uploads used. It's there only if your role holds Export, and every export is recorded in the audit log.
+- **Printing** a screen from the browser leaves out the sidebar, the filters and the buttons, and keeps the report's name, the filter and as-of lines, and every figure.
 
 ### Uploading a file
 
@@ -49,7 +51,7 @@ If your role holds Upload:
 1. Open the report's **Uploads**, then **Upload a file**.
 2. Choose the SAP export: an Excel file with its GL and cost center mapping sheets, or a CSV of spend lines. If the file has no total row, type SAP's total for it.
 3. **Upload and read** reads the file and opens its preview: rows read and skipped, new rows, duplicates, exceptions, and whether the file's rows add up to its control total.
-4. If a column couldn't be found, **Pick the columns** shows the sheet's first rows, and you choose the column for each field.
+4. If a column couldn't be found, the upload says **Needs columns**, and Uploads says **Waiting for you to pick columns**. **Pick the columns** shows the sheet's first rows, and you choose the column for each field.
 5. The upload then waits for an approver. It doesn't count in the report until it's approved. Until then you can withdraw it, with a reason.
 
 A report has one open upload at a time. A file already approved in the report is refused if it's sent again.
@@ -58,7 +60,7 @@ A report has one open upload at a time. A file already approved in the report is
 
 If your role holds Approve:
 
-- Open an upload awaiting approval from **Uploads** and read its preview. **Approve upload** adds it to the report. **Reject upload** closes it, with a reason, and changes nothing.
+- Open an upload awaiting approval from **Uploads**, where it says **Waiting for your approval**. Its summary at the top shows the difference from the control total, the report's actual spend before and after, the rows to commit and the exceptions, and marks anything that blocks approval. Read the preview under it. The actions come last: **Approve upload** adds it to the report. **Reject upload** closes it, with a reason, and changes nothing.
 - Approval is refused while something blocks it, such as a control total that doesn't match. The preview names what blocks it, and the refused attempt is kept in the audit log.
 - On a report's first approval, you also choose how later files replace earlier ones: by the period they cover, or by line item where the file allows it. This can't change later.
 
@@ -78,11 +80,11 @@ Administrators can change these and make others. The plan's "Users, sign-in and 
 
 ## For administrators
 
-Administrators are fixed accounts, created from the command line. They see every report, hold every permission on each, and open **Administration** from the sidebar on every page.
+Administrators are fixed accounts, created from the command line. They see every report, hold every permission on each, and find **Users**, **Roles** and **Whole audit log** under **Administration** in the sidebar on every page.
 
 ### Users
 
-**Administration**, then **Users**, lists every account: whether it's a fixed administrator, disabled, locked out or waiting for its first password, and how many reports it has a role on.
+**Users** lists every account: whether it's a fixed administrator, disabled, locked out or waiting for its first password, and how many reports it has a role on.
 
 - **New user:** a username, the person's full name as they write it, their email if any, and a temporary password twice. Give them the temporary password in person. They choose their own at their first sign-in. Usernames can't be changed later.
 - **On a user's page:**
@@ -97,11 +99,11 @@ Before the client names the first users, the plan's default is one demo account 
 
 ### Roles
 
-**Administration**, then **Roles**, shows each role's permissions and how many times it's given. **New role** makes one, and a role's page changes its name or permissions, which applies to everyone who has it at their next click. Every role holds View. A role still given to anyone can't be removed: change their access first.
+**Roles** shows each role's permissions and how many times it's given. **New role** makes one, and a role's page changes its name or permissions, which applies to everyone who has it at their next click. Every role holds View. A role still given to anyone can't be removed: change their access first.
 
 ### The whole audit log
 
-**Administration**, then **Audit log**, lists every event, newest first, sign-ins and account changes included. Nobody can change or delete an event.
+**Whole audit log** lists every event, newest first, sign-ins and account changes included. Nobody can change or delete an event.
 
 ### Fixed administrators, from the command line
 
