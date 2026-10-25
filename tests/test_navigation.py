@@ -21,13 +21,15 @@ CRUMBS = re.compile(r'<nav class="crumbs" aria-label="Breadcrumb"><ol>(.*?)</ol>
 SIDEBAR = re.compile(r'<nav class="sidebar"[^>]*>(.*?)</nav>', re.S)
 
 
-def crumbs(client: Client, address: str) -> list[tuple[str, str]]:
-    """Return a page's crumbs, each as its address and words."""
+def crumbs(client: Client, address: str) -> list[tuple[str, str]] | None:
+    """Return a page's crumbs, each as its address and words, or None for a
+    page with no crumbs at all.
+    """
     response = client.get(address)
     assert response.status_code == 200, (address, response.status_code)
     found = CRUMBS.search(response.content.decode())
     if found is None:
-        return []
+        return None
     return re.findall(r'<li><a href="([^"]+)">([^<]+)</a></li>', found[1])
 
 
@@ -56,7 +58,7 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
     users = (reverse("admin_users"), "Users")
     roles = (reverse("admin_roles"), "Roles")
     for address, want in (
-        (reverse("reports"), []),
+        (reverse("reports"), None),
         (reverse("new_report"), [top]),
         (reverse("overview", args=[report.pk]), [top, home]),
         (
@@ -81,7 +83,7 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
             reverse("roll_back", args=[report.pk, upload.number]),
             [top, home, uploads, one],
         ),
-        (reverse("admin_home"), []),
+        (reverse("admin_home"), None),
         (reverse("admin_users"), [admin]),
         (reverse("admin_new_role"), [admin, roles]),
         (reverse("admin_audit"), [admin]),
@@ -112,12 +114,13 @@ def test_every_page_under_a_report_names_it_in_its_crumbs(admin_client) -> None:
 
 def test_crumbs_leave_out_a_page_without_what_they_need(admin_client) -> None:
     """Verify a refused page, such as a 404 for an upload that doesn't
-    exist, shows no crumbs rather than failing.
+    exist or an address no page has, shows no crumbs rather than failing.
     """
     report = make_report()
-    response = admin_client.get(reverse("upload", args=[report.pk, 9]))
-    assert response.status_code == 404
-    assert "crumbs" not in response.content.decode()
+    for address in (reverse("upload", args=[report.pk, 9]), "/no-such-page"):
+        response = admin_client.get(address)
+        assert response.status_code == 404, address
+        assert "crumbs" not in response.content.decode()
 
 
 def test_the_sidebar_groups_a_report_s_screens_with_no_application_name(

@@ -95,7 +95,7 @@ def above(name: str, context) -> tuple[str, str] | None:
     doesn't have what it needs, such as an error page with no report.
     """
     report = context.get("report")
-    upload = context.get("upload")
+    upload = context["upload"] if name == "upload" else None
     if name in ("reports", "admin_home", "admin_users", "admin_roles"):
         return NAMES[name], reverse(name)
     if not getattr(report, "pk", None):
@@ -103,8 +103,6 @@ def above(name: str, context) -> tuple[str, str] | None:
     if name == "report":
         return report.name, reverse("overview", args=[report.pk])
     if name == "upload":
-        if upload is None:
-            return None
         return f"Upload {upload.number}", reverse(
             "upload", args=[report.pk, upload.number]
         )
