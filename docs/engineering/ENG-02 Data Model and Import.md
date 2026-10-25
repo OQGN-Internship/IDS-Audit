@@ -80,7 +80,7 @@ An upload changes only through the state changes in Section 6, and each change w
 | `staging_row` | The same fields as `posting`, plus `is_duplicate`. Rows exist only while an upload awaits approval |
 | `skipped_row` | `upload_id`, `sheet` and `row_number` (as in `posting`), `reason`, `amount` (if it could be read, stored exactly as read in plain `numeric`, ENG-01, 4 rule 5), and `raw_values`: the row's cells as JSON |
 
-**`raw_values`** is a JSON list of text, one entry per cell from column A to the row's last cell that isn't empty, so a row gives the same list from either Excel reader and from its CSV copy. Text is kept exactly as read, spaces included. A number is written in its shortest form, without `.0` when it's whole, such as `2026` or `12.3456`. A date is written as `yyyy-mm-dd`, a time as `hh:mm:ss`, and a date with a time as both, joined by `T`. A duration is written as `h:mm:ss`, after its days if it has any. A logical cell is `TRUE` or `FALSE`, and an empty cell is `""`. Every value is text, so a number never passes through a JSON number, which most readers turn into a float.
+**`raw_values`** is a JSON list of text, one entry per cell from column A to the row's last cell that isn't empty, so a row gives the same list from either Excel reader. A CSV copy gives the same list when each of its fields holds the cell's text as written here, as the sample's copy does (12.3). One saved with Excel's display formats, such as `12,400.000` for a number cell, keeps that text instead. Text is kept exactly as read, spaces included. A number is written in its shortest form, without `.0` when it's whole, such as `2026` or `12.3456`. A date is written as `yyyy-mm-dd`, a time as `hh:mm:ss`, and a date with a time as both, joined by `T`. A duration is written as `h:mm:ss`, after its days if it has any. A logical cell is `TRUE` or `FALSE`, and an empty cell is `""`. Every value is text, so a number never passes through a JSON number, which most readers turn into a float.
 
 ## 3. Reports and rulesets
 
@@ -276,7 +276,7 @@ The GL mapping sheet holds one row per GL account, and the cost center mapping s
 
 - A property test writes thousands of random amounts in SAP's formats and checks that each one reads back as the same `Decimal`.
 - Cleaning a code that's already clean leaves it unchanged.
-- A skipped row's `raw_values` are the same whether it's read through calamine, through openpyxl or from its CSV copy, and a text cell keeps its spaces.
+- A skipped row's `raw_values` are the same whether it's read through calamine, through openpyxl or from a CSV copy holding the same text, and a text cell keeps its spaces.
 - Every row below the sample file's header ends up clean, skipped with a reason, or listed in the preview as the total row, a subtotal or a label. Only blank rows are left out, and none is lost.
 - `USD`, `#N/A` written as text, `12,34.5`, `12.3456` and `31.02.2026` rows are each skipped with the right reason, and a row with two problems gets the first one's.
 - The skipped `12.3456` row keeps its amount as `12.3456`, not `12.346`.

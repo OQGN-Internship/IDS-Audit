@@ -109,7 +109,7 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 | Resolve | `posting_resolved` in full (ENG-02, 8.4) | Nothing |
 | Add up | In `reports/queries.py`: the total, inside and outside IDS, and the totals by GL account, budget line, department and month (ENG-03, 2.3). `manage.py report_totals` | Phase 3: filters, screens, drill-down, the FAQ and exports |
 
-- **The access check exists from Phase 1.** Until Phase 4 adds roles, the only users are fixed administrators, and they pass every check (6.2, rule 4).
+- **The access check exists from Phase 2,** when sign-in and the first screens arrive. Phase 1's steps are called only from the tests, with no user signed in. Until Phase 4 adds roles, the only users are fixed administrators, and they pass every check (6.2, rule 4).
 - **The Phase 1 gate test** sends the sample file through every step and compares every figure with its expected result. It then does the same with the semicolon file uploaded after it (ENG-02, 12.2). The real export follows the same path once it arrives. In Phase 1 it compares every figure the steps above build: the header row, the row figures, the period, the reconciliation, the actual spend and its groups, `report_totals`, the skipped rows, and the postings replaced. The exception lists by code are checked in `posting_resolved`'s tests (ENG-02, 8.4). The other rows are compared once the preview saves them, in Phase 2.
 
 **Tested by:** the Phase 1 gate test reaches the figures only through the `imports/` functions and `reports/queries.py`, never by calling `pipeline/` directly.
@@ -124,7 +124,7 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
    2. One transaction then locks the report's row, gives the upload the report's next number (ENG-02, 2), creates it at `reading` and writes `upload_received`. The lock makes a second file for the same report wait, so two uploads never read the same highest number.
    3. If the transaction fails, the stored file stays. Another upload may share it, since the same bytes always have the same name, and a new try writes the same bytes again.
 3. `pipeline/` reads the sheets, finds the header rows and columns, and cleans every row. It returns clean rows, skipped rows with their reasons, and the file's mapping sheets. If a required column isn't found, the upload stops at `needs_columns` until the uploader picks it. If the file can't be read, it ends at `failed` (ENG-02, 6).
-4. In one transaction, the clean rows are bulk-loaded with `COPY` into a staging table, and the skipped rows and the file's mapping rows are saved, all tagged with the upload's ID. Duplicate detection and reconciliation run against the staged rows, and the upload moves to `awaiting_approval`.
+4. In one transaction, the clean rows are bulk-loaded with `COPY` into a staging table, and the skipped rows and the file's mapping rows are saved, all tagged with the upload's ID. Reconciliation is worked out from the rows read, the same rows that are staged (ENG-02, 9), duplicate detection runs against the postings already in the report (ENG-02, 7.3), and the upload moves to `awaiting_approval`.
 5. The preview shows rows read, rows skipped, new rows, duplicates, exceptions and the reconciliation result. ENG-02 defines each figure.
 6. A user with Approve on the report approves. One database transaction then:
    1. copies the staging rows not marked `is_duplicate` into postings
