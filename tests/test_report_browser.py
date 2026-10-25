@@ -218,16 +218,20 @@ def test_a_negative_gl_account_draws_left_of_zero(page: Page, live_server) -> No
     sign_in(page, live_server, admin.username)
     page.goto(f"{live_server.url}/reports/{report.pk}/overview")
     page.wait_for_function("document.querySelector('[data-chart=chart-gl] canvas')")
-    bar, zero = page.evaluate(
+    bar, zero, left = page.evaluate(
         """() => {
             const chart = echarts.getInstanceByDom(
                 document.querySelector('[data-chart=chart-gl]'));
             const layout = chart.getModel().getSeriesByIndex(0).getData()
                 .getItemLayout(1);
-            return [layout.x + layout.width, chart.convertToPixel({xAxisIndex: 0}, 0)];
+            const grid = chart.getModel().getComponent('grid')
+                .coordinateSystem.getRect();
+            return [layout.x + layout.width,
+                chart.convertToPixel({xAxisIndex: 0}, 0), grid.x];
         }"""
     )
-    assert bar < zero
+    # The bar ends left of zero, and inside the chart, so none of it is cut off.
+    assert left <= bar < zero
 
 
 def test_a_name_with_a_script_shows_as_text_in_the_tooltip(
