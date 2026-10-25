@@ -182,7 +182,7 @@ The dashed line marks the end of Day 5. After it, timing depends on the client's
   - a short guide for users and administrators
   - OQGN's theme on every screen: its colours and logo, applied once the screens are complete
   - a demo to the client
-- **From the client:** the first users, the reports each one can use, and their role on each. OQGN's colours and logo, for the theme.
+- **From the client:** the first users, the reports each one can use, and their role on each. OQGN's colours and logo arrived on 2026-10-25.
 - **Done when:**
   1. Automated tests show each user sees only their reports, and can do only what their role allows on each.
   2. A locked or disabled account can't sign in.
@@ -217,7 +217,6 @@ Each answer is needed by the day shown, or that phase uses the default.
 | How many rows per file, and how many files per month? | Day 3 | Imports run while the user waits, which suits files up to tens of thousands of rows |
 | Who can create a new report, and what access does its creator get? | Day 3 | Administrators only |
 | The first users, the reports each one can use, and their role on each | Day 5 | One demo account per preset role, used only for the demo and disabled before real use |
-| OQGN's colours and logo, for the theme | Day 5 | The screens keep their plain look until they arrive |
 | Who validates the numbers? | Before acceptance | Acceptance can't start |
 | Where the application runs after sign-off | After sign-off | The developer's machine |
 

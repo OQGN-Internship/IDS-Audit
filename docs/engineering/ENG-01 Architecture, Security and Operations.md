@@ -74,7 +74,7 @@ IDS-Audit/
 │   ├── reports/       reports, report screens, FAQ queries, chart data, Excel exports
 │   ├── audit/         the append-only audit log
 │   ├── templates/     pages and the partial templates HTMX swaps in
-│   └── static/        CSS, and the HTMX, Alpine.js and ECharts files
+│   └── static/        CSS, OQGN's logo, and the HTMX, Alpine.js and ECharts files
 ├── sql/               database roles and grants
 ├── tests/             unit, golden-file, permission and browser tests
 │   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)

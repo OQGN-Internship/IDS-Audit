@@ -185,7 +185,36 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - A code links to its own screen, and a budget line or department beside it to that one's screen.
 - The Export button appears only for users with **export**. The export address checks **view** and **export** again (ENG-01, 6.2).
 - Screens are in English. Names and item text are shown exactly as written, Arabic included.
-- **One look for every screen.** Every page extends one base template, which holds the navigation, and takes its look from one stylesheet, as classes, never styles written into a page. So OQGN's theme (the plan, Phase 4) changes those two files and every screen follows. Its logo, and any font it needs, are kept in the repository like the JavaScript libraries, so no screen loads anything from outside (ENG-01, 6.4).
+- **One look for every screen.** Every page extends one base template, which holds the navigation, and takes its look from one stylesheet, as classes, never styles written into a page. So OQGN's theme (the plan, Phase 4) changes those two files and every screen follows. Its logo is kept in the repository like the JavaScript libraries, and it uses no font file, so no screen loads anything from outside (ENG-01, 6.4).
+
+**OQGN's theme**
+
+The plan's Phase 4 gives every screen OQGN's colours and logo once the screens are complete. They come from OQGN's brand guide, which the developer received on 2026-10-25: colours taken from the stylesheets of oqgn.om, the official logo file, and accessible variants worked out from those colours. The theme changes only the base template and `static/css/app.css` (the rule above).
+
+| Part | Token | Colour | Used for |
+| --- | --- | --- | --- |
+| Page | surface | `#FFFFFF` | The background of every page |
+| Text | ink | `#000000` | Text, headings, and the links in the report's navigation |
+| Secondary text | ink-subtle | `#706F6F` | The filter line, the as-of line, hints, captions and the legend, on white only |
+| Links | green-text | `#587D39` | Links on white, the focus ring, and the line under the screen open now |
+| Header line | green-alt | `#73A846` | The header's 4px bottom border |
+| Bands | surface-alt | `#EDEDED` | Table headings, the report's navigation, and the "No approved uploads yet" box |
+| Row lines | line | `#D1D3D4` | Lines between table rows |
+| Controls | ink-subtle | `#706F6F` | The border of every field, list and button other than a main button |
+| Main button | green-dark | `#344E26` | Its background, with white text |
+| Problems | danger | `#E63B48` | A 4px border at the start of an error, a refusal or what blocks approval, whose text stays ink |
+| Success | green-text | `#587D39` | The same border on a success message |
+| Charts | green-text and green-dark | `#587D39` and `#344E26` | Bars, and the running-total line |
+| Outside IDS | orange-text | `#AB5B16` | Its bars, and its swatch in the legend |
+
+- **Colours are custom properties.** Each colour above is defined once, in `:root` at the top of `static/css/app.css`, named after its token, such as `--oqgn-green-text`. No other rule writes a colour value, and the charts read theirs from these (Section 5).
+- **Readable.** Text and its background have a contrast of at least 4.5:1, and a border or chart colour that carries meaning at least 3:1 against white (WCAG 2.1 AA). So the brand's green `#76A64C` and orange `#F58220`, at 2.9:1 and 2.6:1 on white, are never used for text, a control's border or a chart, and white text never sits on them, though oqgn.om does both. The header's line is decoration, so it can be light green.
+- **Meaning never rests on colour alone.** An error, a refusal or what blocks approval says so in words, the screen open now is also marked with `aria-current`, and Outside IDS is named in its chart's labels and legend (Section 5).
+- **Focus.** Every link, button and field focused from the keyboard shows a 2px solid ring in green-text, 2px outside it. The guide asks for the brand's green, but that is under 3:1 on white.
+- **Square corners.** Nothing has rounded corners, as on oqgn.om.
+- **The logo.** The official file, `oqgn-logo.svg` (188 by 47), is kept unchanged as `static/brand/oqgn-logo.svg`. Every page shows it at the start of the header, linking to the home page, at most 155px wide, with "OQ Gas Networks" as its text alternative and clear space around it at least the height of its "O". It's never redrawn, recoloured or rebuilt in CSS. It holds its texture as embedded images, so it's shown as an image file, never written into a page.
+- **Type.** Text is set in "Helvetica Neue", Arial, sans-serif, the guide's fallbacks for OQGN's font, Aktiv Grotesk, which the application has no licence for. No font file is kept or loaded, and never the trial files oqgn.om loads. Body text is 16px, and headings are bold.
+- **Left out.** Nothing else comes from oqgn.om: no Bootstrap, Tailwind or Font Awesome (ENG-01, 3), and no shadows or animation. The guide also asks for every screen in Arabic, but the screen language stays English (Section 12). The stylesheet sets margins and padding by start and end, such as `margin-inline-start`, rather than left and right, so Arabic screens wouldn't need a new layout.
 
 **Tested by**
 
@@ -198,6 +227,11 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - Every list's total row equals the figure it breaks down, as the rules above say.
 - The same screen lists its rows in the same order every time.
 - No template holds a `style` attribute or a `<style>` block, and no page loads a file from outside the application.
+- Every colour in `static/css/app.css` is a custom property in `:root`, and each holds its colour from the theme's table.
+- Each text colour the stylesheet sets has a contrast of at least 4.5:1 with the background it's set on, worked out from the custom properties, and the controls', problems' and charts' colours at least 3:1 against white.
+- No rule in the stylesheet rounds a corner, or sets a margin or padding by left or right.
+- `static/brand/oqgn-logo.svg` is the official file, checked by its SHA-256, and every page shows it in the header with its text alternative.
+- In the browser, the logo is drawn, and a link focused from the keyboard shows its ring.
 - An HTMX request for a screen gets its panel, holding the filter line and an Export link with the new filters, and a request without HTMX, or HTMX's request for a page after going back, gets the whole page.
 - `/reports/<id>/` opens the overview, and the base template links the report's screens on each of them.
 - For the sample file, each screen shows the figures in its expected result, and each amount links to source rows with the keys and filters of its group.
