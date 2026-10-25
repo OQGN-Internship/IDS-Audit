@@ -109,7 +109,7 @@ The plan's Phase 1 gate compares the application's totals with expected totals. 
 | Resolve | `posting_resolved` in full (ENG-02, 8.4) | Nothing |
 | Add up | In `reports/queries.py`: the total, inside and outside IDS, and the totals by GL account, budget line, department and month (ENG-03, 2.3). `manage.py report_totals` | Phase 3: filters, screens, drill-down, the FAQ and exports |
 
-- **The access check exists from Phase 2,** when sign-in and the first screens arrive. Phase 1's steps are called only from the tests, with no user signed in. Until Phase 4 adds roles, the only users are fixed administrators, and they pass every check (6.2, rule 4).
+- **The access check exists from Phase 2,** when sign-in and the first screens arrive. Phase 1's steps are called only from the tests, with no user signed in. Until Phase 4 adds roles, fixed administrators are the only users who can do anything: they pass every check (6.2, rule 4), and anyone else holds no permission on any report (6.2).
 - **The Phase 1 gate test** sends the sample file through every step and compares every figure with its expected result. It then does the same with the semicolon file uploaded after it (ENG-02, 12.2). The real export follows the same path once it arrives. It compares every figure the steps above build: the header row, the row figures, the period, the reconciliation, the actual spend and its groups, `report_totals`, the skipped rows, and the postings replaced. From Phase 2 it also compares the preview's other rows and its exception lists by code (ENG-02, 11.2), which `posting_resolved`'s tests check as well (ENG-02, 8.4).
 
 **Tested by:** the Phase 1 gate test reaches the figures only through the `imports/` functions and `reports/queries.py`, never by calling `pipeline/` directly.
@@ -219,12 +219,14 @@ The six permissions are fixed in code: `view`, `export`, `upload`, `approve`, `r
 
 **How the check is enforced**
 
-1. Every view that touches a report calls one check, `require(user, report, *permissions, any_of=(), upload=None)`, through a decorator such as `@report_permission("approve")`. The user must hold every permission in `permissions`: an export needs `view` and `export` (ENG-03, 9.4). When a page needs one of several permissions, its view lists them in `any_of`, and the user must hold at least one. The preview of an upload that was never committed is checked this way (ENG-03, 4). The `upload` argument is only for rule 6. HTMX partial requests go through the same check as full pages.
+1. Every view that touches a report calls one check, `require(user, report, *permissions, any_of=(), upload=None)`, through a decorator such as `@report_permission("approve")`. The user must hold every permission in `permissions`: an export needs `view` and `export` (ENG-03, 9.4). When a page needs one of several permissions, its view lists them in `any_of`, and the user must hold at least one. The preview of an upload that was never committed is checked this way (ENG-03, 4). The `upload` argument is only for rule 6. HTMX partial requests go through the same check as full pages. A permission that isn't one of the six is refused as a fault in the code, so a misspelt name can't pass as a check. The import functions trust the view that calls them, except `commit_upload`, which checks **approve** again inside its own transaction (ENG-02, 10.1, step 2).
 2. A user with no access to a report gets **404 Not Found**, so the report's existence isn't revealed. A user with access but without the permission gets **403 Forbidden**.
 3. For everyone except fixed administrators, report lists, search and exports are queried through `ReportAccess`, so other reports never appear.
 4. Fixed administrators pass every check and see every report.
 5. A fixed administrator can upload and approve the same file (rule 4). Anyone else can only if their role on that report holds both permissions, as the plan states. The audit log records who uploaded and who approved.
 6. Picking columns for an upload and withdrawing it (ENG-02, 6) are open only to the user who uploaded it, who must still hold `upload` on the report. For these two actions the check also takes the upload, as in `require(user, report, "upload", upload=upload)`. Fixed administrators pass it too, so they can clear an upload its uploader left.
+
+**Until Phase 4.** Roles and report access come in Phase 4, so until then nobody but a fixed administrator holds any permission on any report. Anyone else who signs in gets 404 on every report address, sees no report at `/reports/`, and gets 403 from the address for creating one (8). The check is written for roles from the start: it asks which permissions the user holds on the report, and Phase 4 changes only that answer.
 
 **Tested by**
 
@@ -234,6 +236,9 @@ The six permissions are fixed in code: `view`, `export`, `upload`, `approve`, `r
 - Picking columns for an upload, or withdrawing it, succeeds for its uploader and for a fixed administrator. Another user with `upload` gets 403, and so does the uploader once their role loses `upload`.
 - A fixed administrator can approve an upload they made.
 - Removing a role that is still assigned is refused.
+- Until Phase 4, a signed-in user who isn't a fixed administrator gets 404 on every report address, sees no report at `/reports/`, and gets 403 from `/reports/new`.
+- An approval by a user who no longer holds **approve** is refused with 403 from inside `commit_upload`, commits nothing and writes no `approval_refused`.
+- A permission name that isn't one of the six is refused.
 
 ### 6.3 Audit log
 
