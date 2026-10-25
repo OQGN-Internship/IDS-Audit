@@ -115,7 +115,7 @@ Each command runs in a terminal in the repository folder, as `docker compose exe
 | `changepassword <username>` | Resets a fixed administrator's forgotten password to a temporary one |
 | `axes_reset_username <username>` | Unlocks a locked-out fixed administrator |
 | `show_ruleset <report>` | Prints the report's ruleset: the settings its files are read with, such as the header names it recognises |
-| `change_ruleset <report> --by <username>` | Makes a new ruleset version from the changes it reads as JSON, run in Git Bash as `docker compose exec -T app python manage.py change_ruleset "<report>" --by <username> < change.json`, or in PowerShell, which has no `<`, as `Get-Content change.json | docker compose exec -T app python manage.py change_ruleset "<report>" --by <username>`. A field of header names given in the file replaces that field's whole list, so copy its current names from `show_ruleset` and add the new one. Used with the validator when the real export needs a setting changed (ENG-02, 3 and 13) |
+| `change_ruleset <report> --by <username>` | Makes a new ruleset version from the changes it reads as JSON, run in Git Bash, as the backup scripts are, as `docker compose exec -T app python manage.py change_ruleset "<report>" --by <username> < change.json`. PowerShell has no `<`, and Windows PowerShell passes piped text to a program as ASCII, which would change a header name with a letter outside English. A field of header names given in the file replaces that field's whole list, so copy its current names from `show_ruleset` and add the new one. Used with the validator when the real export needs a setting changed (ENG-02, 3 and 13) |
 
 ## Running the application
 
