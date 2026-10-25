@@ -198,7 +198,7 @@ Django's own admin, `django.contrib.admin`, isn't installed. It saves through it
 - **Usernames don't change.** Events keep the username they concern, so renaming an account would split its history.
 - **A fixed administrator's page only shows the account.** It's changed only from the command line, so the page has no form for it, and the functions refuse it too.
 - **Only these fields.** The forms never offer `is_fixed_admin`, `is_staff`, `is_superuser`, `can_create_reports` (8), or Django's groups and permissions.
-- **Actions are forms sent with POST,** as on the upload screens (ENG-03, 4). A refused one changes nothing, and the page says why.
+- **Actions are forms sent with POST,** as on the upload screens (ENG-03, 4), each to its page's address plus its name: `details`, `password`, `disable`, `enable`, `unlock` and `access` under `/admin/users/<id>/`, and `remove` under `/admin/roles/<id>/`. A role's own address saves its form. A refused action changes nothing, and the page says why.
 - **`createsuperuser` is replaced** by a project command of the same name that creates nothing and names `create_admin`. Django's would make an account that's neither a fixed administrator nor in the audit log.
 
 **Fixed administrator accounts**
