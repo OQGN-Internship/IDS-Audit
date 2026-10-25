@@ -7,6 +7,7 @@ from django.core.management import CommandError, call_command
 from django.test import Client
 from django.urls import reverse
 
+from ids_audit.accounts import services
 from ids_audit.accounts.models import ReportAccess, Role, User
 from ids_audit.audit.models import AuditEvent
 from tests.factories import PASSWORD, grant, make_admin, make_report, make_user
@@ -336,9 +337,13 @@ def test_a_role_without_view_is_refused_on_its_page(client) -> None:
 
 def test_a_fixed_admin_s_page_has_no_form_and_can_t_be_changed(client) -> None:
     """Verify another fixed administrator's page offers no form, and each
-    change sent to it anyway is refused with nothing changed or recorded.
+    change sent to it anyway, an unlock included, is refused with nothing
+    changed or recorded.
     """
     other = make_admin()
+    for _ in range(5):
+        sign_in(Client(), other.username, "not-the-password")
+    before = AuditEvent.objects.latest("id").pk
     page = client.get(reverse("admin_user", args=[other.pk])).content.decode()
     assert f"/admin/users/{other.pk}/" not in page
     report, role = make_report(), Role.objects.get(name="Viewer")
@@ -354,8 +359,9 @@ def test_a_fixed_admin_s_page_has_no_form_and_can_t_be_changed(client) -> None:
     other.refresh_from_db()
     assert other.is_active and other.full_name != "Changed"
     assert not other.must_change_password
+    assert services.locked_until(other.username) is not None
     assert not ReportAccess.objects.exists()
-    assert not AuditEvent.objects.exclude(action="sign_in").exists()
+    assert not AuditEvent.objects.filter(pk__gt=before).exists()
 
 
 def test_the_temporary_password_can_t_be_chosen_again() -> None:
