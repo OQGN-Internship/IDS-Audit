@@ -16,7 +16,7 @@ from django.test import Client
 from django.urls import reverse
 
 from ids_audit.accounts import access
-from ids_audit.imports.models import Upload
+from ids_audit.imports.models import SkippedRow, Upload
 from ids_audit.reports.models import Report
 from ids_audit.reports.templatetags.figures import amount
 from tests.factories import (
@@ -25,6 +25,7 @@ from tests.factories import (
     make_report,
     make_upload,
     make_user,
+    map_cc,
     map_gl,
 )
 from tests.factories import roll_back as mark_rolled_back
@@ -204,6 +205,55 @@ def test_lists_run_highest_first_with_the_catch_alls_last(
     page = text(get(client, "departments", sample_report))
     order = [m for m in re.findall(r">(APP|INF|SEC|GOV|Outside IDS)<", page)]
     assert order == ["APP", "INF", "SEC", "GOV", "Outside IDS"]
+    # A catch-all has no code, so its name links to its screen.
+    outside = reverse("department", args=[sample_report.pk, "outside"])
+    assert f'<td class="text"><a href="{outside}">Outside IDS</a></td>' in page
+    assert ">outside<" not in page
+
+
+def test_the_gl_accounts_total_row_puts_its_lines_under_lines(
+    client, sample_report
+) -> None:
+    """Verify the GL accounts screen's total row has the lines under Lines,
+    and nothing under Cost centers.
+    """
+    page = text(get(client, "gl_accounts", sample_report))
+    footer = re.search(r"<tfoot>(.*?)</tfoot>", page, re.S)[1]
+    assert footer.endswith('<td class="count">35</td><td class="text"></td></tr>')
+
+
+def own_upload_report() -> Report:
+    """A report under own_upload whose two uploads put 610100 under 2101 and
+    2201, and cost center 4510 under APP and INF (ENG-03 2.3).
+    """
+    report = make_report("own_upload")
+    for minute, (ci, dept, written) in enumerate(
+        [("2101", "APP", "10.000"), ("2201", "INF", "30.000")], start=1
+    ):
+        upload = make_upload(report)
+        map_gl(upload, "610100", ci)
+        map_cc(upload, "4510", dept)
+        add_posting(upload, JUL, written)
+        commit(upload, minute=minute, mode=Report.DuplicateMode.LINE_KEY)
+    return report
+
+
+def test_a_gl_account_under_several_budget_lines_splits_on_its_screens(
+    client,
+) -> None:
+    """Verify under own_upload the GL accounts screen shows Several (2), and
+    each part on the GL account's and budget line's screens opens rows that
+    add up to it (ENG-03 2.3, G19).
+    """
+    report = own_upload_report()
+    assert "Several (2)" in text(get(client, "gl_accounts", report))
+    for name, args in (("gl_account", ["610100"]), ("budget_line", ["2101"])):
+        page = text(get(client, name, report, *args))
+        links = ROWS_LINK.findall(page)
+        assert links
+        for url, written in links:
+            assert rows_said(client, url)[1] == written, url
+    assert "40.000" not in text(get(client, "budget_line", report, "2101"))
 
 
 # Source rows (ENG-03 6)
@@ -234,6 +284,54 @@ def test_source_rows_come_100_to_a_page(client) -> None:
     assert second.count('<td class="amount">1.000</td>') == 1
     assert ">Previous</a>" in second
     assert get(client, "rows", report, query="?page=3").status_code == 404
+
+
+def test_a_source_row_names_its_catch_alls(client, sample_report) -> None:
+    """Verify a source row with no budget line, or outside IDS, says so."""
+    page = text(get(client, "rows", sample_report, query="?gl=640200&cc=3200"))
+    assert '<td class="text">No budget line</td>' in page
+    assert '<td class="text">Outside IDS</td>' in page
+
+
+def test_the_last_page_of_source_rows_has_no_next_page(client) -> None:
+    """Verify the last page links to the one before it and to no later one."""
+    report = make_report()
+    upload = make_upload(report)
+    for _ in range(101):
+        add_posting(upload, JUL, "1.000")
+    commit(upload, minute=1)
+    assert ">Next</a>" in text(get(client, "rows", report))
+    last = text(get(client, "rows", report, query="?page=2"))
+    assert ">Previous</a>" in last and ">Next</a>" not in last
+
+
+def no_department_report() -> Report:
+    """A report with cost center 4520 listed in the mapping with no
+    department code, beside 4510 in APP.
+    """
+    report = make_report()
+    upload = make_upload(report)
+    map_cc(upload, "4510", "APP")
+    map_cc(upload, "4520", "")
+    add_posting(upload, JUL, "5.000", cost_center_code="4510")
+    add_posting(upload, JUL, "7.000", cost_center_code="4520")
+    commit(upload, minute=1)
+    return report
+
+
+def test_no_department_has_its_screen_rows_and_list(client) -> None:
+    """Verify a cost center inside IDS with no department code shows as No
+    department, opens its own screen, its rows with dept=none, and its own
+    list on the exceptions screen (ENG-03 2.3 and 8, G20).
+    """
+    report = no_department_report()
+    page = text(get(client, "department", report, "none"))
+    assert "<h1>No department</h1>" in page and "7.000" in page
+    url = reverse("rows", args=[report.pk]) + "?dept=none"
+    assert rows_said(client, url) == (1, "7.000")
+    page = text(get(client, "exceptions", report))
+    table = re.search(r"Cost centers with no department</h2>(.*?)</table>", page, re.S)
+    assert "4520" in table[1] and "7.000" in table[1]
 
 
 def test_arabic_item_text_is_shown_right_to_left_unchanged(
@@ -504,7 +602,42 @@ def test_a_budget_line_change_is_listed_with_both_uploads(client) -> None:
         r"Budget-line changes between files</h2>(.*?)</table>", page, re.S
     )
     assert "CI 2101" in table[1] and "CI 2201" in table[1]
-    assert amount(Decimal("3.000")) in table[1]
+    links = ROWS_LINK.findall(table[1])
+    assert [written for _, written in links] == ["1.000", "2.000"]
+    for url, written in links:
+        assert rows_said(client, url) == (1, written)
+    footer = re.search(r"<tfoot>(.*?)</tfoot>", table[1], re.S)[1]
+    assert '<td class="amount">3.000</td><td class="count">2</td>' in footer
+
+
+def test_skipped_rows_are_listed_by_upload_and_reason_as_read(client) -> None:
+    """Verify the exceptions screen lists each committed upload's skipped rows
+    by reason, each amount as read, with their total, and none of a
+    rolled-back upload (ENG-03 8).
+    """
+    report = make_report()
+    kept, gone = make_upload(report), make_upload(report)
+    add_posting(kept, JUL, "1.000")
+    commit(kept, minute=1)
+    mark_rolled_back(commit(gone, minute=2))
+    for upload, reason, written in [
+        (kept, "Invalid date", "12.3456"),
+        (kept, "Invalid date", "1.000"),
+        (gone, "Invalid date", "99.000"),
+    ]:
+        SkippedRow.objects.create(
+            upload=upload,
+            row_number=5,
+            reason=reason,
+            amount=Decimal(written),
+            raw_values=[],
+        )
+    page = text(get(client, "exceptions", report))
+    table = re.search(r"Skipped rows</h2>(.*?)</table>", page, re.S)[1]
+    preview = reverse("upload", args=[report.pk, 1])
+    assert f'<td class="count"><a href="{preview}">1</a></td>' in table
+    assert '<td class="count">2</td><td class="exact">13.3456</td>' in table
+    assert "99.000" not in table
 
 
 # One look for every screen (ENG-03 4)

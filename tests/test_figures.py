@@ -3,7 +3,16 @@
 import datetime
 from decimal import Decimal
 
-from ids_audit.reports.templatetags.figures import amount, day, moment, month, places
+from ids_audit.reports.screens import Cell
+from ids_audit.reports.templatetags.figures import (
+    amount,
+    day,
+    moment,
+    month,
+    places,
+    share,
+    td,
+)
 
 
 def test_amounts_have_three_decimals_commas_and_a_minus() -> None:
@@ -36,3 +45,28 @@ def test_months_and_rows_are_written_for_people() -> None:
         "Spend: rows 4, 9; GL: row 2"
     )
     assert places([["", 12]]) == "row 12"
+
+
+def test_a_share_is_a_percentage_with_one_decimal_or_a_dash() -> None:
+    """Verify a share kept as a fraction is written as a percentage with one
+    decimal place, and a missing share as a dash (ENG-03 2.2).
+    """
+    assert share(Decimal("0.944")) == "94.4%"
+    assert share(Decimal("-0.005")) == "-0.5%"
+    assert share(Decimal("1.000")) == "100.0%"
+    assert share(None) == "–"
+
+
+def test_a_cell_is_written_escaped_by_its_kind() -> None:
+    """Verify a table cell is written by its kind, its text escaped, with its
+    link, and an amount kept as read never rounded.
+    """
+    assert td(Cell(Decimal("-1250"), "amount", "/rows?gl=1")) == (
+        '<td class="amount"><a href="/rows?gl=1">-1,250.000</a></td>'
+    )
+    assert td(Cell(Decimal("12.3456"), "exact")) == '<td class="exact">12.3456</td>'
+    assert td(Cell("<b>x</b>", "text")) == '<td class="text">&lt;b&gt;x&lt;/b&gt;</td>'
+    assert td(Cell(None, "share")) == '<td class="share">–</td>'
+    assert td(Cell(datetime.date(2026, 4, 3), "date")) == (
+        '<td class="date">03.04.2026</td>'
+    )
