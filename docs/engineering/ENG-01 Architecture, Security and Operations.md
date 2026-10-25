@@ -150,7 +150,7 @@ Steps 3 and 4 run inside the web request. If files turn out to be too large for 
 1. The user changes a filter. HTMX sends a request with the filters in the address, for example `/reports/7/overview?year=2026&exclude_outside=1`.
 2. Django checks that the user has View on report 7.
 3. It runs aggregate SQL over that report's resolved view (ENG-02), with those filters. PostgreSQL adds the amounts as exact decimals.
-4. Django renders only the changed panel. HTMX swaps it into the page and updates the address, so the view can be bookmarked or shared.
+4. Django renders only the changed panel, which holds everything the filters change, its Export link included (ENG-03, 4). HTMX swaps it into the page and updates the address, so the view can be bookmarked or shared.
 5. Chart figures arrive inside the panel as data, and ECharts draws them. The browser never calculates a figure.
 
 ## 6. Security

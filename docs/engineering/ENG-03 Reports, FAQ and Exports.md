@@ -133,7 +133,27 @@ Every screen except Uploads and the Audit log also exports to Excel, at its own 
 | Uploads | `uploads` | Each upload with its state and preview (ENG-02, Sections 6 and 11). Its addresses are in the table below | **view**. The preview of an upload that was never committed also needs **upload** or **approve**. Each action needs its own permission |
 | Audit log | `audit` | ENG-01, 6.3 | **view\_audit\_log** |
 
-The report list at `/reports/` shows only the reports the user can access (ENG-01, 6.2). Fixed administrators also see **New report** there. It opens `/reports/new`, which asks only for the report's name (ENG-02, 3), then opens the new report's Uploads. Anyone else gets 403 from that address (ENG-01, 8). Until Phase 3 builds the overview, `/reports/<id>/` opens Uploads.
+The report list at `/reports/` shows only the reports the user can access (ENG-01, 6.2). Fixed administrators also see **New report** there. It opens `/reports/new`, which asks only for the report's name (ENG-02, 3), then opens the new report's Uploads. Anyone else gets 403 from that address (ENG-01, 8). The list links each report to `/reports/<id>/`, which opens its overview.
+
+**Each screen's page**
+
+- **The filter form.** Above the figures, a form holds the two filters (3.1). Changing either sends them with HTMX, which swaps the panel below the form and updates the address (ENG-01, 5.2). Without JavaScript, the form's Show button loads the page with them.
+- **The panel holds everything the filters change:** the filter line, the as-of line, the tables, the chart data, and every link that carries the filters, which are the drill-down links, the FAQ pickers, the pages of source rows and the Export link. So after a change nothing on screen keeps the old filters, and Export downloads what's shown. Export is a plain link, never an HTMX request, since a download can't be swapped into a page.
+- **A panel or a page.** An HTMX request gets the panel alone. Any other request gets the whole page, and so does HTMX's request for a page that's no longer in its history, after the user goes back.
+- **Navigation.** On every page of a report, the base template names the report and links its screens: Overview, GL accounts, Departments, Budget lines, Exceptions, FAQ and Uploads, and in Phase 4 the Audit log for users with **view\_audit\_log**.
+- **One source for a screen and its export.** Each screen's tables are built once, in `reports/screens.py`, from the functions in `reports/queries.py`. The page shows them and the export writes them (Section 9), so the two can't differ.
+
+| Screen | Its tables, each also a sheet of its export |
+| --- | --- |
+| Overview | *Actual spend*: on IDS cost centers, outside IDS, and the total, with its lines. *Largest GL accounts*: GL account, name, actual spend, share and lines, for the 10 largest and all the others. *By month*: month, actual spend, running total and lines |
+| GL accounts | *GL accounts*: GL account, name, budget line, actual spend, share, lines and cost centers |
+| GL account | *Budget lines*: budget line, name, actual spend and lines. *Cost centers*: cost center, name, department, actual spend and lines. *By month* |
+| Departments | *Departments*: department, name, actual spend, share and lines |
+| Department | *GL accounts*: GL account, name, actual spend and lines. *Cost centers*: cost center, name, actual spend and lines. *By month* |
+| Budget lines | *Budget lines*: budget line, name, its GL accounts, actual spend and lines |
+| Budget line | *GL accounts*: GL account, name, actual spend and lines |
+| Source rows | *Source rows*: the columns in 6.2 |
+| Exceptions | One table for each list in Section 8 |
 
 **Uploads and each upload**
 
@@ -160,7 +180,8 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - Every amount links to its source rows (Section 6).
 - Lists are sorted by actual spend, highest first, then by code, so the order never changes between visits. The catch-all rows come last whatever their amount, No budget line, No department, then Outside IDS, so none is read as one of the codes. Month lists run oldest first instead, so the running total reads in order.
 - The overview's row for all the other GL accounts appears only when there are more than 10, and names how many it covers, such as "All other GL accounts (2)". PostgreSQL adds its amount over every posting outside the 10 largest, so it's a sum like any other figure.
-- Every list ends with a total row, equal to the figure the list breaks down. For a list of the whole report, that's the overview total under the same filters. For a detail list, it's the amount of the GL account, department or budget line the list is about. For an exceptions list, it's the sum of its own rows.
+- Every list ends with a total row, equal to the figure the list breaks down. For a list of the whole report, that's the overview total under the same filters. For a detail list, it's the amount of the GL account, department or budget line the list is about. For an exceptions list, it's the sum of its own rows. PostgreSQL adds every total row, as every figure (Section 10), so no screen adds up its own rows.
+- A code links to its own screen, and a budget line or department beside it to that one's screen.
 - The Export button appears only for users with **export**. The export address checks **view** and **export** again (ENG-01, 6.2).
 - Screens are in English. Names and item text are shown exactly as written, Arabic included.
 - **One look for every screen.** Every page extends one base template, which holds the navigation, and takes its look from one stylesheet, as classes, never styles written into a page. So OQGN's theme (the plan, Phase 4) changes those two files and every screen follows. Its logo, and any font it needs, are kept in the repository like the JavaScript libraries, so no screen loads anything from outside (ENG-01, 6.4).
@@ -176,6 +197,10 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - Every list's total row equals the figure it breaks down, as the rules above say.
 - The same screen lists its rows in the same order every time.
 - No template holds a `style` attribute or a `<style>` block, and no page loads a file from outside the application.
+- An HTMX request for a screen gets its panel, holding the filter line and an Export link with the new filters, and a request without HTMX, or HTMX's request for a page after going back, gets the whole page.
+- `/reports/<id>/` opens the overview, and the base template links the report's screens on each of them.
+- For the sample file, each screen shows the figures in its expected result, and each amount links to source rows with the keys and filters of its group.
+- A report with no committed upload shows "No approved uploads yet" on every screen, with a link to Uploads only for a user with **upload**.
 
 ## 5. Charts
 
