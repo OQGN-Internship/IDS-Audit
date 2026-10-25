@@ -383,6 +383,7 @@ A duplicate whose amount differs from the posting already in the report is shown
 - In line-key mode, a row without a full line key is skipped as `No line key`, and the file still reconciles. In replace-by-period mode the same row is staged.
 - Line-key mode is offered for a first upload whose rows to commit all have a full line key, and refused at approval for one where a row doesn't, or for a report that already has a committed upload.
 - A posting whose upload was rolled back doesn't make a row a duplicate.
+- After a report's only commit is rolled back, the report keeps its mode, and the next file isn't offered line-key mode.
 - A line repeated in one file is skipped once, and the file still reconciles.
 
 ## 8. Mapping versions and resolution
