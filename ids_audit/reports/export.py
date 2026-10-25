@@ -121,7 +121,9 @@ def write_cell(
             row, column, datetime.datetime.combine(value, datetime.time()), style
         )
     else:
-        sheet.write_string(row, column, str(value), style)
+        # write(), not write_string(), so the workbook's options decide, and
+        # they keep text such as =1+1, a link or 5100000123 as text.
+        sheet.write(row, column, str(value), style)
 
 
 def write_table(workbook: xlsxwriter.Workbook, table: Table, formats: Formats) -> int:
@@ -226,7 +228,7 @@ def write_source(
     row = 0
     for label, value in facts(report, screen, address, filters, user, at):
         sheet.write_string(row, 0, label, formats.label)
-        sheet.write_string(row, 1, value)
+        sheet.write(row, 1, value)
         row += 1
     # What the uploads count follows the filters that apply on the screen.
     counted = filters if screen.outside_applies else Filters(year=filters.year)
