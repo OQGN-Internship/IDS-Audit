@@ -172,6 +172,26 @@ APP_VERSION = os.environ.get("APP_VERSION") or "dev"
 # Ids are bigint, as ENG-02 2 gives for posting.
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Django's warnings and errors, a failed request's traceback included, go to
+# standard error, where docker compose logs app shows them (ENG-01 7.4).
+# Django's own default sends errors only to ADMINS by email, and there are
+# none. Gunicorn writes each request's line itself (config/gunicorn.py).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "line": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "stderr": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+            "formatter": "line",
+        },
+    },
+    "root": {"handlers": ["stderr"], "level": "WARNING"},
+}
+
 # Times are stored in UTC and shown in Muscat time (ENG-01 6.3).
 USE_TZ = True
 TIME_ZONE = env("TIME_ZONE", "Asia/Muscat")

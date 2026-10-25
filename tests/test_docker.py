@@ -6,6 +6,7 @@ service. None of these needs the database.
 import importlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -240,3 +241,38 @@ def test_the_image_is_named_after_the_compose_project(compose, tmp_path) -> None
     assert compose["app"]["image"] == compose["migrate"]["image"] == "ids-audit-app"
     gate = compose_config(tmp_path, COMPOSE_PROJECT_NAME="ids-audit-gate")
     assert gate["app"]["image"] == gate["migrate"]["image"] == "ids-audit-gate-app"
+
+
+def test_warnings_and_errors_go_to_standard_error() -> None:
+    """Verify the settings send Django's warnings and errors, a failed
+    request's included, and nothing quieter, to standard error with the time
+    and level, and Gunicorn writes each request with its status and duration
+    (ENG-01 7.4).
+    """
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import django, logging; django.setup(); "
+            "logging.getLogger('django.request').error('Internal Server Error: /x'); "
+            "logging.getLogger('ids_audit').warning('a warning'); "
+            "logging.getLogger('ids_audit').info('quiet')",
+        ],
+        cwd=ROOT,
+        env={
+            **without_settings(),
+            **DUMMY,
+            "DJANGO_SETTINGS_MODULE": "config.settings.production",
+        },
+        capture_output=True,
+        text=True,
+    )
+    lines = result.stderr.splitlines()
+    assert result.stdout == ""
+    assert len(lines) == 2, result.stderr
+    assert lines[0].endswith(" ERROR django.request Internal Server Error: /x")
+    assert lines[1].endswith(" WARNING ids_audit a warning")
+    assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", lines[0])
+    config = importlib.reload(importlib.import_module("config.gunicorn"))
+    assert config.accesslog == "-"
+    assert "%(s)s" in config.access_log_format and "%(M)s" in config.access_log_format
