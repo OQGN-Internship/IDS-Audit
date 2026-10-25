@@ -198,3 +198,16 @@ def test_uploads_says_waiting_only_on_its_own_report() -> None:
     assert "Waiting" not in sidebar(client, reverse("overview", args=[report.pk]))
     assert "Waiting" in sidebar(client, reverse("overview", args=[other.pk]))
     assert Report.objects.count() == 2
+
+
+def test_the_administration_home_links_its_screens_as_cards(admin_client) -> None:
+    """Verify the administration home shows Users, Roles and the whole audit
+    log as cards, each linking to its screen, as the sidebar's group does.
+    """
+    page = admin_client.get(reverse("admin_home")).content.decode()
+    cards = re.findall(r'<section class="card">\s*<h2><a href="([^"]+)">', page)
+    assert cards == [
+        reverse("admin_users"),
+        reverse("admin_roles"),
+        reverse("admin_audit"),
+    ]
