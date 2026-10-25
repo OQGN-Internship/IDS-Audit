@@ -478,12 +478,14 @@ As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production
 - Default privileges belong to one database, so they never reach the test database. A session fixture in `tests/conftest.py` applies `sql/grants.sql` to the test database once it's migrated, so the tests see the same grants as the application.
 - A grant test switches to the application's role with `SET LOCAL ROLE ids_app` before the statement it checks, so the database refuses that statement as it would refuse the application. The switch ends with the test's transaction.
 - Every test that a statement is refused has a matching test that an allowed statement works (6.3), so a refusal can't come from missing grants.
+- The browser tests (ENG-02, 12.1) drive Chromium with Playwright against pytest-django's live server, which serves the application from the test process. Chromium is installed once, with `uv run playwright install chromium`. They run after every other test: Playwright keeps an event loop running in the main thread until the session ends, and Django refuses database work in a thread with one.
 - A test that needs time to pass, such as a lock-out ending, moves the clock with time-machine (3) instead of waiting. The clock it moves is the application's, so times PostgreSQL sets itself, with `now()`, don't move. None of the tables uses them (ENG-02, 10.2).
 
 **First-time setup**, after cloning as in 7.1:
 
 ```bash
 uv sync
+uv run playwright install chromium   # once, for the browser tests
 cp .env.example .env              # then fill in the settings in 7.1
 docker compose up -d db
 uv run python manage.py migrate
@@ -496,6 +498,7 @@ uv run pytest
 - With `db` running, `uv run pytest` passes on a clean checkout.
 - Removing one `REVOKE` from `sql/grants.sql` makes the matching grant test fail.
 - With `UPLOADS_DIR` unset, receiving a file is refused, and nothing is stored or written.
+- The browser tests pass in the same run as every other test, and the database tests collected after them pass too.
 
 ## 8. Open technical decisions
 
