@@ -56,6 +56,9 @@ def test_every_address_but_sign_in_sends_a_visitor_to_sign_in() -> None:
     """
     client = Client()
     assert client.get(reverse("sign_in")).status_code == 200
+    # The home page has no check of its own, so only the middleware sends
+    # this one to the sign-in page.
+    assert client.get(reverse("home"))["Location"] == "/sign-in?next=/"
     response = client.get(reverse("password_change"))
     assert response.status_code == 302
     assert response["Location"] == "/sign-in?next=/password"
