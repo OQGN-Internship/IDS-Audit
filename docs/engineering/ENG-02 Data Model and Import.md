@@ -69,7 +69,7 @@ An upload changes only through the state changes in Section 6, and each change w
 | Table | Fields | Rule |
 | --- | --- | --- |
 | `gl_ci_map` | `upload_id`, `report_id`, `gl_code`, `gl_name`, `ci_code` (may be empty), `ci_name` | One row per GL account in each upload, enforced by a unique constraint on (`upload_id`, `gl_code`) |
-| `cc_dept_map` | `upload_id`, `report_id`, `cc_code`, `cc_name`, `dept_code`, `dept_name` | One row per cost center in each upload, enforced by a unique constraint on (`upload_id`, `cc_code`) |
+| `cc_dept_map` | `upload_id`, `report_id`, `cc_code`, `cc_name`, `dept_code` (may be empty), `dept_name` | One row per cost center in each upload, enforced by a unique constraint on (`upload_id`, `cc_code`) |
 
 ### The other tables
 
@@ -409,6 +409,7 @@ Rolled-back uploads are never used. Mapping values taken from the spend sheet it
 | GL account missing from the GL mapping | No budget line | As mapped | `640200` |
 | GL account listed with an empty commitment item | No budget line, marked "listed without a commitment item" | As mapped | `650200` |
 | Cost center missing from the cost center mapping | As mapped | Outside IDS, by the default `outside_ids_rule` | `3100`, `3200` |
+| Cost center listed with an empty department | As mapped | No department. It's inside IDS, since the mapping lists it (ENG-03, 2.3) | None |
 
 Outside-IDS postings stay in the data. Reports flag them and can exclude them (ENG-03).
 
@@ -437,7 +438,7 @@ Reports never join the tables themselves. A database view, `posting_resolved`, j
 | `cc_name`, `dept_code`, `dept_name`, `is_outside_ids` | The cost center mapping in force (8.1), and the report's `outside_ids_rule` (Section 3) |
 
 - **`ci_status`** is `mapped`, `missing_from_gl_map` or `listed_without_ci`, the cases in 8.2. `ci_code` and `ci_name` are empty unless it's `mapped`.
-- **`is_outside_ids`** is true when the report's `outside_ids_rule` puts the posting's cost center outside IDS. `dept_code` and `dept_name` are then empty.
+- **`is_outside_ids`** is true when the report's `outside_ids_rule` puts the posting's cost center outside IDS. `dept_code` and `dept_name` are then empty. They're empty too, with `is_outside_ids` false, for a cost center listed with an empty department.
 - **Empty** means empty text, `''`, never `NULL`, in every text column of the view, as in the tables. So `gl_name` is empty for a GL account missing from the GL mapping in force, and `cc_name` for a cost center missing from the cost center mapping in force.
 - **The upload's file name** isn't in the view. Screens that show it read `upload` by `upload_id`.
 
@@ -614,7 +615,7 @@ Each exception lists the rows it covers, by sheet and row number in the original
 | `report_actual_spend` | `before` and `after` approval |
 | `exceptions` | The exceptions in 11.2 |
 
-**What approving would change.** The figures that depend on the mapping in force or on which postings count are worked out by approving the upload for a moment, inside the read's own transaction: the commit's steps 4 and 6 (10.1) run in a savepoint, without the audit event, the figures are read through `posting_resolved` and `reports/queries.py` as any screen reads them, and the savepoint is rolled back. These are the actual spend inside and outside IDS, the report's actual spend after approval, the exceptions for GL accounts with no budget line, listed without a commitment item and cost centers outside IDS, and the spend each mapping change moves. So the preview follows exactly the rules the report will, and never a second copy of them. The report's actual spend after approval is therefore its actual spend once the upload is approved, whether rows are actual or not, replaced or duplicates.
+**What approving would change.** The figures that depend on the mapping in force or on which postings count are worked out by approving the upload for a moment, inside the read's own transaction: the commit's steps 4 and 6 (10.1) run in a savepoint, without the audit event, the figures are read through `posting_resolved` and `reports/queries.py` as any screen reads them, and the savepoint is rolled back. These are the actual spend inside and outside IDS, the report's actual spend after approval, the exceptions for GL accounts with no budget line, listed without a commitment item, cost centers outside IDS and cost centers listed without a department, and the spend each mapping change moves. So the preview follows exactly the rules the report will, and never a second copy of them. The report's actual spend after approval is therefore its actual spend once the upload is approved, whether rows are actual or not, replaced or duplicates.
 
 ### 11.2 Exception types
 
@@ -630,6 +631,7 @@ Each exception lists the rows it covers, by sheet and row number in the original
 | GL account with no budget line | `missing_from_gl_map` | `640200` | A GL account, with its `code` | No |
 | GL account listed without a commitment item | `listed_without_ci` | `650200` | A GL account, with its `code` | No |
 | Cost center outside IDS | `outside_ids` | `3100` | A cost center, with its `code` | No |
+| Cost center listed without a department | `listed_without_department` | `4570`, on the cost center mapping with an empty department code | A cost center, with its `code` | No |
 | Mapping change | `mapping_change` | `610100` moves from `2101` to another commitment item | A code, with its `mapping`, `code`, `before`, `after` and `committed` | No |
 | Mapping sheet and spend sheet disagree | `sheet_and_spend_disagree` | 4.2 | A code, with its `mapping` and `code` | No |
 | Names differ for one code | `names_differ` | `2101` named `Software and licences` on one row and `Software` on another | A code, with its `field` and `code` | No |
@@ -641,7 +643,7 @@ Each exception lists the rows it covers, by sheet and row number in the original
 
 - **Rows and amounts.** A row's amount is the amount it was read with, for a skipped row only if it could be read. A mapping row has none.
 - **Skipped rows** are the skipped rows of every sheet except those in another currency, which have their own type.
-- **Budget lines and outside IDS** cover the rows to commit that are actual spend, as the report will show them once the upload is approved (11.1), so their amounts match the exceptions screen's (ENG-03, 8).
+- **Budget lines, outside IDS and no department** cover the rows to commit that are actual spend, as the report will show them once the upload is approved (11.1), so their amounts match the exceptions screen's (ENG-03, 8). A cost center listed without a department is the preview's side of the report's No department (8.2). It doesn't block approval, as a GL account listed without a commitment item doesn't: the spend is still counted, in a group of its own, and the mapping sheet can be corrected in a later file.
 - **A mapping change** is a code whose budget line or department differs between the upload's mapping and the mapping in force (8.3). `before` and `after` are the commitment item or department, empty for a GL account listed without a commitment item, and `null` when the mapping doesn't list the code. Its amount is the actual spend that approving moves, worked out as in 11.1: this file's rows to commit, compared with the mapping in force now, and the committed postings that count, of which `committed` is the part. Its rows are this file's rows that move.
 - **Codes listed with different values, disagreements and differing names** come from the mapping rows (Section 5). `mapping` is `gl` or `cc`, and `field` is the name that differs, such as `ci_name`.
 - **A month with no rows** is a month in `months_replaced` with no rows to commit.
@@ -658,6 +660,7 @@ When the file has a value-type column, the preview lists each value type found, 
 - The preview of a rejected upload shows the same figures as before it was rejected.
 - After approval, the report's actual spend equals the preview's `after`, including for a file with rows that aren't actual spend, rows that replace others and duplicates.
 - A file covering 15 to 28 February, after one covering 1 to 28 February, lists the earlier postings dated 1 to 14 February as replaced outside its dates.
+- A cost center on the cost center mapping sheet with an empty department code is listed as a cost center listed without a department, with its rows and its actual spend, and not as outside IDS. It doesn't block approval. A later file whose mapping is in force and lists it so raises it too, though the file has no mapping sheet of its own.
 - A file with no total row, uploaded with a typed total, reconciles against it, and one uploaded without is blocked as having no control total.
 - An approval refused for each blocking type writes one `approval_refused` event with its reason, and commits nothing.
 - An approval after another upload was committed or rolled back since the preview was built is refused.

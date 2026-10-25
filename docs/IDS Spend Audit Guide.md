@@ -28,9 +28,9 @@ Each report has these screens, linked in the sidebar on its pages:
 | --- | --- |
 | Overview | Total actual spend, inside and outside IDS, the largest GL accounts, and spend by month |
 | GL accounts | Every GL account with its budget line, spend, share and cost centers |
-| Departments | Every IDS department's spend, with Outside IDS as its own row |
+| Departments | Every IDS department's spend, with No department and Outside IDS as rows of their own |
 | Budget lines | Every budget line (commitment item) with its GL accounts and spend |
-| Exceptions | GL accounts with no budget line, cost centers outside IDS, budget-line changes between files, and rows skipped while reading |
+| Exceptions | GL accounts with no budget line, cost centers outside IDS, IDS cost centers with no department, budget-line and department changes between files, and rows skipped while reading |
 | FAQ | The eight questions in the plan, each answered on its own page |
 | Uploads | Every file uploaded to the report, and its state |
 | Audit log | Who did what on this report, and when. Only for users whose role holds View audit log |
