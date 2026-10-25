@@ -5,7 +5,8 @@ from decimal import Decimal
 
 from django.db.models import Max, Min
 
-from ids_audit.accounts.models import User
+from ids_audit.accounts.models import ReportAccess, Role, User
+from ids_audit.accounts.permissions import in_order
 from ids_audit.imports.models import Upload
 from ids_audit.ledger.models import CcDeptMap, GlCiMap, Posting
 from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
@@ -20,8 +21,8 @@ def make_user(fixed_admin: bool = True) -> User:
     """A new user, with a username no other test user has, who has already
     chosen their own password.
 
-    A fixed administrator unless fixed_admin is False, since until Phase 4
-    adds roles nobody else can act on a report (ENG-01 6.2).
+    A fixed administrator unless fixed_admin is False, so a test can act on
+    any report without giving the user a role on it (ENG-01 6.2).
     """
     number = User.objects.count() + 1
     return User.objects.create(
@@ -45,6 +46,22 @@ def make_admin(must_change_password: bool = False) -> User:
     user.set_password(PASSWORD)
     user.save()
     return user
+
+
+def make_role(*permissions: str) -> Role:
+    """A role holding these permissions, under a name no other role has."""
+    return Role.objects.create(
+        name=f"Role {Role.objects.count() + 1}", permissions=in_order(permissions)
+    )
+
+
+def grant(user: User, report: Report, role: str | Role) -> ReportAccess:
+    """Give the user a role on the report: a preset one by its name, such as
+    "Viewer", or any Role.
+    """
+    if isinstance(role, str):
+        role = Role.objects.get(name=role)
+    return ReportAccess.objects.create(user=user, report=report, role=role)
 
 
 def make_report(mapping_rule: str = "latest") -> Report:

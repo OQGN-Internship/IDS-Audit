@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from ids_audit.accounts import access
+from ids_audit.accounts.models import User
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import Upload
 from ids_audit.imports.screens import EXCEPTION_NAMES
@@ -23,7 +24,7 @@ from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS
 from ids_audit.reports import queries
 from ids_audit.reports.models import Report, Ruleset
 from ids_audit.reports.templatetags.figures import amount, month
-from tests.factories import make_report, make_upload, make_user
+from tests.factories import grant, make_report, make_upload, make_user
 from tests.files import HEADER, LINE, csv_file, line, total_row, xlsx_file
 
 pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("uploads_dir")]
@@ -50,9 +51,7 @@ def with_gl_mapping(date: str, *mapped: tuple[str, str]) -> bytes:
 
 @pytest.fixture
 def admin():
-    """A fixed administrator, the only kind of user who can act until
-    Phase 4.
-    """
+    """A fixed administrator, who can act on every report."""
     return make_user()
 
 
@@ -132,19 +131,27 @@ def test_a_name_that_differs_only_in_capitals_is_refused(signed_in) -> None:
     assert Report.objects.count() == 1
 
 
-def test_until_phase_4_anyone_else_sees_no_report_and_cant_create_one() -> None:
-    """Verify a signed-in user who isn't a fixed administrator sees no report,
-    no New report link, and gets 403 from the address for creating one.
+def test_a_user_sees_only_their_reports_and_can_t_create_one() -> None:
+    """Verify a signed-in user who isn't a fixed administrator sees only the
+    reports they have a role on, no New report link, and gets 403 from the
+    address for creating one unless can_create_reports is on (ENG-01 6.2).
     """
-    make_report()
+    mine, theirs = make_report(), make_report()
+    user = make_user(fixed_admin=False)
     client = Client()
-    client.force_login(make_user(fixed_admin=False))
+    client.force_login(user)
     text = page(client, "reports")
     assert "There are no reports you can open." in text
+    grant(user, mine, "Viewer")
+    text = page(client, "reports")
+    assert mine.name in text and theirs.name not in text
     assert reverse("new_report") not in text
     assert client.get(reverse("new_report")).status_code == 403
     assert client.post(reverse("new_report"), {"name": "Mine"}).status_code == 403
     assert not Report.objects.filter(name="Mine").exists()
+    User.objects.filter(pk=user.pk).update(can_create_reports=True)
+    assert reverse("new_report") in page(client, "reports")
+    assert client.get(reverse("new_report")).status_code == 200
 
 
 def test_home_and_a_report_s_own_address_open_the_right_pages(signed_in, report):

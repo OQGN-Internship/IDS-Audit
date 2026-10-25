@@ -9,28 +9,38 @@ from django.db.models import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
-from ids_audit.accounts.models import User
-from ids_audit.reports.models import Report
+from ids_audit.accounts.models import ReportAccess, User
 
-# The six permissions, each on one report (ENG-01 6.2).
-VIEW = "view"
-EXPORT = "export"
-UPLOAD = "upload"
-APPROVE = "approve"
-ROLL_BACK = "roll_back"
-VIEW_AUDIT_LOG = "view_audit_log"
-PERMISSIONS = frozenset((VIEW, EXPORT, UPLOAD, APPROVE, ROLL_BACK, VIEW_AUDIT_LOG))
+# The six permissions (ENG-01 6.2), which the views import from here. The
+# aliases mark them as passed on.
+from ids_audit.accounts.permissions import APPROVE as APPROVE
+from ids_audit.accounts.permissions import EXPORT as EXPORT
+from ids_audit.accounts.permissions import PERMISSIONS as PERMISSIONS
+from ids_audit.accounts.permissions import ROLL_BACK as ROLL_BACK
+from ids_audit.accounts.permissions import UPLOAD as UPLOAD
+from ids_audit.accounts.permissions import VIEW as VIEW
+from ids_audit.accounts.permissions import VIEW_AUDIT_LOG as VIEW_AUDIT_LOG
+from ids_audit.reports.models import Report
 
 
 def held(user: User, report: Report) -> frozenset[str]:
-    """Return the permissions the user holds on the report.
+    """Return the permissions the user holds on the report (ENG-01 6.2).
 
-    A fixed administrator holds every one on every report (ENG-01 6.2, rule
-    4). Until Phase 4 adds roles and report access, nobody else holds any.
+    An active fixed administrator holds every one on every report (rule 4).
+    Anyone else active holds their role's on the report, from their
+    ReportAccess row, and nothing without one. A disabled account holds
+    nothing. It's read at every check, so a change applies at once.
     """
-    if user.is_authenticated and user.is_active and user.is_fixed_admin:
+    if not (user.is_authenticated and user.is_active):
+        return frozenset()
+    if user.is_fixed_admin:
         return PERMISSIONS
-    return frozenset()
+    role = (
+        ReportAccess.objects.filter(user=user, report=report)
+        .values_list("role__permissions", flat=True)
+        .first()
+    )
+    return frozenset(role or ())
 
 
 def require(
@@ -103,16 +113,19 @@ def report_permission(*permissions: str, any_of: tuple[str, ...] = ()):
 
 def visible_reports(user: User) -> QuerySet[Report]:
     """Return the reports the user can open: every report for a fixed
-    administrator, and until Phase 4 none for anyone else (ENG-01 6.2, rules
-    3 and 4).
+    administrator, and the ones anyone else has a ReportAccess row for
+    (ENG-01 6.2, rules 3 and 4). A disabled account sees none.
     """
+    if not user.is_active:
+        return Report.objects.none()
     if user.is_fixed_admin:
         return Report.objects.all()
-    return Report.objects.none()
+    return Report.objects.filter(access__user=user)
 
 
 def may_create_reports(user: User) -> bool:
-    """Return whether the user may create a report: only fixed administrators,
-    the plan's default for its open question (ENG-01 8).
+    """Return whether the user may create a report: a fixed administrator, or
+    a user with can_create_reports, which nothing turns on until the client
+    answers the plan's open question (ENG-01 8).
     """
-    return user.is_fixed_admin
+    return user.is_active and (user.is_fixed_admin or user.can_create_reports)

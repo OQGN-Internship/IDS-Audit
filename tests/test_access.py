@@ -1,8 +1,8 @@
-"""The access check, require() (ENG-01 6.2).
+"""The access check, require(), and the answers it's built on: held(),
+visible_reports() and may_create_reports() (ENG-01 6.2).
 
-Until Phase 4 adds roles, only fixed administrators hold permissions. The
-tests of what a role allows give a user permissions by replacing held(), the
-one answer Phase 4 changes.
+The tests of require() alone give a user permissions by replacing held(), so
+they don't depend on roles. The tests of held() give real roles.
 """
 
 import pytest
@@ -20,13 +20,14 @@ from ids_audit.accounts.access import (
     visible_reports,
 )
 from ids_audit.accounts.models import User
+from ids_audit.accounts.roles import change_role, set_access
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.commit import commit_upload
 from ids_audit.imports.models import Upload
 from ids_audit.imports.services import receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.ledger.models import Posting
-from tests.factories import make_report, make_upload, make_user
+from tests.factories import grant, make_report, make_role, make_upload, make_user
 from tests.files import LINE, csv_file, total_row
 
 pytestmark = pytest.mark.django_db
@@ -66,9 +67,9 @@ def test_a_fixed_admin_passes_every_check() -> None:
     }
 
 
-def test_until_phase_4_anyone_else_gets_404_on_every_report() -> None:
-    """Verify a user who isn't a fixed administrator holds no permission, so
-    every check is 404, and sees no report.
+def test_a_user_with_no_access_row_gets_404_on_every_check() -> None:
+    """Verify a user who isn't a fixed administrator and has no ReportAccess
+    row holds no permission, so every check is 404, and sees no report.
     """
     user, report = make_user(fixed_admin=False), make_report()
     for permission in sorted(PERMISSIONS):
@@ -77,9 +78,93 @@ def test_until_phase_4_anyone_else_gets_404_on_every_report() -> None:
     with pytest.raises(Http404):
         require(user, report)
     assert list(visible_reports(user)) == []
-    assert list(visible_reports(make_user())) == [report]
     assert not may_create_reports(user)
-    assert may_create_reports(make_user())
+
+
+def test_a_user_holds_their_role_s_permissions_on_that_report_only() -> None:
+    """Verify a user holds exactly their role's permissions on the report it
+    was given on, and nothing on another report.
+    """
+    user, report, other = make_user(fixed_admin=False), make_report(), make_report()
+    grant(user, report, "Uploader")
+    assert access.held(user, report) == {"view", "export", "upload"}
+    assert access.held(user, other) == frozenset()
+    require(user, report, "view", "export", "upload")
+    with pytest.raises(PermissionDenied):
+        require(user, report, "approve")
+    with pytest.raises(Http404):
+        require(user, other, "view")
+
+
+def test_a_role_that_isn_t_preset_allows_exactly_its_permissions() -> None:
+    """Verify a role of view and roll_back passes those two and refuses each
+    of the other four with 403.
+    """
+    user, report = make_user(fixed_admin=False), make_report()
+    grant(user, report, make_role("view", "roll_back"))
+    require(user, report, "view", "roll_back")
+    for permission in ("export", "upload", "approve", "view_audit_log"):
+        with pytest.raises(PermissionDenied):
+            require(user, report, permission)
+
+
+def test_the_report_list_shows_only_the_reports_given() -> None:
+    """Verify visible_reports() lists the reports a user has a role on, and
+    every report for a fixed administrator with no rows.
+    """
+    user = make_user(fixed_admin=False)
+    first, second, third = make_report(), make_report(), make_report()
+    grant(user, first, "Viewer")
+    grant(user, third, "Approver")
+    grant(make_user(fixed_admin=False), second, "Viewer")
+    assert set(visible_reports(user)) == {first, third}
+    assert set(visible_reports(make_user())) == {first, second, third}
+
+
+def test_a_disabled_account_holds_nothing() -> None:
+    """Verify a user whose account is disabled holds nothing on a report they
+    have a role on, and sees no report.
+    """
+    user, report = make_user(fixed_admin=False), make_report()
+    grant(user, report, "Approver")
+    User.objects.filter(pk=user.pk).update(is_active=False)
+    user.refresh_from_db()
+    assert access.held(user, report) == frozenset()
+    with pytest.raises(Http404):
+        require(user, report, "view")
+    assert list(visible_reports(user)) == []
+
+
+def test_a_change_to_access_or_to_a_role_applies_at_the_next_check() -> None:
+    """Verify a new role on the report, and then a change to that role's
+    permissions, each decide the very next check.
+    """
+    admin, user, report = make_user(), make_user(fixed_admin=False), make_report()
+    grant(user, report, "Viewer")
+    with pytest.raises(PermissionDenied):
+        require(user, report, "approve")
+    role = make_role("view", "approve")
+    set_access(admin, user, report, role)
+    require(user, report, "approve")
+    change_role(admin, role, role.name, ["view"])
+    with pytest.raises(PermissionDenied):
+        require(user, report, "approve")
+    set_access(admin, user, report, None)
+    with pytest.raises(Http404):
+        require(user, report, "view")
+
+
+def test_only_fixed_admins_create_reports_unless_the_flag_is_on() -> None:
+    """Verify a fixed administrator may create reports, anyone else only with
+    can_create_reports, and no disabled account may.
+    """
+    admin, user = make_user(), make_user(fixed_admin=False)
+    assert may_create_reports(admin)
+    assert not may_create_reports(user)
+    user.can_create_reports = True
+    assert may_create_reports(user)
+    user.is_active = False
+    assert not may_create_reports(user)
 
 
 def test_a_disabled_fixed_admin_holds_nothing() -> None:
