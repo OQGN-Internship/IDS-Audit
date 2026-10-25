@@ -52,7 +52,7 @@ Every arrow points from one row to many: a report has many uploads, and an uploa
 | `uploaded_by`, `uploaded_at` | user, time |  |
 | `ruleset_id` | reference to `ruleset` | The settings it was read with |
 | `status` | text | One of the states in Section 6 |
-| `column_layout` | JSON | Which column held each field, per sheet |
+| `column_layout` | JSON | Which column held each field, per sheet, with the sheet's header and any columns picked for it (4.5) |
 | `period_start`, `period_end` | date | The first and last posting date in the file |
 | `control_total`, `control_total_source` | `numeric(18,3)`, text | The total to reconcile against, and whether it came from the file or was entered |
 | `rows_read`, `rows_skipped`, `rows_new`, `rows_duplicate`, `rows_replaced` | integer | The preview figures (Section 11) |
@@ -199,7 +199,9 @@ When a sheet has two columns for the same subject, such as `Department Code` and
 
 If a required field isn't found on a classified sheet, the mapping sheets included, or two columns match the same field, the upload stops at `needs_columns` (Section 6). The uploader picks the column for each field from a list showing the file's first rows.
 
-The choice is saved for the report, so the next file with exactly the same headers is matched automatically. Each upload records the layout it used in `upload.column_layout`.
+**Picking columns** moves the upload back to `reading` and reads the file again with the columns picked, in one transaction, so an upload is never left at `reading` by a pick (Section 6, An interrupted read). A column picked for a field replaces whatever the header names matched for it on that sheet. If a problem remains, the upload stops at `needs_columns` again, with its problems.
+
+**The choice is saved for the report** in `upload.column_layout`, which holds, for each classified sheet, its header row's number, its header as text, cell by cell to the last one that isn't empty, the column letter of each field, and under `picked` the columns picked for it. The choice applies to the next file whose sheet has exactly the same header, cell for cell, so that file is matched automatically. Only the choices of committed uploads are reused, the most recently committed first (10.2), so a choice made for a file that was rejected, perhaps because the choice was wrong, is never reused. The ruleset's `header_names` stay as they are, since only fixed administrators change a ruleset (Section 3). Each upload records the layout it used, a reused choice included.
 
 **Tested by**
 
@@ -304,7 +306,7 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 | --- | --- | --- | --- |
 | `reading` | The file is stored and hashed, and is being read, cleaned and staged | `needs_columns`, `awaiting_approval` or `failed` | The app |
 | `needs_columns` | A required field wasn't found (4.5) | `reading` again, once the columns are picked | The uploader |
-|  |  | `rejected`, if withdrawn | The uploader |
+|  |  | `rejected` | The uploader withdrawing it, or a user with **approve** |
 | `awaiting_approval` | Rows are staged and the preview is ready (Section 11) | `committed` | A user with **approve** |
 |  |  | `rejected` | A user with **approve**, or the uploader withdrawing it |
 | `committed` | The postings are written and count in the report | `rolled_back` | A user with **roll\_back** (Section 10) |
@@ -317,7 +319,7 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 - **Refused before an upload exists.** A file is refused at the request, and no upload is created, when the user lacks **upload**, the file is over `MAX_UPLOAD_MB` (ENG-01, 6.4), its first bytes aren't an accepted format (4.1), it matches a committed upload (7.1), or the report has an open upload. They're checked in that order, and the first that applies gives the message. The last two are checked with the report's row locked (ENG-01, 5.1), so two files sent at once can't both pass. Every refusal but the first writes an `upload_refused` event with the user, the report and the reason (ENG-01, 6.3), so a refused file is on record although no upload exists. A user without **upload** gets 403 or 404 from the access check (ENG-01, 6.2), which isn't logged, like any other address a user can't open.
 - **One open upload per report.** While an upload is at `reading`, `needs_columns` or `awaiting_approval`, a new file for the same report is refused with a message naming the open one. A preview's duplicate and replacement figures are worked out against the committed postings, and a second commit would make them wrong.
 - **No rollback during an open upload.** A rollback is refused while the report has an open upload, for the same reason.
-- **Rejecting and withdrawing need a reason.** It's kept in the audit event.
+- **Rejecting and withdrawing need a reason.** It's kept in the audit event, trimmed, and can't be empty. Either sets `decided_by` and `decided_at` to whoever did it. An upload at `needs_columns` can be rejected as well as withdrawn, so a user with **approve** can clear an upload its uploader left, as the plan's Approve permission says, without a fixed administrator (ENG-01, 6.2, rule 6).
 - **Approving your own upload.** A fixed administrator, or a user whose role holds both **upload** and **approve**, can approve their own upload. Who holds both is decided by the permissions an administrator gives (ENG-01, 6.2), and the audit log records both actions.
 - **An interrupted read.** If the app stops while a file is being read, nothing is staged, because reading runs in one transaction. The upload stays at `reading`, and any upload at `reading` more than 10 minutes after it was received is marked `failed`, with the error "Reading was interrupted". This runs whenever the report's uploads page opens, and before a new file or a rollback checks for an open upload, so an interrupted read never blocks the report. A read that's still running keeps its upload's row locked, and is left alone. The application makes this change on its own, so its `upload_failed` event has no user (ENG-01, 6.3).
 - **What's kept.** Skipped rows and mapping rows are saved when reading ends at `awaiting_approval`, in the same transaction as the staging rows and the figures in 11.1. An upload that stops at `needs_columns` saves none of them, so reading it again can't save them twice. One that ends at `failed` saves only its `error`. They're kept whatever happens to the upload next, so a rejected file can still be explained. Staging rows are deleted when an upload leaves `awaiting_approval` or fails.
@@ -334,6 +336,9 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 - A file missing a required column stops at `needs_columns` with no rows and no figures saved, and a file that can't be read ends at `failed` with its `error`. Each writes its audit event.
 - Reading an upload that isn't at `reading` is refused, and changes nothing.
 - Reading an upload again after its columns are picked saves each skipped row and mapping row once.
+- Picking a column for a missing amount reads the file to `awaiting_approval`, and its `column_layout` keeps the pick. A later file with the same header is matched with it once that upload is committed, and not while it's only rejected or awaiting approval. A file whose header differs by one cell isn't.
+- Picking a column that doesn't solve the problem stops the upload at `needs_columns` again, with both events.
+- Rejecting or withdrawing without a reason is refused. Rejecting an upload at `needs_columns` or `awaiting_approval` sets `decided_by` and `decided_at`, deletes its staging rows, keeps its preview, and writes one event with the reason.
 - A report's uploads are numbered 1, 2, 3 in the order they're created, failed and rejected ones included.
 
 ## 7. Duplicates
@@ -542,9 +547,9 @@ A posting counts when both are true:
 ### 10.3 Rollback
 
 - **Only the latest.** Only the most recently committed upload of a report (10.2) can be rolled back. To undo older ones, roll back newer ones first, newest first. Replacement and mappings depend on the order of uploads, and undoing in reverse order always returns the report to a state it was really in.
-- **Who and why.** It needs **roll\_back** and a reason, which is kept in the audit event. It's refused while the report has an open upload (Section 6).
+- **Who and why.** It needs **roll\_back** and a reason, which is kept in the audit event, trimmed, and can't be empty. It's refused while the report has an open upload (Section 6), after any interrupted read is cleared. A refused rollback changes nothing and writes no event, unlike a refused approval (10.1): it isn't an attempt to change the figures that a check stopped, only a request made in the wrong order.
 - **What changes.** The upload is set to `rolled_back` with `rolled_back_by` and `rolled_back_at`. Nothing is deleted: its postings, mapping rows and skipped rows stay, and its history can still be viewed.
-- **What it restores.** The postings it replaced count again, and the mappings in force go back to those before it (Section 8). Every report figure returns to exactly what it was before the commit. The confirmation screen shows the change first, for example "Actual spend: 1,250,400.000 OMR → 1,198,200.000 OMR."
+- **What it restores.** The postings it replaced count again, and the mappings in force go back to those before it (Section 8). Every report figure returns to exactly what it was before the commit. The confirmation screen shows the change first, for example "Actual spend: 1,250,400.000 OMR → 1,198,200.000 OMR." The figure after is worked out as the preview's is (11.1): the upload is set to `rolled_back` in a savepoint, the actual spend is read through `reports/queries.py`, and the savepoint is rolled back.
 - **After a rollback.** The file can be uploaded again (7.1).
 
 **Tested by**
@@ -552,8 +557,9 @@ A posting counts when both are true:
 - Stopping the process during a commit leaves the upload at `awaiting_approval` with nothing written.
 - After a commit, the report total equals the previous total, minus the replaced postings, plus the new ones.
 - In replace-by-period mode, of two uploads committed in the opposite order to their numbers, the one committed last replaces the other's months. Two uploads with the same `decided_at` are ordered by `number`.
-- After a rollback, every figure in `posting_resolved` equals its value before the commit.
-- Rolling back an older upload while a newer one is committed is refused.
+- After a rollback, every figure in `posting_resolved` and every `report_totals` figure equals its value before the commit, and the actual spend equals the figure the confirmation screen showed.
+- Rolling back an older upload while a newer one is committed is refused, and so is a rollback while the report has an open upload, each changing nothing and writing no event.
+- A rollback sets `rolled_back_by` and `rolled_back_at`, writes one event with its reason, and keeps every posting, mapping row and skipped row.
 - An `UPDATE` or `DELETE` on `posting` as `ids_app` is refused by the database.
 
 ## 11. Exceptions and the preview
