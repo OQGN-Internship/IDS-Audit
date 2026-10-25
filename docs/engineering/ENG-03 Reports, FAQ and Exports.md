@@ -89,7 +89,8 @@ There are two filters, as the plan's Phase 3 lists. They apply to every screen, 
 
 - **In the address.** Filters are part of the address (ENG-01, 5.2), so a view can be bookmarked, and its export uses exactly the filters on screen. A filter left out of the address takes its default.
 - **Always shown.** Every screen states the filters in words above the figures, for example "Year: 2026. Outside IDS: excluded." or "Year: all. Outside IDS: included." An export states them on its Source sheet (9.2).
-- **The choices offered.** The year list offers All years and each year in which the report has actual spend, newest first.
+- **The choices offered.** The year list offers All years and each year in which the report has actual spend, newest first. A year in the address with no actual spend is offered too, so the list always shows the year chosen.
+- **The FAQ list.** `/reports/<id>/faq` takes the two filters and refuses a wrong one, like any screen, though it shows no figures (7.1).
 - **Refused when wrong.** A value outside the table returns 400 Bad Request, and so does a key given twice, or a key the screen doesn't take. A screen takes the two filters, and its own keys where this document gives it some: the source rows' keys (6.1) and the FAQ pickers (7.2). The app only builds valid addresses, so a wrong one has been typed or edited.
 - **Nothing matched.** A year with no postings is still a valid filter. When the report has a committed upload but the filters match no actual spend, the screen says "No actual spend for these filters." in place of its figures, rather than zeros that read like a finding. An export of it has each sheet's header and total rows only.
 
@@ -108,7 +109,7 @@ Every screen, FAQ page and export says which data it shows:
 - The export of a filtered view states the same filters.
 - After a rollback, the as-of line names the upload before it.
 - `year=abc`, `year=26`, `exclude_outside=2`, a key given twice and an unknown key each return 400.
-- A year with no postings shows "No actual spend for these filters.", and the year list offers only the years with actual spend.
+- A year with no postings shows "No actual spend for these filters.", and the year list offers the years with actual spend, and that year as chosen.
 
 ## 4. Screens
 
@@ -221,7 +222,7 @@ A chart is a picture of a table on the same screen, never a source of figures on
 - **Nothing hidden.** Bars start at zero, and a negative total, from credits, draws to the left of zero.
 - **Clickable.** Clicking a bar or point opens its source rows (Section 6). A running-total point opens every month up to it, with `through`, and the bar for all the others opens the GL accounts screen (6.2).
 - **Outside IDS stands out.** It has its own colour wherever it appears, and the legend names it.
-- **Built from the table.** `reports/screens.py` builds each chart's data from the rows of the table it pictures, so the two can't differ: for each bar or point its label, its amount as text for drawing, its amount formatted for the tooltip, its link, and whether it's Outside IDS.
+- **Built from the table.** `reports/screens.py` builds each chart's data from the rows of the table it pictures, so the two can't differ: for each bar or point its label, its name for the tooltip, its amount as text for drawing, its amount formatted for the tooltip, its link, and whether it's Outside IDS.
 - **Data, never code.** The data reaches the page through Django's `json_script`, and the application's own `static/js/charts.js` reads it with `JSON.parse`. No chart's data is written into a script or an HTML string. Names come from uploaded mapping sheets, so the tooltip, which ECharts writes as HTML, escapes every text with `echarts.format.encodeHTML`, and a name such as `<img src=x onerror=...>` shows as written (ENG-01, 6.4).
 - **Drawn after every swap.** `charts.js` draws the charts of the page when it loads and of each panel HTMX swaps in, through `htmx.onLoad`.
 - **Colours from the stylesheet.** A chart takes its colours from custom properties in `static/css/app.css`, so OQGN's theme changes them with the rest of the look (Section 4).
@@ -296,7 +297,7 @@ The list is fixed in code, in `reports/faq.py`, since the client confirmed that 
 | `slug` | The page's address, such as `faq/total-spend` |
 | `counted` | The line saying exactly what was counted |
 | `question` | The question, as agreed with the client |
-| `query` | The function in `reports/queries.py` that produces the table |
+| `query` | The function that builds the page's tables, from the functions in `reports/queries.py` and through the screens' own table builders (Section 4), so an FAQ table and its screen's table are one |
 | `answer` | The sentence pattern, filled from the table's own figures |
 | `check` | How to check the answer by hand |
 
