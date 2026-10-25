@@ -9,8 +9,10 @@ Playwright keeps an event loop running in the main thread.
 import pytest
 from playwright.sync_api import Page, expect
 
+from ids_audit.imports.services import create_report, receive_file
+from ids_audit.imports.stage import stage_upload
 from tests.factories import make_admin
-from tests.test_browser import sign_in
+from tests.test_browser import SAMPLE, sign_in
 from tests.test_report_browser import sample
 
 pytestmark = [
@@ -53,6 +55,24 @@ def test_a_long_table_keeps_its_headings_and_total_in_view(
     bottom = top + box.bounding_box()["height"]
     total = page.locator(".table-wrap tfoot td").first.bounding_box()
     assert abs(total["y"] + total["height"] - bottom + 1) < 1.5, (total, bottom)
+
+
+def test_no_button_is_stretched_past_its_words(page: Page, live_server) -> None:
+    """Verify an upload's actions keep each button as tall as one line of
+    words and narrower than its form, however tall the form beside it.
+    """
+    admin = make_admin()
+    report = create_report("Waiting", admin)
+    stage_upload(receive_file(report, admin, "sample.xlsx", SAMPLE.read_bytes()), admin)
+    sign_in(page, live_server, admin.username)
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(f"{live_server.url}/reports/{report.pk}/uploads/1")
+    for name in ("Approve upload 1", "Reject upload 1", "Withdraw upload 1"):
+        button = page.get_by_role("button", name=name)
+        box = button.bounding_box()
+        form = button.locator("xpath=ancestor::form").bounding_box()
+        assert box["height"] <= 40, (name, box)
+        assert box["width"] < form["width"] / 2, (name, box, form)
 
 
 def test_the_narrow_bar_is_short_and_nothing_scrolls_sideways(

@@ -16,6 +16,9 @@
   {% endif %}
 </p>
 
+{# The preview's figures, side by side on a wide screen (ENG-03 4). #}
+<div class="preview-grid">
+<section>
 <h3>Rows</h3>
 <table class="figures">
   <thead><tr><th>Rows</th><th class="amount">Count</th><th class="amount">Amount</th></tr></thead>
@@ -27,7 +30,9 @@
     <tr><td>Postings it replaces</td><td class="amount">{{ upload.rows_replaced }}</td><td class="amount">{{ preview.amounts.replaced|amount }}</td></tr>
   </tbody>
 </table>
+</section>
 
+<section>
 <h3>Reconciliation</h3>
 {% if upload.control_total is None %}
   <p class="error">No control total: the file has no total row, and none was typed with it.</p>
@@ -42,7 +47,9 @@
     </tbody>
   </table>
 {% endif %}
+</section>
 
+<section>
 <h3>Actual spend</h3>
 <table class="figures">
   <tbody>
@@ -54,6 +61,9 @@
     <tr class="total"><td>The report, after approval</td><td class="amount">{{ preview.report_actual_spend.after|amount }}</td></tr>
   </tbody>
 </table>
+</section>
+
+<section>
 
 {% if value_types %}
   <h3>Value types</h3>
@@ -75,6 +85,8 @@
     {% endfor %}
   </tbody>
 </table>
+</section>
+</div>
 
 <h3>Exceptions</h3>
 {% if exceptions %}

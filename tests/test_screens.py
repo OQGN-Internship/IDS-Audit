@@ -269,6 +269,131 @@ def test_an_unknown_format_is_refused_on_the_form(signed_in, report) -> None:
     )
 
 
+# The upload's summary, and the order of its page (ENG-03 4)
+
+SUMMARY = re.compile(
+    r'<div class="tile( problem)?"><p class="label">(.*?)</p>'
+    r'<p class="figure">(.*?)</p><p class="sub">(.*?)</p></div>'
+)
+
+
+def summary(text: str) -> list[tuple[bool, str, str, str]]:
+    """Return the summary's tiles: whether each shows a problem, and its
+    label, figure and detail, as words.
+    """
+    tiles = re.search(r'<div class="tiles summary">(.*?)\n  </div>', text, re.S)[1]
+    return [
+        (bool(problem), label, re.sub(r"<[^>]+>", "", figure), detail)
+        for problem, label, figure, detail in SUMMARY.findall(tiles)
+    ]
+
+
+def test_the_summary_shows_the_preview_s_own_figures(signed_in, report) -> None:
+    """Verify the summary's four tiles show the saved preview's difference,
+    the report's actual spend after and before approval, the rows to commit
+    and the exception types, none marked when nothing blocks approval.
+    """
+    upload = uploaded(signed_in, report, SAMPLE_XLSX, name="sample.xlsx")
+    preview = upload.preview
+    after = amount(preview["report_actual_spend"]["after"])
+    before = amount(preview["report_actual_spend"]["before"])
+    assert summary(page(signed_in, "upload", report.pk, upload.number)) == [
+        (
+            False,
+            "Difference",
+            "0.000 OMR",
+            "The rows add up to the control total, "
+            f"{amount(upload.control_total)} OMR.",
+        ),
+        (
+            False,
+            "Actual spend after approval",
+            f"{after} OMR",
+            f"The report's, now {before} OMR.",
+        ),
+        (
+            False,
+            "Rows to commit",
+            str(upload.rows_new),
+            f"Of {upload.rows_read} read: {upload.rows_duplicate} already in the "
+            f"report, {upload.rows_skipped} skipped.",
+        ),
+        (
+            False,
+            "Exception types",
+            str(len(preview["exceptions"])),
+            "None blocks approval.",
+        ),
+    ]
+
+
+def test_the_summary_marks_what_blocks_approval(signed_in, report) -> None:
+    """Verify a file with no control total marks its Difference and its
+    exception types as blocking approval, in words.
+    """
+    upload = uploaded(signed_in, report, NO_TOTAL)
+    tiles = summary(page(signed_in, "upload", report.pk, upload.number))
+    assert tiles[0] == (
+        True,
+        "Difference",
+        "No control total",
+        "Blocks approval: the file has no total row, and none was typed with it.",
+    )
+    assert tiles[3][0] is True
+    assert tiles[3][3] == "Block approval: No control total."
+
+
+def test_the_summary_marks_a_difference_that_isn_t_zero(signed_in, report) -> None:
+    """Verify a typed total the rows don't add up to shows its difference,
+    marked as blocking approval.
+    """
+    upload = uploaded(signed_in, report, NO_TOTAL, total="1,250.000")
+    tiles = summary(page(signed_in, "upload", report.pk, upload.number))
+    assert tiles[0] == (
+        True,
+        "Difference",
+        "250.000 OMR",
+        "Blocks approval: the rows don't add up to the control total, 1,250.000 OMR.",
+    )
+    assert tiles[3] == (
+        True,
+        "Exception types",
+        str(len(upload.preview["exceptions"])),
+        "Block approval: Difference not zero.",
+    )
+
+
+def test_the_page_reads_summary_preview_file_then_actions(signed_in, report) -> None:
+    """Verify an upload's page comes in reading order, with a link from the
+    summary to the actions for a user who may take one, and none for a
+    Viewer of a committed upload, who may take none.
+    """
+    upload = uploaded(signed_in, report, SAMPLE_XLSX, name="sample.xlsx")
+    text = page(signed_in, "upload", report.pk, upload.number)
+    order = [
+        "<h2>Summary</h2>",
+        '<a href="#actions">',
+        "<h2>Preview</h2>",
+        "<h2>File</h2>",
+        '<h2 id="actions">Actions</h2>',
+        "Approve upload 1</button>",
+    ]
+    assert [text.index(mark) for mark in order] == sorted(
+        text.index(mark) for mark in order
+    )
+    signed_in.post(
+        reverse("approve", args=[report.pk, 1]),
+        {"duplicate_mode": "replace_by_period"},
+    )
+    viewer = make_user(fixed_admin=False)
+    grant(viewer, report, "Viewer")
+    browser = Client()
+    browser.force_login(viewer)
+    text = page(browser, "upload", report.pk, upload.number)
+    assert "<h2>Summary</h2>" in text
+    assert "#actions" not in text and 'id="actions"' not in text
+
+
 # The preview
 
 

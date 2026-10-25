@@ -172,13 +172,13 @@ def test_uploads_says_an_upload_waits_for_its_uploader_to_pick_columns() -> None
     ],
 )
 def test_an_upload_s_state_is_a_badge_with_its_bar(status, tone) -> None:
-    """Verify Uploads shows an upload's state as a badge in words, with the
-    bar its state has (ENG-03 4).
+    """Verify Uploads and the upload's page show its state as a badge in
+    words, with the bar its state has (ENG-03 4).
     """
     report = make_report()
     upload = make_upload(report, status=status)
     client = signed_in(make_user())
     badge = f'<span class="badge {tone}">{upload.get_status_display()}</span>'
-    for name, args in (("uploads", []),):
+    for name, args in (("uploads", []), ("upload", [1])):
         page = client.get(reverse(name, args=[report.pk, *args])).content.decode()
         assert badge in page, name

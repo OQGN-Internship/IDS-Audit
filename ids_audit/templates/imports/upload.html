@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% load figures navigation %}
+{% load figures navigation uploads %}
 {% block title %}Upload {{ upload.number }} · {{ report.name }} · IDS Spend Audit{% endblock %}
 {% block heading %}Upload {{ upload.number }}: {{ upload.original_name }}{% endblock %}
+{% block beside_heading %}<span class="badge {{ upload|tone }}">{{ upload.get_status_display }}</span>{% endblock %}
 {% block content %}
-
+{# In reading order: who and when, the summary, the preview, the file, and the actions last (ENG-03 4). #}
 <table class="facts">
-  <tr><th>State</th><td><span class="state">{{ upload.get_status_display }}</span></td></tr>
-  <tr><th>File</th><td>{{ upload.original_name }}, {{ upload.size_bytes }} bytes. SHA-256 {{ upload.file_sha256 }}</td></tr>
-  <tr><th>Uploaded</th><td>By {{ upload.uploaded_by }} on {{ upload.uploaded_at|moment }}, read with ruleset version {{ upload.ruleset.version }}</td></tr>
+  <tr><th>Uploaded</th><td>By {{ upload.uploaded_by }} on {{ upload.uploaded_at|moment }}</td></tr>
   {% if upload.decided_by %}
     <tr>
       <th>{% if upload.status == "committed" or upload.status == "rolled_back" %}Approved{% else %}{{ closing.label }}{% endif %}</th>
@@ -20,19 +19,47 @@
   {% if upload.error %}<tr><th>Error</th><td class="error">{{ upload.error }}</td></tr>{% endif %}
 </table>
 
+{% if preview %}
+  {# The preview's own figures, so the summary can't differ from it. #}
+  <h2>Summary</h2>
+  <div class="tiles summary">
+    {% if upload.control_total is None %}
+      <div class="tile problem"><p class="label">Difference</p><p class="figure">No control total</p><p class="sub">Blocks approval: the file has no total row, and none was typed with it.</p></div>
+    {% else %}
+      <div class="tile{% if upload.reconciliation_difference %} problem{% endif %}"><p class="label">Difference</p><p class="figure">{{ upload.reconciliation_difference|amount }} <span class="unit">OMR</span></p><p class="sub">{% if upload.reconciliation_difference %}Blocks approval: the rows don't add up to{% else %}The rows add up to{% endif %} the control total, {{ upload.control_total|amount }} OMR.</p></div>
+    {% endif %}
+    <div class="tile"><p class="label">Actual spend after approval</p><p class="figure">{{ preview.report_actual_spend.after|amount }} <span class="unit">OMR</span></p><p class="sub">The report's, now {{ preview.report_actual_spend.before|amount }} OMR.</p></div>
+    <div class="tile"><p class="label">Rows to commit</p><p class="figure">{{ upload.rows_new }}</p><p class="sub">Of {{ upload.rows_read }} read: {{ upload.rows_duplicate }} already in the report, {{ upload.rows_skipped }} skipped.</p></div>
+    <div class="tile{% if blocking %} problem{% endif %}"><p class="label">Exception types</p><p class="figure">{{ exceptions|length }}</p><p class="sub">{% if blocking %}Block approval: {{ blocking|join:", " }}.{% else %}None blocks approval.{% endif %}</p></div>
+  </div>
+  {% if can_approve or can_reject or can_withdraw or can_roll_back %}
+    <p class="jump"><a href="#actions">{% icon "arrow" %}Go to the actions</a></p>
+  {% endif %}
+{% endif %}
+
 {% if problems %}
   <h2>Columns to pick</h2>
   <ul>{% for problem in problems %}<li>{{ problem.text }}</li>{% endfor %}</ul>
 {% endif %}
 
+{% if preview %}{% include "imports/_preview.html" %}{% endif %}
+
+<h2>File</h2>
+<table class="facts">
+  <tr><th>Name</th><td>{{ upload.original_name }}</td></tr>
+  <tr><th>Size</th><td>{{ upload.size_bytes }} bytes</td></tr>
+  <tr><th>SHA-256</th><td>{{ upload.file_sha256 }}</td></tr>
+  <tr><th>Read with</th><td>Ruleset version {{ upload.ruleset.version }}</td></tr>
+</table>
+
 {% if can_approve or can_reject or can_withdraw or can_pick or can_roll_back %}
-<h2>Actions</h2>
+<h2 id="actions">Actions</h2>
 <div class="actions">
   {% if can_pick %}
     <p><a class="button" href="{% url 'columns' report.pk upload.number %}">{% icon "columns" %}Pick the columns</a></p>
   {% endif %}
   {% if can_approve %}
-    <form method="post" action="{% url 'approve' report.pk upload.number %}">
+    <form method="post" action="{% url 'approve' report.pk upload.number %}" class="approve">
       {% csrf_token %}
       {% if blocking %}
         <p class="error">Approval is blocked by: {{ blocking|join:", " }}. Approving is refused, and the attempt is kept in the audit log.</p>
@@ -45,7 +72,7 @@
           {% if not preview.line_key_offered %}<p class="hint">Line key isn't offered: some rows have no company code, fiscal year, document number or line item.</p>{% endif %}
         </fieldset>
       {% endif %}
-      <button type="submit">Approve upload {{ upload.number }}</button>
+      <button type="submit">{% icon "check" %}Approve upload {{ upload.number }}</button>
     </form>
   {% endif %}
   {% if can_reject %}
@@ -69,6 +96,4 @@
   {% endif %}
 </div>
 {% endif %}
-
-{% if preview %}{% include "imports/_preview.html" %}{% endif %}
 {% endblock %}
