@@ -454,7 +454,8 @@ The plan's default is files of up to tens of thousands of rows. The speed test b
 | `posting` | `(upload_id)` | Deciding which postings count (ENG-02, 10.2) |
 | `gl_ci_map` | `(upload_id, gl_code)`, unique (ENG-02, 2) | The GL mapping in force |
 | `cc_dept_map` | `(upload_id, cc_code)`, unique (ENG-02, 2) | The cost center mapping in force |
-| `upload` | `(report_id, status, decided_at)` | Finding the committed uploads, in order |
+
+`upload` has no index for finding a report's committed uploads in order. A report has a few uploads a month, and PostgreSQL reads so small a table whole, so an index there would never be used. At 200,000 postings, the speed test sees PostgreSQL use each of the three `posting` indexes above for its own drill-down: by GL account, by cost center and by month.
 
 **How `posting_resolved` stays fast.** Every screen reads the view, so its form decides most of a screen's time. A later migration of the view (ENG-02, 8.4) returns exactly the same rows as the first, in a form PostgreSQL can work out in one pass over a report's postings:
 
@@ -477,6 +478,7 @@ The first form took about 0.3 seconds a query over 200,000 postings, and the ove
 - An export of the 200,000 postings' source rows runs at a rate that would write Excel's limit within `GUNICORN_TIMEOUT`.
 - An export of about 20,000 rows holds no more memory than one of about 4,000, give or take 5 MB.
 - The view's own tests (ENG-02, 8.4) pass on the later form unchanged, and so does the sum rule (Section 11).
+- At 200,000 postings, a drill-down by GL account, by cost center and by month each uses its own `posting` index.
 
 ## 11. Testing
 
