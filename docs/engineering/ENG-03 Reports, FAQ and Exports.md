@@ -152,6 +152,7 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - Every list ends with a total row, equal to the figure the list breaks down. For a list of the whole report, that's the overview total under the same filters. For a detail list, it's the amount of the GL account, department or budget line the list is about. For an exceptions list, it's the sum of its own rows.
 - The Export button appears only for users with **export**. The export address checks **view** and **export** again (ENG-01, 6.2).
 - Screens are in English. Names and item text are shown exactly as written, Arabic included.
+- **One look for every screen.** Every page extends one base template, which holds the navigation, and takes its look from one stylesheet, as classes, never styles written into a page. So OQGN's theme (the plan, Phase 4) changes those two files and every screen follows. Its logo, and any font it needs, are kept in the repository like the JavaScript libraries, so no screen loads anything from outside (ENG-01, 6.4).
 
 **Tested by**
 
@@ -163,6 +164,7 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 - The rollback confirmation shows the figure the rollback then gives.
 - Every list's total row equals the figure it breaks down, as the rules above say.
 - The same screen lists its rows in the same order every time.
+- No template holds a `style` attribute or a `<style>` block, and no page loads a file from outside the application.
 
 ## 5. Charts
 
