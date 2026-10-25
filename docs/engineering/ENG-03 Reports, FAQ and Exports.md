@@ -211,7 +211,7 @@ The plan's Phase 4 gives every screen OQGN's colours and logo once the screens a
 | Bands | surface-alt | `#EDEDED` | The sidebar, table headings, the overview's tiles, and the "No approved uploads yet" box |
 | Row lines | line | `#D1D3D4` | Lines between table rows |
 | Controls | ink-subtle | `#706F6F` | The border of every field, list and button other than a main button |
-| Main button | green-dark | `#344E26` | Its background, with white text. Every button that sends a form is a main button, except Show, the filter form's button for when JavaScript is off |
+| Main button | green-dark | `#344E26` | Its background, with white text. Every button that sends a form is a main button, except Show, the filter form's button for when JavaScript is off, and Sign out in the sidebar |
 | Problems | danger | `#E63B48` | A 4px border at the start of an error, a refusal or what blocks approval, whose text stays ink |
 | Success | green-text | `#587D39` | The same border on a success message |
 | Charts | green-text and green-dark | `#587D39` and `#344E26` | Bars, and the running-total line |
