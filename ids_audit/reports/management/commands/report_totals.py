@@ -36,8 +36,8 @@ def report_totals(report: Report) -> dict:
         },
         "lines": totals.lines,
         "by_gl": amounts(queries.by_gl_account(report)),
-        "by_ci": amounts(queries.by_budget_line(report), "none"),
-        "by_department": amounts(queries.by_department(report), "outside"),
+        "by_ci": amounts(queries.by_budget_line(report)),
+        "by_department": amounts(queries.by_department(report)),
         "by_month": {
             group.key.strftime("%Y-%m"): text(group.amount)
             for group in queries.by_month(report)
@@ -45,15 +45,11 @@ def report_totals(report: Report) -> dict:
     }
 
 
-def amounts(groups: list[queries.Group], catch_all: str = "") -> dict[str, str]:
-    """Return each group's actual spend by its key, and the catch-all's under
-    the name given. A clean code is upper case, so none and outside are never
-    codes. GL accounts have no catch-all.
+def amounts(groups: list[queries.Group]) -> dict[str, str]:
+    """Return each group's actual spend by its key. A catch-all's key is none
+    or outside, as in the golden files and the addresses (ENG-03 2.3).
     """
-    return {
-        catch_all if group.key is None else group.key: text(group.amount)
-        for group in groups
-    }
+    return {group.key: text(group.amount) for group in groups}
 
 
 def text(amount: Decimal) -> str:

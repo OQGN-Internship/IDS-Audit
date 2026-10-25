@@ -83,42 +83,51 @@ def test_totals_count_only_actual_spend_that_counts() -> None:
 
 def test_by_gl_account() -> None:
     """Verify one group per GL account in code order, with its name from the
-    mapping in force, empty for one missing from it.
+    mapping in force, empty for one missing from it, and its share of the
+    total rounded half up.
     """
     assert queries.by_gl_account(a_report()) == [
-        Group("610100", "GL 610100", Decimal("170.000"), 3),
-        Group("640200", "", Decimal("7.000"), 1),
-        Group("650200", "GL 650200", Decimal("3.000"), 1),
+        Group("610100", "GL 610100", Decimal("170.000"), 3, Decimal("0.944")),
+        Group("640200", "", Decimal("7.000"), 1, Decimal("0.039")),
+        Group("650200", "GL 650200", Decimal("3.000"), 1, Decimal("0.017")),
     ]
 
 
 def test_by_budget_line_puts_no_budget_line_last() -> None:
     """Verify a GL account missing from the mapping and one listed without a
-    commitment item both fall into No budget line, keyed None and last.
+    commitment item both fall into No budget line, keyed none and last.
     """
     assert queries.by_budget_line(a_report()) == [
-        Group("2101", "CI 2101", Decimal("170.000"), 3),
-        Group(None, "", Decimal("10.000"), 2),
+        Group("2101", "CI 2101", Decimal("170.000"), 3, Decimal("0.944")),
+        Group("none", "No budget line", Decimal("10.000"), 2, Decimal("0.056")),
     ]
 
 
 def test_by_department_keeps_outside_ids_apart_and_last() -> None:
-    """Verify Outside IDS is keyed None and last, and a cost center inside IDS
-    mapped with no department code makes its own group, not Outside IDS.
+    """Verify Outside IDS is keyed outside and last, and a cost center inside
+    IDS mapped with no department code makes No department, keyed none, not
+    Outside IDS (ENG-03 2.3).
     """
     assert queries.by_department(a_report()) == [
-        Group("", "Dept ", Decimal("3.000"), 1),
-        Group("APP", "Dept APP", Decimal("157.000"), 3),
-        Group(None, "", Decimal("20.000"), 1),
+        Group("APP", "Dept APP", Decimal("157.000"), 3, Decimal("0.872")),
+        Group("none", "No department", Decimal("3.000"), 1, Decimal("0.017")),
+        Group("outside", "Outside IDS", Decimal("20.000"), 1, Decimal("0.111")),
     ]
 
 
 def test_by_month_in_date_order() -> None:
-    """Verify one group per month of posting date, keyed by its first day."""
+    """Verify one group per month of posting date, keyed by its first day and
+    named as ENG-03 2.4 writes it, with the running total (ENG-03 2.2).
+    """
+    july, august, january = (
+        datetime.date(2025, 7, 1),
+        datetime.date(2025, 8, 1),
+        datetime.date(2026, 1, 1),
+    )
     assert queries.by_month(a_report()) == [
-        Group(datetime.date(2025, 7, 1), "", Decimal("120.000"), 2),
-        Group(datetime.date(2025, 8, 1), "", Decimal("57.000"), 2),
-        Group(datetime.date(2026, 1, 1), "", Decimal("3.000"), 1),
+        Group(july, "Jul 2025", Decimal("120.000"), 2, None, Decimal("120.000")),
+        Group(august, "Aug 2025", Decimal("57.000"), 2, None, Decimal("177.000")),
+        Group(january, "Jan 2026", Decimal("3.000"), 1, None, Decimal("180.000")),
     ]
 
 
@@ -174,7 +183,7 @@ def test_a_code_given_two_names_by_own_upload_is_one_group() -> None:
         add_posting(upload, JUL, "1.000")
         commit(upload, minute=minute, mode=Report.DuplicateMode.LINE_KEY)
     assert queries.by_gl_account(report) == [
-        Group("610100", "Software licences", Decimal("2.000"), 2)
+        Group("610100", "Software licences", Decimal("2.000"), 2, Decimal("1.000"))
     ]
 
 
@@ -202,7 +211,7 @@ def test_report_totals_prints_every_report_s_figures_as_text() -> None:
         "lines": 5,
         "by_gl": {"610100": "170.000", "640200": "7.000", "650200": "3.000"},
         "by_ci": {"2101": "170.000", "none": "10.000"},
-        "by_department": {"": "3.000", "APP": "157.000", "outside": "20.000"},
+        "by_department": {"APP": "157.000", "none": "3.000", "outside": "20.000"},
         "by_month": {"2025-07": "120.000", "2025-08": "57.000", "2026-01": "3.000"},
     }
     assert other["report"] > report.pk

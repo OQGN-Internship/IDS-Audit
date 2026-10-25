@@ -1,13 +1,18 @@
 """Shared test setup (ENG-01 7.5)."""
 
 import io
+import json
 from pathlib import Path
 
 import pytest
 from django.core.management import call_command
 
+from ids_audit.imports.commit import commit_upload
 from ids_audit.imports.models import Upload
-from tests.factories import make_upload
+from ids_audit.imports.services import create_report, receive_file
+from ids_audit.imports.stage import stage_upload
+from ids_audit.reports.models import Report
+from tests.factories import make_upload, make_user
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -48,3 +53,27 @@ def uploads_dir(settings, tmp_path: Path) -> Path:
     folder.mkdir()
     settings.UPLOADS_DIR = str(folder)
     return folder
+
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def sample_report(db, uploads_dir) -> Report:
+    """A report holding the sample file, received, read and approved by a
+    fixed administrator, as a user does it (ENG-02 12.3).
+    """
+    user = make_user()
+    report = create_report("Sample", user)
+    upload = receive_file(
+        report, user, "sample.xlsx", (FIXTURES_DIR / "sample.xlsx").read_bytes()
+    )
+    commit_upload(stage_upload(upload, user), user)
+    return report
+
+
+@pytest.fixture
+def sample_expected() -> dict:
+    """The sample file's expected result (ENG-02 12.3)."""
+    with open(FIXTURES_DIR / "sample.expected.json", encoding="utf-8") as file:
+        return json.load(file)
