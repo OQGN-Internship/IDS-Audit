@@ -202,11 +202,10 @@ def exception_items(request, report: Report, number: int, kind: str):
         "columns": screens.item_columns(exception),
         "items": screens.item_rows(exception),
     }
-    template = (
-        "imports/_exception_items.html"
-        if is_htmx(request)
-        else ("imports/exception_items.html")
-    )
+    if is_htmx(request):
+        template = "imports/_exception_items.html"
+    else:
+        template = "imports/exception_items.html"
     return render(request, template, context)
 
 
