@@ -168,3 +168,24 @@ def test_each_amount_s_source_rows_add_up_to_it(sample_report, by) -> None:
     for group in by(sample_report):
         rows = queries.source_rows(sample_report, ALL, Keys(**{key: group.key}))
         assert sum((r.amount for r in rows), Decimal(0)) == group.amount, group.key
+
+
+def test_the_lists_run_highest_first_with_the_catch_alls_last(
+    sample_report, sample_expected
+) -> None:
+    """Verify the GL accounts list runs by actual spend, highest first, and
+    the budget lines list puts No budget line last, though it's larger than
+    two budget lines (ENG-03 4).
+    """
+    by_gl = sample_expected["by_gl"]
+    assert [a.key for a in queries.gl_accounts(sample_report)] == sorted(
+        by_gl, key=lambda gl: -Decimal(by_gl[gl])
+    )
+    assert [b.key for b in queries.budget_lines(sample_report)] == [
+        "2101",
+        "2201",
+        "2401",
+        "2301",
+        "2501",
+        "none",
+    ]

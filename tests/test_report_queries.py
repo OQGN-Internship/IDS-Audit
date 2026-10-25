@@ -266,13 +266,17 @@ def test_the_overview_shows_the_10_largest_and_one_row_for_the_others() -> None:
     """
     report = make_report()
     upload = make_upload(report)
-    for number in range(1, 13):
+    for number in range(2, 13):
         add_posting(upload, JUL, f"{number}.000", gl_code=f"6{number:05d}")
+    # The smallest GL account has two postings, so the others are two GL
+    # accounts in three lines.
+    add_posting(upload, JUL, "0.400", gl_code="600001")
+    add_posting(upload, JUL, "0.600", gl_code="600001")
     commit(upload, minute=1)
     top = queries.top_gl_accounts(report)
     assert [g.amount for g in top.largest] == [d(f"{n}.000") for n in range(12, 2, -1)]
     assert top.others == Group(
-        "", "All other GL accounts (2)", d("3.000"), 2, d("0.038")
+        "", "All other GL accounts (2)", d("3.000"), 3, d("0.038")
     )
     assert top.others_count == 2
 
@@ -315,6 +319,7 @@ def test_name_of_gives_the_name_of_the_code_the_keys_choose() -> None:
     assert queries.name_of(report, "gl_name", Keys(gl="610100")) == "GL 610100"
     assert queries.name_of(report, "gl_name", Keys(gl="640200")) == ""
     assert queries.name_of(report, "dept_name", Keys(dept="APP")) == "Dept APP"
+    assert queries.name_of(report, "gl_name", Keys(gl="999999")) == ""
 
 
 # Drill-down keys (ENG-03 6.1)
