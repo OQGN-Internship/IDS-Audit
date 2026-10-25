@@ -506,7 +506,6 @@ Every release is a Git tag, such as `v1.0.0`.
 ### 7.4 Logs and troubleshooting
 
 - **Application log:** `docker compose logs -f app`. Gunicorn writes one line for each request to standard output: the time, the request, its status, its size and how long it took. Django writes its warnings and errors to standard error, each with the time, the level and the logger, and a failed request with its traceback. Who made a request isn't in the log: the audit log records who did what (6.3).
-- **Tested by:** the settings send Django's warnings and errors, and nothing quieter, to standard error, with the time and level. Gunicorn's settings write each request with its status and duration.
 - **Database log:** `docker compose logs db`.
 - **What logs never contain:** passwords or file contents. The audit log is separate, and lives in the database.
 
@@ -524,6 +523,8 @@ Run `manage.py` commands as `docker compose exec app python manage.py <command>`
 | A user is locked out | Five failed sign-ins | Wait 15 minutes, or unlock the account from its page in the administration screens (6.1). A fixed administrator is unlocked only with `axes_reset_username <username>` |
 | A fixed administrator forgot their password | Only the command line can reset it | Run `changepassword <username>` |
 | A restore reports a total that doesn't match | The backup is damaged or incomplete | Restore the backup before it, and keep the failing one for investigation |
+
+**Tested by:** the settings send Django's warnings and errors, and nothing quieter, to standard error, with the time and level. Gunicorn's settings write each request with its status and duration.
 
 ### 7.5 Development and test environment
 
