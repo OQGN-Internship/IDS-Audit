@@ -113,6 +113,9 @@ The first five settings act while a file is read, so their effect is stored in i
 - `outside_ids_rule` and `mapping_rule` can't change once the report has a committed upload, like `report.duplicate_mode` (7.3), or while it has an open upload (Section 6). Otherwise a change would move figures that a preview has already shown.
 - To apply new rules to old data, create a new report and upload the files again.
 - Every change writes a `ruleset_changed` audit event (ENG-01, 6.3).
+- A change that leaves every setting as it was is refused, so no version repeats the one before it.
+
+**From the command line.** A ruleset is changed with `manage.py change_ruleset <report> --by <username>`, run as the fixed administrators' commands are (ENG-01, 6.1). `<report>` is the report's name, matched ignoring case, and `--by` names the active fixed administrator making the change, whom the new version and its event record. Anyone else is refused. The command reads a JSON object from standard input, holding only the settings that change, such as `{"date_order": "month_first"}`. Each setting given replaces the latest version's whole, except `header_names`, where each field given replaces that field's list and the other fields keep theirs, so adding a header name needs only that field. The command prints the new version's number. `manage.py show_ruleset <report>` prints the latest version's number and settings as JSON, so a change can be written from it. A screen was the alternative, and isn't built: a change is rare, made with the validator when the real export needs one (Section 13), and a JSON object is the plainest way to write header names and the actual-spend rule.
 
 **Tested by**
 
@@ -122,7 +125,9 @@ The first five settings act while a file is read, so their effect is stored in i
 - A new version with a setting missing, or with a value outside its form, such as `mapping_rule` set to `fiscal_year` or a value type in both lists of `actual_spend_rule`, is refused.
 - Changing `mapping_rule` or `outside_ids_rule` is refused while the report has an open or a committed upload. On a report with neither, it creates a new ruleset version and leaves the old one unchanged.
 - After `date_order` changes, a committed upload's postings keep their dates, and the next upload is read with the new order.
-- A user who isn't a fixed administrator is refused when changing a ruleset.
+- A user who isn't a fixed administrator is refused when changing a ruleset, and so is a disabled one.
+- A change naming one field of `header_names` changes only that field's list, and writes one `ruleset_changed` event with the new version and each setting changed, before and after. A change that changes nothing, or names a setting that doesn't exist, is refused and writes nothing.
+- `show_ruleset` prints the latest version, and `change_ruleset` reads its change from standard input.
 
 ## 4. Reading the file
 

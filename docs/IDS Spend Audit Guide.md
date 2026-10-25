@@ -105,7 +105,7 @@ Before the client names the first users, the plan's default is one demo account 
 
 ### Fixed administrators, from the command line
 
-Each command runs in a terminal in the repository folder, as `docker compose exec app python manage.py <command>`. Each one is recorded in the audit log as a command-line action.
+Each command runs in a terminal in the repository folder, as `docker compose exec app python manage.py <command>`. Each one that changes something is recorded in the audit log as a command-line action.
 
 | Command | Does |
 | --- | --- |
@@ -114,6 +114,8 @@ Each command runs in a terminal in the repository folder, as `docker compose exe
 | `disable_admin <username>` | Disables a fixed administrator |
 | `changepassword <username>` | Resets a fixed administrator's forgotten password to a temporary one |
 | `axes_reset_username <username>` | Unlocks a locked-out fixed administrator |
+| `show_ruleset <report>` | Prints the report's ruleset: the settings its files are read with, such as the header names it recognises |
+| `change_ruleset <report> --by <username>` | Makes a new ruleset version from the changes it reads as JSON, run as `docker compose exec -T app python manage.py change_ruleset "<report>" --by <username> < change.json`. Used with the validator when the real export needs a setting changed (ENG-02, 3 and 13) |
 
 ## Running the application
 
