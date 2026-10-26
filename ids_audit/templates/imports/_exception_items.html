@@ -1,5 +1,5 @@
 {% load figures %}
-<table class="items">
+<table class="table items">
   <thead>
     <tr>
       {% for column in columns %}<th{% if column.is_amount %} class="amount"{% endif %}>{{ column.heading }}</th>{% endfor %}

@@ -102,7 +102,7 @@ def test_the_preview_s_figures_sit_side_by_side_on_a_wide_screen(
 def test_the_narrow_bar_is_short_and_nothing_scrolls_sideways(
     page: Page, live_server
 ) -> None:
-    """Verify below 60rem the sidebar is a bar across the top at most 10rem
+    """Verify below 62rem the sidebar is a bar across the top at most 10rem
     tall, its links in one row that scrolls sideways, and no page scrolls
     sideways itself.
     """

@@ -2,10 +2,10 @@
 {% load navigation %}
 {% block title %}Roles · Administration · IDS Spend Audit{% endblock %}
 {% block heading %}Roles{% endblock %}
-{% block actions %}<a class="button" href="{% url 'admin_new_role' %}">{% icon "plus" %}New role</a>{% endblock %}
+{% block actions %}<a class="btn btn-primary" href="{% url 'admin_new_role' %}">{% icon "plus" %}New role</a>{% endblock %}
 {% block content %}
-<div class="table-wrap">
-<table>
+<div class="card table-wrap">
+<table class="table card-table">
   <thead>
     <tr><th>Role</th>{% for label in labels.values %}<th>{{ label }}</th>{% endfor %}<th class="count">Given</th></tr>
   </thead>

@@ -26,7 +26,7 @@ from tests.test_report_screens import ROWS_SAID
 pytestmark = pytest.mark.django_db
 
 Status = Upload.Status
-CARD = re.compile(r'<section class="card">(.*?)</section>', re.S)
+CARD = re.compile(r'<section class="card report-card">(.*?)</section>', re.S)
 
 
 def signed_in(user) -> Client:
@@ -51,7 +51,10 @@ def test_a_card_shows_the_report_s_actual_spend_and_its_as_of_upload(
     client = signed_in(make_user())
     [card] = cards(client)
     report = reverse("report", args=[sample_report.pk])
-    assert f'<h2><a href="{report}">{sample_report.name}</a></h2>' in card
+    assert (
+        f'<h2 class="card-title"><a href="{report}">{sample_report.name}</a></h2>'
+        in card
+    )
     total = amount(sample_expected["actual_spend"]["total"])
     link = re.search(rf'<p class="figure"><a href="([^"]+)">{total}</a>', card)[1]
     assert link == reverse("rows", args=[sample_report.pk])
@@ -93,7 +96,7 @@ def test_a_card_names_the_waiting_upload_linked_for_who_may_open_it(
     user = make_user(fixed_admin=False)
     grant(user, report, role)
     [card] = cards(signed_in(user))
-    notice = re.search(r'<p class="notice">(.*?)</p>', card)[1]
+    notice = re.search(r'<p class="alert notice">(.*?)</p>', card)[1]
     assert f"Upload 2 {words}." in notice
     link = f'<a href="{reverse("upload", args=[report.pk, 2])}">Open upload 2</a>'
     assert (link in notice) is linked

@@ -272,8 +272,9 @@ def test_an_unknown_format_is_refused_on_the_form(signed_in, report) -> None:
 # The upload's summary, and the order of its page (ENG-03 4)
 
 SUMMARY = re.compile(
-    r'<div class="tile( problem)?"><p class="label">(.*?)</p>'
-    r'<p class="figure">(.*?)</p><p class="sub">(.*?)</p></div>'
+    r'<div class="card tile( problem)?"><div class="card-body">'
+    r'<p class="subheader label">(.*?)</p>'
+    r'<p class="figure">(.*?)</p><p class="sub">(.*?)</p></div></div>'
 )
 
 

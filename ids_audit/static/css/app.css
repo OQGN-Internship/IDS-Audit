@@ -1,4 +1,6 @@
-/* IDS Spend Audit: one stylesheet for every page, in OQGN's theme (ENG-03 4). */
+/* IDS Spend Audit: OQGN's theme over Tabler 1.6.1 (ENG-03 4). Tabler gives
+   the layout and the components. This file gives them OQGN's colours,
+   square corners and type, and draws what Tabler doesn't have. */
 
 /* Each colour once, named after its token in ENG-03 4. No other rule writes
    a colour, and the charts read theirs from here. */
@@ -15,71 +17,119 @@
   --oqgn-orange-text: #AB5B16;
 }
 
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font: 16px/1.5 "Helvetica Neue", Arial, sans-serif;
-  color: var(--oqgn-ink);
-  background: var(--oqgn-surface);
+/* Tabler's variables, set to the theme's: its colours, square corners, the
+   font and bold weights. */
+:root {
+  --tblr-font-sans-serif: "Helvetica Neue", Arial, sans-serif;
+  --tblr-body-font-family: var(--tblr-font-sans-serif);
+  --tblr-body-color: var(--oqgn-ink);
+  --tblr-body-bg: var(--oqgn-surface);
+  --tblr-emphasis-color: var(--oqgn-ink);
+  --tblr-heading-color: var(--oqgn-ink);
+  --tblr-secondary: var(--oqgn-ink-subtle);
+  --tblr-secondary-color: var(--oqgn-ink-subtle);
+  --tblr-tertiary: var(--oqgn-ink-subtle);
+  --tblr-muted: var(--oqgn-ink-subtle);
+  --tblr-primary: var(--oqgn-green-dark);
+  --tblr-primary-fg: var(--oqgn-surface);
+  --tblr-primary-darken: var(--oqgn-green-dark);
+  --tblr-success: var(--oqgn-green-text);
+  --tblr-danger: var(--oqgn-danger);
+  --tblr-warning: var(--oqgn-orange-text);
+  --tblr-link-color: var(--oqgn-green-text);
+  --tblr-link-hover-color: var(--oqgn-green-text);
+  --tblr-bg-surface: var(--oqgn-surface);
+  --tblr-bg-surface-primary: var(--oqgn-surface);
+  --tblr-bg-surface-secondary: var(--oqgn-surface-alt);
+  --tblr-bg-surface-tertiary: var(--oqgn-surface-alt);
+  --tblr-secondary-bg: var(--oqgn-surface-alt);
+  --tblr-tertiary-bg: var(--oqgn-surface-alt);
+  --tblr-bg-forms: var(--oqgn-surface);
+  --tblr-code-bg: var(--oqgn-surface-alt);
+  --tblr-code-color: var(--oqgn-ink);
+  --tblr-border-color: var(--oqgn-line);
+  --tblr-border-color-translucent: var(--oqgn-line);
+  --tblr-border-active-color: var(--oqgn-ink-subtle);
+  --tblr-hover-bg: var(--oqgn-surface-alt);
+  --tblr-active-bg: var(--oqgn-surface-alt);
+  --tblr-focus-ring-color: var(--oqgn-green-text);
+  --tblr-border-radius-scale: 0;
+  --tblr-border-radius: 0;
+  --tblr-font-weight-medium: 700;
+  --tblr-font-weight-semibold: 700;
+  --tblr-font-weight-headings: 700;
 }
-body.with-sidebar {
-  display: grid;
-  grid-template-columns: 16rem minmax(0, 1fr);
-  min-height: 100vh;
+
+/* Nothing casts a shadow or moves, Tabler's components included (ENG-03 4,
+   Left out). */
+*, *::before, *::after, ::file-selector-button {
+  box-shadow: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 
-a { color: var(--oqgn-green-text); text-underline-offset: 0.15em; }
-a:hover { text-decoration-thickness: 2px; }
+a { text-underline-offset: 0.15em; }
 
 /* Every link, button and field focused from the keyboard shows its ring. */
-:focus-visible { outline: 2px solid var(--oqgn-green-text); outline-offset: 2px; }
+:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--oqgn-green-text);
+  outline-offset: 2px;
+}
+.form-control:focus, .form-select:focus { border-color: var(--oqgn-ink-subtle); }
 
 /* Icons draw in the colour of their words (ENG-03 4, Icons). */
-.icon { width: 1.125rem; height: 1.125rem; flex: none; vertical-align: -0.2em; }
+.icon { flex: none; }
 
-/* The sidebar: the logo, the navigation in groups, then who is signed in. */
-.sidebar {
+/* The sidebar: the logo, the navigation in groups, then who is signed in.
+   Two classes, to come before Tabler's vertical navbar. */
+.navbar.sidebar {
+  --tblr-navbar-bg: var(--oqgn-surface);
+  --tblr-navbar-color: var(--oqgn-ink);
+  --tblr-navbar-border-color: var(--oqgn-line);
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: start;
+  padding: 0 0 1rem;
   background: var(--oqgn-surface);
   border-inline-end: 1px solid var(--oqgn-line);
-  display: flex;
-  flex-direction: column;
-  position: sticky;
-  top: 0;
-  height: 100vh;
   overflow-y: auto;
-  padding-block-end: 1rem;
 }
 .logo { display: block; }
 .logo img { display: block; width: 100%; max-width: 155px; height: auto; }
-.sidebar .logo { padding: 1.5rem; border-block-end: 4px solid var(--oqgn-green-alt); }
+.sidebar .logo { margin: 0; padding: 1.5rem; border-block-end: 4px solid var(--oqgn-green-alt); }
 .nav-links { padding-block-start: 0.5rem; }
-.sidebar ul { list-style: none; margin: 0; padding: 0; }
-.sidebar ul + ul { margin-block-start: 0.4rem; padding-block-start: 0.4rem; border-block-start: 1px solid var(--oqgn-line); }
-.sidebar li a {
+.sidebar .navbar-nav { flex-direction: column; padding-inline: 0.5rem; }
+.sidebar .navbar-nav + .navbar-nav {
+  margin-block-start: 0.4rem;
+  padding-block-start: 0.4rem;
+  border-block-start: 1px solid var(--oqgn-line);
+}
+.sidebar .nav-link {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding-block: 0.4rem;
-  padding-inline: 1.25rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
   color: var(--oqgn-ink);
-  text-decoration: none;
   border-inline-start: 4px solid var(--oqgn-surface);
 }
-.sidebar li a:hover { background: var(--oqgn-surface-alt); border-inline-start-color: var(--oqgn-surface-alt); }
-.sidebar li a[aria-current="page"] {
+.sidebar .nav-link:hover {
+  color: var(--oqgn-ink);
+  background: var(--oqgn-surface-alt);
+  border-inline-start-color: var(--oqgn-surface-alt);
+}
+.sidebar .nav-link[aria-current="page"] {
   background: var(--oqgn-surface-alt);
   border-inline-start-color: var(--oqgn-green-text);
   font-weight: bold;
 }
-.sidebar li a .badge { margin-inline-start: auto; font-weight: normal; }
-.group-label, .app-name, .tile .label, .card .label {
-  font-size: 12px;
-  font-weight: bold;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--oqgn-ink-subtle);
-}
+.sidebar .nav-link .badge { margin-inline-start: auto; }
+.subheader { color: var(--oqgn-ink-subtle); }
 .group-label { margin: 1.25rem 1.5rem 0.25rem; }
 .report-name { margin: 0 1.5rem 0.4rem; font-weight: bold; overflow-wrap: anywhere; }
 .who {
@@ -92,107 +142,113 @@ a:hover { text-decoration-thickness: 2px; }
   justify-items: start;
 }
 .who-name { margin: 0; font-weight: bold; overflow-wrap: anywhere; }
-.who-name span { display: block; font-weight: normal; font-size: 0.875rem; color: var(--oqgn-ink-subtle); }
+.who-name span { display: block; font-weight: normal; color: var(--oqgn-ink-subtle); }
 .who form { margin: 0; }
-a.who-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--oqgn-ink); font-size: 0.875rem; }
+a.who-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--oqgn-ink); }
 
 /* The page: its header, then the messages, then what it shows. */
-main { padding: 1.75rem 2.5rem 3rem; min-width: 0; max-width: 90rem; }
-.page-head { border-block-end: 1px solid var(--oqgn-line); padding-block-end: 1rem; margin-block-end: 1.5rem; }
-.crumbs ol {
-  list-style: none;
-  margin: 0 0 0.4rem;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  font-size: 0.875rem;
-  color: var(--oqgn-ink-subtle);
+.page-wrapper { min-width: 0; padding-block-end: 3rem; }
+.page-wrapper .page-header.page-head {
+  margin: 0 0 1.5rem;
+  padding-block: 1.5rem 1rem;
+  border-block-end: 1px solid var(--oqgn-line);
 }
-.crumbs li + li::before { content: "/"; margin-inline-end: 0.4rem; color: var(--oqgn-ink-subtle); }
+.crumbs .breadcrumb {
+  --tblr-breadcrumb-divider-color: var(--oqgn-ink-subtle);
+  margin-block-end: 0.4rem;
+}
 .title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; }
-.title-row h1 { margin: 0; }
-.page-actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.page-actions { margin-inline-start: auto; }
 .page-actions:empty { display: none; }
+.page-body { margin: 0; }
+h2 { margin-block: 1.75rem 0.75rem; }
+h3 { margin-block: 1.25rem 0.5rem; }
 
-h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 1rem; }
-h2 { font-size: 1.2rem; line-height: 1.3; margin: 2rem 0 0.75rem; }
-h3 { font-size: 1rem; margin: 1.25rem 0 0.5rem; }
-h1, h2, h3 { font-weight: bold; }
-
-/* Pages without the sidebar: one panel in the middle (ENG-03 4). */
-body.plain { padding: 4rem 1rem; }
-main.panel { max-width: 27rem; margin: 0 auto; padding: 2rem; border: 1px solid var(--oqgn-line); }
+/* Pages without the sidebar: one card in the middle (ENG-03 4). */
+body.plain .page-center { padding-block: 4rem; }
 .panel .logo { padding-block-end: 1rem; margin-block-end: 1.25rem; border-block-end: 4px solid var(--oqgn-green-alt); }
 .panel .app-name { margin: 0 0 0.25rem; }
-.panel .page-head { border: 0; padding: 0; margin-block-end: 1rem; }
+.panel .page-head { margin-block-end: 1rem; }
 .panel form.narrow { max-width: none; }
 
-/* Forms. */
+/* Forms: Tabler's fields, with borders a field can be seen by. */
 form.narrow { max-width: 30rem; display: grid; gap: 0.4rem; }
-form.narrow label, .actions form > label { font-weight: bold; }
-form.narrow button { margin-block-start: 0.75rem; }
+form.narrow .btn { margin-block-start: 0.75rem; }
 form.inline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; }
-form.inline select { width: auto; min-width: 12rem; }
-input, select, textarea, button { font: inherit; color: var(--oqgn-ink); }
-input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="file"], textarea, select {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--oqgn-ink-subtle);
-  background: var(--oqgn-surface);
-}
+form.inline .form-select { width: auto; min-width: 12rem; }
+.form-label { font-weight: bold; margin: 0; }
+.form-control, .form-select { border-color: var(--oqgn-ink-subtle); }
 fieldset { border: 1px solid var(--oqgn-line); margin: 0; padding: 0.75rem 1rem; display: grid; gap: 0.4rem; }
-legend { font-weight: bold; padding-inline: 0.25rem; }
+legend { float: none; width: auto; font-size: inherit; font-weight: bold; padding-inline: 0.25rem; margin: 0; }
 fieldset label { display: flex; gap: 0.5rem; align-items: baseline; font-weight: normal; }
-fieldset ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
+fieldset ul, fieldset div > div { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
+input[type="radio"], input[type="checkbox"] { accent-color: var(--oqgn-green-dark); }
 
 /* Buttons: main, secondary and quiet, each as wide as its words (ENG-03 4). */
-button, .button {
-  display: inline-flex;
-  align-items: center;
+.btn {
+  --tblr-btn-color: var(--oqgn-ink);
+  --tblr-btn-bg: var(--oqgn-surface);
+  --tblr-btn-border-color: var(--oqgn-ink-subtle);
+  --tblr-btn-hover-color: var(--oqgn-ink);
+  --tblr-btn-hover-bg: var(--oqgn-surface);
+  --tblr-btn-hover-border-color: var(--oqgn-ink-subtle);
+  --tblr-btn-active-color: var(--oqgn-ink);
+  --tblr-btn-active-bg: var(--oqgn-surface);
+  --tblr-btn-active-border-color: var(--oqgn-ink-subtle);
   gap: 0.5rem;
   justify-self: start;
   align-self: start;
-  padding: 0.45rem 1rem;
-  border: 1px solid var(--oqgn-green-dark);
-  background: var(--oqgn-green-dark);
-  color: var(--oqgn-surface);
   font-weight: bold;
-  line-height: 1.25;
-  text-decoration: none;
-  cursor: pointer;
 }
-button:hover, .button:hover { text-decoration: underline; }
-button.secondary, .button.secondary { background: var(--oqgn-surface); color: var(--oqgn-green-dark); }
-/* Show, for when JavaScript is off, and Sign out are the only quiet buttons. */
-button.quiet {
-  border-color: var(--oqgn-ink-subtle);
-  background: var(--oqgn-surface);
-  color: var(--oqgn-ink);
-  font-weight: normal;
+.btn .icon { margin: 0; }
+.btn:hover { text-decoration: underline; }
+.btn-primary {
+  --tblr-btn-color: var(--oqgn-surface);
+  --tblr-btn-bg: var(--oqgn-green-dark);
+  --tblr-btn-border-color: var(--oqgn-green-dark);
+  --tblr-btn-hover-color: var(--oqgn-surface);
+  --tblr-btn-hover-bg: var(--oqgn-green-dark);
+  --tblr-btn-hover-border-color: var(--oqgn-green-dark);
+  --tblr-btn-active-color: var(--oqgn-surface);
+  --tblr-btn-active-bg: var(--oqgn-green-dark);
+  --tblr-btn-active-border-color: var(--oqgn-green-dark);
+}
+.btn-outline-primary {
+  --tblr-btn-color: var(--oqgn-green-dark);
+  --tblr-btn-bg: var(--oqgn-surface);
+  --tblr-btn-border-color: var(--oqgn-green-dark);
+  --tblr-btn-hover-color: var(--oqgn-green-dark);
+  --tblr-btn-hover-bg: var(--oqgn-surface);
+  --tblr-btn-hover-border-color: var(--oqgn-green-dark);
+  --tblr-btn-active-color: var(--oqgn-green-dark);
+  --tblr-btn-active-bg: var(--oqgn-surface);
+  --tblr-btn-active-border-color: var(--oqgn-green-dark);
 }
 
 /* Secondary text, on white only. */
-.hint, .filter-line, .as-of, .counted, figcaption, .legend, .none, .sub {
+.hint, .filter-line, .as-of, .counted, figcaption, .chart-legend, .none, .sub, .form-hint {
   color: var(--oqgn-ink-subtle);
 }
-.hint { font-size: 0.875rem; margin: 0; }
-.meta { margin: 0 0 1rem; font-size: 0.875rem; }
+.hint { margin: 0; }
+.meta { margin: 0 0 1rem; }
 .filter-line, .as-of { margin: 0.15rem 0; }
 
-/* Messages, notices and problems: words in ink, a line around them and a
-   bar at the start whose colour says what kind they are. */
+/* Messages, notices and problems: Tabler's alerts with words in ink on
+   white, a line around them and a bar at the start whose colour says what
+   kind they are. */
 .messages { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; gap: 0.5rem; }
-.messages li, .notice, p.error, div.error, ul.errorlist {
+.alert, .messages li, p.error, div.error, ul.errorlist {
+  --tblr-alert-color: var(--oqgn-ink);
+  display: block;
   margin: 0 0 1rem;
   padding: 0.6rem 0.9rem;
+  color: var(--oqgn-ink);
+  background-color: var(--oqgn-surface);
   border: 1px solid var(--oqgn-line);
   border-inline-start: 4px solid var(--oqgn-danger);
-  background: var(--oqgn-surface);
-  color: var(--oqgn-ink);
 }
 .messages li { margin: 0; display: flex; gap: 0.6rem; align-items: baseline; }
-.messages li .icon, .notice .icon { vertical-align: -0.2em; }
+.alert .icon { vertical-align: -0.2em; }
 .messages .success { border-inline-start-color: var(--oqgn-green-text); }
 .notice { border-inline-start-color: var(--oqgn-orange-text); }
 .notice a { margin-inline-start: 0.5rem; white-space: nowrap; }
@@ -202,42 +258,49 @@ td.error { border-inline-start: 4px solid var(--oqgn-danger); }
 
 /* Badges: a state in words, with the bar its state has (ENG-03 4). */
 .badge {
-  display: inline-block;
-  padding: 0.05rem 0.5rem;
-  background: var(--oqgn-surface-alt);
+  --tblr-badge-color: var(--oqgn-ink);
   color: var(--oqgn-ink);
+  background: var(--oqgn-surface-alt);
+  border: 0;
   border-inline-start: 4px solid var(--oqgn-ink-subtle);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: bold;
-  line-height: 1.5;
-  white-space: nowrap;
+  line-height: 1.25;
 }
 .badge.good { border-inline-start-color: var(--oqgn-green-text); }
 .badge.open { border-inline-start-color: var(--oqgn-orange-text); }
 .badge.bad { border-inline-start-color: var(--oqgn-danger); }
 .for-you { display: block; margin-block-start: 0.2rem; font-weight: bold; }
 
-/* Tables, dense enough for a few dozen rows on one screen. */
-table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 0.5rem 0 1.25rem; font-size: 14px; }
-th, td {
-  text-align: start;
-  padding: 4px 8px;
-  border-block-end: 1px solid var(--oqgn-line);
-  vertical-align: top;
+/* Tables: Tabler's, dense enough for a few dozen rows on one screen. */
+.table {
+  --tblr-table-color: var(--oqgn-ink);
+  --tblr-table-bg: var(--oqgn-surface);
+  --tblr-table-border-color: var(--oqgn-line);
+  margin: 0.5rem 0 1.25rem;
+  border-collapse: separate;
+  border-spacing: 0;
 }
-th { background: var(--oqgn-surface-alt); font-weight: bold; }
-th a { color: var(--oqgn-ink); }
+.table > :not(caption) > * > * {
+  padding: 4px 8px;
+  vertical-align: top;
+  border-block-end: 1px solid var(--oqgn-line);
+}
+.table-vcenter > :not(caption) > * > * { vertical-align: middle; }
+.table thead th { color: var(--oqgn-ink); background: var(--oqgn-surface-alt); white-space: normal; }
+.table th a { color: var(--oqgn-ink); }
+.table tbody th { font-weight: bold; }
 td.amount, th.amount, td.share, th.share, td.count, th.count, td.exact, th.exact {
   text-align: end;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 td.code, td.date { white-space: nowrap; }
-tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
-.table-wrap { overflow: auto; margin: 0.5rem 0 1.25rem; border: 1px solid var(--oqgn-line); }
-.table-wrap table { margin: 0; }
+.table tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
+.table-wrap { overflow: auto; margin: 0.5rem 0 1.25rem; }
+.table-wrap .table { margin: 0; }
 /* A long table scrolls in its box, its headings and total held in view. */
-@media (min-width: 60rem) {
+@media (min-width: 992px) {
   .table-wrap { max-height: calc(100vh - 2rem); }
   .table-wrap thead th { position: sticky; top: 0; z-index: 1; }
   .table-wrap tfoot td { position: sticky; bottom: 0; background: var(--oqgn-surface); }
@@ -245,63 +308,73 @@ tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); 
 /* Source rows keep each value on one line, except the item text. */
 table.wide th, table.wide td { white-space: nowrap; }
 table.wide td.item { white-space: normal; min-width: 16rem; }
-table.facts { width: auto; }
-table.facts th { width: 10rem; }
-table.facts td { overflow-wrap: anywhere; }
-table.figures { max-width: 40rem; }
 .items-row td:empty { padding: 0; border: 0; }
-table.items { margin: 0.3rem 0 0.8rem; }
+.table.items { margin: 0.3rem 0 0.8rem; }
 .sheet-rows { overflow-x: auto; }
 .sheet-rows td, .sheet-rows th { white-space: nowrap; }
-table.log td { font-size: 13px; }
+.table.log td { font-size: 0.8125rem; }
 .detail { display: block; overflow-wrap: anywhere; }
 .none { margin: 0.5rem 0 1.25rem; padding: 0.6rem 0.9rem; border: 1px solid var(--oqgn-line); }
-.empty { margin: 1rem 0; padding: 0.75rem 1rem; background: var(--oqgn-surface-alt); }
+.empty {
+  display: block;
+  height: auto;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  text-align: start;
+  background: var(--oqgn-surface-alt);
+}
 .empty a { color: var(--oqgn-ink); }
 .pager { display: flex; gap: 1rem; }
+.card.figures { max-width: 40rem; margin: 0.5rem 0 1.25rem; }
+.card.figures .table { margin: 0; }
+
+/* Facts: Tabler's datagrid, each fact's name over its value. */
+.datagrid { margin: 0.5rem 0 1.5rem; }
+.datagrid-title { color: var(--oqgn-ink-subtle); }
+.datagrid-content { overflow-wrap: anywhere; }
+.datagrid-content.error { color: var(--oqgn-ink); border-inline-start: 4px solid var(--oqgn-danger); padding-inline-start: 0.4rem; }
 
 /* A report's screens: the toolbar, then what the figures are (ENG-03 4). */
 .toolbar {
-  display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 0.75rem 1rem;
+  margin: 0 0 0.75rem;
   padding-block-end: 1rem;
-  margin-block-end: 0.75rem;
   border-block-end: 1px solid var(--oqgn-line);
 }
+.toolbar > * { margin: 0; }
 .filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem 1rem; margin: 0; }
-.filters label { display: grid; gap: 0.2rem; font-size: 0.875rem; font-weight: bold; }
-.filters select { width: auto; min-width: 9rem; font-weight: normal; }
+.filters label { display: grid; gap: 0.2rem; font-weight: bold; }
+.filters .form-select { width: auto; min-width: 9rem; font-weight: normal; }
 .toolbar .export { margin-inline-start: auto; }
 
-/* Tiles and cards: white boxes with a line around them (ENG-03 4). */
+/* Tiles and cards: Tabler's cards, white with a line around them. */
+.card { --tblr-card-border-color: var(--oqgn-line); }
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: 1rem;
   margin: 0.75rem 0 1.75rem;
 }
-.tile, .card { border: 1px solid var(--oqgn-line); background: var(--oqgn-surface); padding: 1rem 1.25rem; }
 .tile.problem { border-inline-start: 4px solid var(--oqgn-danger); }
-.tile p, .card p { margin: 0; }
-.tile .figure, .card .figure {
-  font-size: 1.6rem;
+.tile p, .report-card p { margin: 0; }
+.tile .figure, .report-card .figure {
+  display: block;
+  font-size: 1.5rem;
   font-weight: bold;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  line-height: 2rem;
   font-variant-numeric: tabular-nums;
   margin: 0.35rem 0 0.2rem;
   overflow-wrap: anywhere;
 }
-.tile .figure a, .card .figure a { color: var(--oqgn-ink); }
-.figure .unit { font-size: 1rem; font-weight: normal; }
-.sub { font-size: 0.875rem; }
+.tile .figure a, .report-card .figure a { color: var(--oqgn-ink); }
+.figure .unit { font-size: 0.875rem; font-weight: normal; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1rem; margin: 0.5rem 0 1.5rem; }
-.card { display: grid; gap: 0.35rem; align-content: start; }
-.card h2 { margin: 0; font-size: 1.15rem; }
-.card h2 a { display: inline-flex; align-items: center; gap: 0.5rem; }
-@media (min-width: 75rem) {
+.cards .card-body { display: grid; gap: 0.35rem; align-content: start; }
+.cards .card-title { margin: 0; }
+.cards .card-title a { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--oqgn-green-text); }
+@media (min-width: 1200px) {
   .beside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
   .preview-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 2.5rem; align-items: start; }
 }
@@ -313,30 +386,29 @@ table.log td { font-size: 13px; }
 .actions form { display: grid; gap: 0.4rem; flex: 1 1 18rem; max-width: 32rem; padding: 1rem 1.25rem; border: 1px solid var(--oqgn-line); }
 .actions form.approve { flex-basis: 100%; max-width: none; }
 .actions > p { margin: 0; }
-.change { font-size: 1.1rem; font-weight: bold; }
+.change { font-size: 1rem; font-weight: bold; }
 
 /* Charts and FAQ pages (ENG-03 5 and 7). */
 .chart-box { margin: 0.5rem 0 1rem; }
-.chart-box figcaption { font-size: 0.875rem; }
 .chart { height: 22rem; max-width: 56rem; }
-.legend { margin: 0.2rem 0; font-size: 0.875rem; }
+.chart-legend { margin: 0.2rem 0; }
 .swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-inline-end: 0.4rem; vertical-align: -0.1rem; }
 .swatch.outside { background: var(--oqgn-orange-text); }
-.answer { font-size: 1.1rem; font-weight: bold; margin: 0.8rem 0; }
+.answer { font-size: 1rem; font-weight: bold; margin: 0.8rem 0; }
 .questions li { margin: 0.4rem 0; }
 
-/* Narrow screens: the sidebar becomes a bar across the top, its links in
-   one row that scrolls sideways, with no menu to open (ENG-03 4). */
-@media (max-width: 60rem) {
-  body.with-sidebar { display: block; }
-  .sidebar {
+/* Narrow screens, below Tabler's large size: the sidebar becomes a bar
+   across the top, its links in one row that scrolls sideways, with no menu
+   to open (ENG-03 4). */
+@media (max-width: 991.98px) {
+  .navbar.sidebar {
     position: static;
-    height: auto;
-    overflow: visible;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
+    min-height: 0;
     padding: 0;
+    overflow: visible;
     border-inline-end: 0;
     border-block-end: 1px solid var(--oqgn-line);
   }
@@ -353,10 +425,9 @@ table.log td { font-size: 13px; }
     justify-content: end;
     align-items: center;
     gap: 0.25rem 1rem;
-    font-size: 0.875rem;
   }
   .who-name span { display: none; }
-  .who button { padding-block: 0.25rem; }
+  .who .btn { padding-block: 0.25rem; min-height: 0; }
   .nav-links {
     grid-column: 1 / -1;
     display: flex;
@@ -366,25 +437,23 @@ table.log td { font-size: 13px; }
     padding: 0;
     border-block-start: 4px solid var(--oqgn-green-alt);
   }
-  .sidebar ul { display: flex; }
-  .sidebar ul + ul { margin: 0; padding: 0; border: 0; }
+  .sidebar .navbar-nav { flex-direction: row; padding: 0; }
+  .sidebar .navbar-nav + .navbar-nav { margin: 0; padding: 0; border: 0; }
   .group-label, .sidebar .icon { display: none; }
-  .report-name { margin: 0; padding-inline: 0.75rem; font-size: 0.875rem; }
-  .sidebar li a { padding: 0.6rem 0.75rem; border-inline-start: 0; border-block-end: 4px solid var(--oqgn-surface); }
-  .sidebar li a:hover { border-block-end-color: var(--oqgn-surface-alt); }
-  .sidebar li a[aria-current="page"] { border-block-end-color: var(--oqgn-green-text); }
-  main { padding: 1rem; }
-  body.plain { padding: 1rem; }
-  main.panel { padding: 1.25rem; }
+  .report-name { margin: 0; padding-inline: 0.75rem; }
+  .sidebar .nav-link { padding: 0.6rem 0.75rem; border-inline-start: 0; border-block-end: 4px solid var(--oqgn-surface); }
+  .sidebar .nav-link:hover { border-block-end-color: var(--oqgn-surface-alt); }
+  .sidebar .nav-link[aria-current="page"] { border-block-end-color: var(--oqgn-green-text); }
+  body.plain .page-center { padding-block: 1rem; }
 }
 
 /* Printing: the figures and what they are, without the navigation and the
    controls; tables whole, out of their boxes (ENG-03 4). */
 @media print {
-  body.with-sidebar { display: block; }
-  .sidebar, .toolbar, .page-actions, .actions, .jump, .pager, form, button, .button { display: none !important; }
-  main { padding: 0; max-width: none; }
-  .page-head { margin-block-end: 1rem; }
+  .sidebar, .toolbar, .page-actions, .actions, .jump, .pager, form, button, .btn { display: none !important; }
+  .page-wrapper { margin: 0 !important; padding: 0; }
+  .container-xl { max-width: none; padding: 0; }
+  .page-wrapper .page-header.page-head { margin-block-end: 1rem; padding-block-start: 0; }
   .table-wrap { max-height: none; overflow: visible; border: 0; }
   .table-wrap thead th, .table-wrap tfoot td { position: static; }
   thead { display: table-header-group; }

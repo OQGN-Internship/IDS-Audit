@@ -10,9 +10,9 @@
   <p>The upload stops counting, and every figure returns to what it was before it was approved. Nothing is deleted, and its file can be uploaded again.</p>
   <form method="post" action="{% url 'roll_back' report.pk upload.number %}" class="narrow">
     {% csrf_token %}
-    <label for="reason">Reason for rolling back</label>
-    <textarea id="reason" name="reason" rows="2"></textarea>
-    <button type="submit">Roll back upload {{ upload.number }}</button>
+    <label class="form-label" for="reason">Reason for rolling back</label>
+    <textarea class="form-control" id="reason" name="reason" rows="2"></textarea>
+    <button type="submit" class="btn btn-primary">Roll back upload {{ upload.number }}</button>
   </form>
 {% endif %}
 {% endblock %}

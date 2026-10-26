@@ -4,9 +4,10 @@
 detail screen counting as its list. {% crumbs %} links the pages above the
 one open now. {% icon "name" %} draws an icon from static/icons/icons.svg.
 {% waiting report as name %} gives the report's upload waiting for someone.
+{{ form.field|control }} draws a form's field as one of Tabler's.
 """
 
-from django import template
+from django import forms, template
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join
@@ -122,9 +123,12 @@ def crumbs(context) -> str:
     if not links or None in links:
         return ""
     return format_html(
-        '<nav class="crumbs" aria-label="Breadcrumb"><ol>{}</ol></nav>',
+        '<nav class="crumbs" aria-label="Breadcrumb">'
+        '<ol class="breadcrumb">{}</ol></nav>',
         format_html_join(
-            "", '<li><a href="{}">{}</a></li>', [(u, w) for w, u in links]
+            "",
+            '<li class="breadcrumb-item"><a href="{}">{}</a></li>',
+            [(u, w) for w, u in links],
         ),
     )
 
@@ -140,6 +144,20 @@ def icon(name: str) -> str:
         static("icons/icons.svg"),
         name,
     )
+
+
+@register.filter
+def control(field):
+    """Draw a form's field with Tabler's class: a list as form-select, and
+    any other box as form-control. Its errors are said in words above it.
+    Checkboxes and radio buttons stay as the browser draws them.
+    """
+    widget = field.field.widget
+    # CheckboxSelectMultiple is a RadioSelect too.
+    if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect)):
+        return field
+    kind = "form-select" if isinstance(widget, forms.Select) else "form-control"
+    return field.as_widget(attrs={"class": kind})
 
 
 @register.simple_tag

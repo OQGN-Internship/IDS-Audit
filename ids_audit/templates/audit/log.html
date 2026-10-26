@@ -5,8 +5,8 @@
 {% block content %}
 <p class="hint">{% if full %}Every event, newest first.{% else %}The events of this report, newest first.{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }}.</p>
 {% if rows %}
-  <div class="table-wrap">
-    <table class="log">
+  <div class="card table-wrap">
+    <table class="table card-table log">
       <thead>
         <tr><th>Time</th><th>Who</th><th>Action</th>{% if full %}<th>Report</th>{% endif %}<th>Upload</th><th>Details</th></tr>
       </thead>

@@ -2,11 +2,11 @@
 {% load figures navigation uploads %}
 {% block title %}Uploads · {{ report.name }} · IDS Spend Audit{% endblock %}
 {% block heading %}Uploads{% endblock %}
-{% block actions %}{% if can_upload %}<a class="button" href="{% url 'new_upload' report.pk %}">{% icon "uploads" %}Upload a file</a>{% endif %}{% endblock %}
+{% block actions %}{% if can_upload %}<a class="btn btn-primary" href="{% url 'new_upload' report.pk %}">{% icon "uploads" %}Upload a file</a>{% endif %}{% endblock %}
 {% block content %}
 {% if rows %}
-  <div class="table-wrap">
-  <table>
+  <div class="card table-wrap">
+  <table class="table card-table">
     <thead>
       <tr><th>Upload</th><th>File</th><th>State</th><th>Uploaded</th><th>Decided</th></tr>
     </thead>

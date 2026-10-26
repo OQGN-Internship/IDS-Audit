@@ -5,27 +5,27 @@
   {% for key, value in hidden.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
   {% if screen.picker %}
     <label>{{ screen.picker.label }}
-      <select name="{{ screen.picker.key }}">
+      <select class="form-select" name="{{ screen.picker.key }}">
         {% for value, label in screen.picker.options %}<option value="{{ value }}"{% if value == screen.picker.chosen %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </label>
   {% endif %}
   <label>Year
-    <select name="year">
+    <select class="form-select" name="year">
       <option value="all">All years</option>
       {% for year in years %}<option value="{{ year }}"{% if filters.year == year %} selected{% endif %}>{{ year }}</option>{% endfor %}
     </select>
   </label>
   <label>Outside IDS
-    <select name="exclude_outside">
+    <select class="form-select" name="exclude_outside">
       <option value="0">Included</option>
       <option value="1"{% if filters.exclude_outside %} selected{% endif %}>Excluded</option>
     </select>
   </label>
-  <button type="submit" class="quiet">Show</button>
+  <button type="submit" class="btn">Show</button>
 </form>
 {# A plain link: a download can't be swapped into a page (ENG-03 4). #}
-{% if can_export and latest %}<a class="button secondary export" href="{{ export_url }}">{% icon "download" %}Export to Excel</a>{% endif %}
+{% if can_export and latest %}<a class="btn btn-outline-primary export" href="{{ export_url }}">{% icon "download" %}Export to Excel</a>{% endif %}
 </div>
 <div class="meta">
   <p class="filter-line">{{ filter_line }}</p>
@@ -33,7 +33,7 @@
     <p class="as-of">Figures as of <a href="{% url 'upload' report.pk latest.number %}">upload {{ latest.number }}</a>, {{ latest.original_name }}, approved by {{ latest.decided_by }} on {{ latest.decided_at|moment }}.</p>
   {% endif %}
 </div>
-{% if awaiting %}<p class="notice">{% icon "alert" %} Upload {{ awaiting.number }} is awaiting approval and isn't included.{% if can_open_awaiting %} <a href="{% url 'upload' report.pk awaiting.number %}">Open upload {{ awaiting.number }}</a>{% endif %}</p>{% endif %}
+{% if awaiting %}<p class="alert notice">{% icon "alert" %} Upload {{ awaiting.number }} is awaiting approval and isn't included.{% if can_open_awaiting %} <a href="{% url 'upload' report.pk awaiting.number %}">Open upload {{ awaiting.number }}</a>{% endif %}</p>{% endif %}
 {% if not latest %}
   <p class="empty">No approved uploads yet.{% if can_upload %} <a href="{% url 'uploads' report.pk %}">Go to Uploads</a>{% endif %}</p>
 {% elif screen.lines == 0 %}

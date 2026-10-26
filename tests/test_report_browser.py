@@ -287,4 +287,4 @@ def test_the_logo_is_drawn_and_a_focused_link_shows_its_ring(
                     style.outlineColor, style.outlineOffset];
         }"""
     )
-    assert ring == ["logo", "solid", "2px", "rgb(88, 125, 57)", "2px"]
+    assert ring == ["navbar-brand logo", "solid", "2px", "rgb(88, 125, 57)", "2px"]

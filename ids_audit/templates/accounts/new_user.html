@@ -1,22 +1,23 @@
 {% extends "base.html" %}
+{% load navigation %}
 {% block title %}New user · Administration · IDS Spend Audit{% endblock %}
 {% block heading %}New user{% endblock %}
 {% block content %}
 <form method="post" action="{% url 'admin_new_user' %}" class="narrow">
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <label for="id_username">Username</label>
-  {{ form.username.errors }}{{ form.username }}
+  <label class="form-label" for="id_username">Username</label>
+  {{ form.username.errors }}{{ form.username|control }}
   <p class="hint">Letters, digits and @ . + - _ only. It can't be changed later.</p>
-  <label for="id_full_name">Full name</label>
-  {{ form.full_name.errors }}{{ form.full_name }}
-  <label for="id_email">Email, if any</label>
-  {{ form.email.errors }}{{ form.email }}
-  <label for="id_password1">Temporary password</label>
-  {{ form.password1.errors }}{{ form.password1 }}
+  <label class="form-label" for="id_full_name">Full name</label>
+  {{ form.full_name.errors }}{{ form.full_name|control }}
+  <label class="form-label" for="id_email">Email, if any</label>
+  {{ form.email.errors }}{{ form.email|control }}
+  <label class="form-label" for="id_password1">Temporary password</label>
+  {{ form.password1.errors }}{{ form.password1|control }}
   <p class="hint">At least 12 characters, not all digits, not a common password, and not like the username or name. They choose their own at their first sign-in.</p>
-  <label for="id_password2">Temporary password again</label>
-  {{ form.password2.errors }}{{ form.password2 }}
-  <button type="submit">Create user</button>
+  <label class="form-label" for="id_password2">Temporary password again</label>
+  {{ form.password2.errors }}{{ form.password2|control }}
+  <button type="submit" class="btn btn-primary">Create user</button>
 </form>
 {% endblock %}

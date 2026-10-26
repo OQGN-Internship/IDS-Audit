@@ -17,8 +17,11 @@ from tests.factories import grant, make_report, make_upload, make_user
 pytestmark = pytest.mark.django_db
 
 Status = Upload.Status
-CRUMBS = re.compile(r'<nav class="crumbs" aria-label="Breadcrumb"><ol>(.*?)</ol></nav>')
-SIDEBAR = re.compile(r'<nav class="sidebar"[^>]*>(.*?)</nav>', re.S)
+CRUMBS = re.compile(
+    r'<nav class="crumbs" aria-label="Breadcrumb">'
+    r'<ol class="breadcrumb">(.*?)</ol></nav>'
+)
+SIDEBAR = re.compile(r'<nav class="[^"]*\bsidebar"[^>]*>(.*?)</nav>', re.S)
 
 
 def crumbs(client: Client, address: str) -> list[tuple[str, str]] | None:
@@ -30,7 +33,9 @@ def crumbs(client: Client, address: str) -> list[tuple[str, str]] | None:
     found = CRUMBS.search(response.content.decode())
     if found is None:
         return None
-    return re.findall(r'<li><a href="([^"]+)">([^<]+)</a></li>', found[1])
+    return re.findall(
+        r'<li class="breadcrumb-item"><a href="([^"]+)">([^<]+)</a></li>', found[1]
+    )
 
 
 def sidebar(client: Client, address: str) -> str:
@@ -133,11 +138,11 @@ def test_the_sidebar_groups_a_report_s_screens_with_no_application_name(
     report = make_report()
     nav = sidebar(admin_client, reverse("overview", args=[report.pk]))
     assert "IDS Spend Audit" not in nav
-    label = r'<p class="group-label">Report</p>\s*<p class="report-name">'
+    label = r'<p class="subheader group-label">Report</p>\s*<p class="report-name">'
     assert re.search(label + report.name + "</p>", nav)
     groups = [
         re.findall(r"</svg>([^<]+)</a>", group)
-        for group in re.findall(r"<ul>(.*?)</ul>", nav, re.S)
+        for group in re.findall(r'<ul class="navbar-nav">(.*?)</ul>', nav, re.S)
     ]
     assert groups == [
         ["Reports"],
@@ -205,7 +210,11 @@ def test_the_administration_home_links_its_screens_as_cards(admin_client) -> Non
     log as cards, each linking to its screen, as the sidebar's group does.
     """
     page = admin_client.get(reverse("admin_home")).content.decode()
-    cards = re.findall(r'<section class="card">\s*<h2><a href="([^"]+)">', page)
+    cards = re.findall(
+        r'<section class="card"><div class="card-body">\s*'
+        r'<h2 class="card-title"><a href="([^"]+)">',
+        page,
+    )
     assert cards == [
         reverse("admin_users"),
         reverse("admin_roles"),
