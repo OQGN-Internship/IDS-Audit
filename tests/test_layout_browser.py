@@ -99,6 +99,25 @@ def test_the_preview_s_figures_sit_side_by_side_on_a_wide_screen(
     assert rows["x"] == reconciliation["x"] and rows["y"] < reconciliation["y"]
 
 
+def test_the_sidebar_s_links_and_logo_fill_its_width(page: Page, live_server) -> None:
+    """Verify on a wide screen the sidebar's logo, with its line, and each of
+    its links span the sidebar, so the band of the screen open now reaches
+    its edge, as Tabler's own vertical navbar would otherwise stop them
+    at their words.
+    """
+    admin = make_admin()
+    report = sample(admin)
+    sign_in(page, live_server, admin.username)
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(f"{live_server.url}/reports/{report.pk}/overview")
+    bar = page.locator("nav.sidebar").bounding_box()
+    logo = page.locator("nav.sidebar .logo").bounding_box()
+    assert logo["width"] >= bar["width"] - 2, (logo, bar)
+    for link in page.locator("nav.sidebar .nav-link").all():
+        box = link.bounding_box()
+        assert box["width"] >= bar["width"] - 20, (link.inner_text(), box, bar)
+
+
 def test_the_narrow_bar_is_short_and_nothing_scrolls_sideways(
     page: Page, live_server
 ) -> None:

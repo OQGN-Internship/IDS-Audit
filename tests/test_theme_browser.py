@@ -159,9 +159,9 @@ def test_a_message_and_a_refusal_are_drawn_in_the_theme(
 
 
 def test_a_focused_button_and_field_show_the_ring(page: Page, live_server) -> None:
-    """Verify a button and a field reached with the keyboard show the 2px
-    green-text ring 2px outside them, in place of Tabler's own (ENG-03 4,
-    Focus).
+    """Verify a field, a button, a sidebar link and a list reached with the
+    keyboard each show the 2px green-text ring 2px outside them, in place of
+    Tabler's own (ENG-03 4, Focus).
     """
     page.goto(f"{live_server.url}/sign-in")
     ring = """() => {
@@ -169,19 +169,33 @@ def test_a_focused_button_and_field_show_the_ring(page: Page, live_server) -> No
         return [document.activeElement.tagName, style.outlineStyle,
                 style.outlineWidth, style.outlineColor, style.outlineOffset];
     }"""
+    shown = ["solid", "2px", "rgb(88, 125, 57)", "2px"]
     page.get_by_label("Username").focus()
     page.keyboard.press("Tab")
-    assert page.evaluate(ring) == ["INPUT", "solid", "2px", "rgb(88, 125, 57)", "2px"]
+    assert page.evaluate(ring) == ["INPUT", *shown]
     page.keyboard.press("Tab")
-    assert page.evaluate(ring) == ["BUTTON", "solid", "2px", "rgb(88, 125, 57)", "2px"]
+    assert page.evaluate(ring) == ["BUTTON", *shown]
+    admin = make_admin()
+    report = create_report("Ring", admin)
+    sign_in(page, live_server, admin.username)
+    page.goto(f"{live_server.url}/reports/{report.pk}/overview")
+    page.locator(".navbar-brand").focus()
+    page.keyboard.press("Tab")
+    assert page.evaluate(ring) == ["A", *shown]
+    page.locator(".crumbs a").last.focus()
+    page.keyboard.press("Tab")
+    assert page.evaluate(ring) == ["SELECT", *shown]
 
 
 def test_a_link_is_underlined_only_under_the_pointer(page: Page, live_server) -> None:
     """Verify a link in the page shows in green-text without a line, and
     gains its underline under the pointer, as Tabler draws links (ENG-03 4,
-    Meaning never rests on colour alone).
+    Meaning never rests on colour alone), and a card's name is such a link,
+    not the ink of a heading.
     """
-    sign_in(page, live_server, make_admin().username)
+    admin = make_admin()
+    create_report("Linked", admin)
+    sign_in(page, live_server, admin.username)
     page.goto(f"{live_server.url}/admin/users")
     crumb = page.locator(".crumbs a").first
     # Its line, and its colour as the screen shows it, whichever way Tabler
@@ -196,3 +210,6 @@ def test_a_link_is_underlined_only_under_the_pointer(page: Page, live_server) ->
     assert crumb.evaluate(line) == ["none", [88, 125, 57]]
     crumb.hover()
     assert crumb.evaluate(line) == ["underline", [88, 125, 57]]
+    page.goto(f"{live_server.url}/reports/")
+    name = page.locator(".report-card .card-title a")
+    assert name.evaluate(line) == ["none", [88, 125, 57]]
