@@ -124,9 +124,18 @@ Don't edit SAP's export by hand each month. Tell the developer once. Most differ
 
 | The export has | What's done |
 | --- | --- |
-| Other headers | They're added to the report's header names with `change_ruleset`. Or the uploader picks the columns once at Needs columns, and once that file is approved, the pick is reused for the next file with exactly the same header |
+| Other headers | They're added to the report's header names with `change_ruleset`, the only fix for every column. A column pick at Needs columns fixes one file, and not every column (below) |
 | Dates month first, such as `04.15.2026` | The report's `date_order` |
 | Decimal commas in a text export, such as `1.234,500-` | The report's `decimal_separator` |
 | Rows that aren't actual spend | The report's `actual_spend_rule`, read from a Value Type column |
 | No total row | The uploader types SAP's total on the upload form |
 | An HTML page saved as `.xls` | A reader for it is added to the application |
+
+**Other headers.** A fixed administrator adds each new header to its field's list with `change_ruleset` ([command.md](command.md)). Every file received after the change then reads, wherever the column sits.
+
+A column pick is for one file. When a needed column, such as the amount, the posting date, the commitment item or the department code, isn't recognised, the upload stops at Needs columns and the uploader picks it. The pick doesn't add the header to the report's header names. Once that file is approved, the pick is reused for the report's next file whose header row on that sheet is exactly the same, cell for cell (ENG-02 4.5). A column added, removed, renamed or moved means picking again.
+
+The GL account and cost center columns can't be picked, since their headers are how each sheet is found (section 1). When one isn't recognised:
+
+- **On Transactions,** the file fails with "The file has no spend sheet".
+- **On GL Mapping or Cost Center Mapping,** that sheet is ignored without a message, and the file still reads with the last approved file's mapping, as a file without that sheet does (section 6). On the report's first file there's none, so every GL account has no budget line, or every cost center is outside IDS. Those exceptions don't block approval, so the approver checks them before approving.
