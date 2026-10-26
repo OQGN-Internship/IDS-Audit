@@ -341,7 +341,7 @@ The account actions cover the plan's "every change to accounts or access". `pass
 | SQL injection | All queries go through the ORM or parameterised SQL. No SQL is built by joining strings |
 | Clickjacking | Every response carries `X-Frame-Options: DENY` |
 | Formula injection in exports | XlsxWriter's `strings_to_formulas` and `strings_to_urls` options are off, so text such as `=HYPERLINK(...)` stays text |
-| Secrets in the repository | `SECRET_KEY` and the database passwords are kept in `.env`, which `.gitignore` excludes. `.env.example` holds only the names |
+| Secrets in the repository | `SECRET_KEY` and the database passwords are kept in `.env`, which `.gitignore` excludes. `.env.example` holds every name, each setting's default, and for each secret the command that makes one and an example of its form, but never a real value |
 | Client data in Git | The real export, and anything taken from it, stays in `real-export/`. Backups stay in `backups/`. Git ignores both folders except the README in each, and `.dockerignore` keeps them and `.env` out of the application image |
 | Client data in cloud-synced folders | The working copy holds `.env`, `real-export/` and `backups/`, so it must sit outside any cloud-synced folder such as OneDrive. `pgdata` and `uploads` stay Docker named volumes, never folders in the working copy |
 | Access from other machines | The application's port and the database's port are published on 127.0.0.1 only |
@@ -411,7 +411,7 @@ Then open `http://localhost:8000` and sign in as that administrator, with the in
 
 | Setting | What it does | Default |
 | --- | --- | --- |
-| `SECRET_KEY` | Signs sessions and CSRF tokens | None. Must be set to a long random value |
+| `SECRET_KEY` | Signs sessions and CSRF tokens | None. Must be set to at least 50 random characters, such as the 64 that `openssl rand -hex 32` prints in Git Bash. `.env.example` shows how to make each secret |
 | `POSTGRES_PASSWORD` | The database superuser's password, used only inside the `db` container | None. Must be set |
 | `DB_NAME` | The application database, created on first start | `ids_audit` |
 | `DB_HOST` | Where Django on the developer's machine finds the database (7.5). `migrate` and `app` use `db` instead | `127.0.0.1` |
