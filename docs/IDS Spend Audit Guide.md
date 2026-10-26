@@ -49,7 +49,7 @@ On every screen:
 If your role holds Upload:
 
 1. Open the report's **Uploads**, then **Upload a file**.
-2. Choose the SAP export: an Excel file with its GL and cost center mapping sheets, or a CSV of spend lines. If the file has no total row, type SAP's total for it.
+2. Choose the SAP export: an Excel file with its GL and cost center mapping sheets, or a CSV of spend lines. [IDS Spend Audit Workbook](IDS%20Spend%20Audit%20Workbook.md) gives the best shape for it. If the file has no total row, type SAP's total for it.
 3. **Upload and read** reads the file and opens its preview: rows read and skipped, new rows, duplicates, exceptions, and whether the file's rows add up to its control total.
 4. If a column couldn't be found, the upload says **Needs columns**, and Uploads says **Waiting for you to pick columns**. **Pick the columns** shows the sheet's first rows, and you choose the column for each field.
 5. The upload then waits for an approver. It doesn't count in the report until it's approved. Until then you can withdraw it, with a reason.

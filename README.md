@@ -35,6 +35,7 @@ Start with the plan. The engineering documents implement it.
 | [ENG-02 Data Model and Import](docs/engineering/ENG-02%20Data%20Model%20and%20Import.md) | Tables, file reading, cleaning rules, upload states, duplicates, reconciliation |
 | [ENG-03 Reports, FAQ and Exports](docs/engineering/ENG-03%20Reports,%20FAQ%20and%20Exports.md) | Screens, filters, drill-down, FAQ answers, Excel exports |
 | [Guide](docs/IDS%20Spend%20Audit%20Guide.md) | Using the application, administering it, and running it day to day |
+| [Workbook](docs/IDS%20Spend%20Audit%20Workbook.md) | The workbook to upload: its three sheets, their columns and the value each expects |
 | [Contributing](docs/CONTRIBUTING.md) | Branches, commits, PRs, checks, client data rules |
 
 ## Built with
