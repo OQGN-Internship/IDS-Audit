@@ -835,11 +835,15 @@ Each expected result is a JSON object. Every amount is a string with three decim
 | `skipped_rows` | Empty |
 | `replaced` | The CSV only: the number and amount of postings replaced (7.3) |
 
-Running the script again gives byte-identical files. The workbook's creation date is fixed, and Git never changes the fixtures' line endings (`docs/CONTRIBUTING.md`, section 9).
+Running the script again gives the same files on any machine:
+
+- **The CSV and the expected results** are byte-identical. Git never changes the fixtures' line endings (`docs/CONTRIBUTING.md`, section 9).
+- **The workbook** has the same parts inside it, byte for byte. Its creation date is fixed, and XlsxWriter builds it in memory, since its temporary files would end a line as the system does: `\r\n` on Windows, `\n` on Linux.
+- **The workbook's own bytes** still differ between Windows and Linux, since a ZIP file records the system that made it.
 
 **Tested by**
 
-- Running the script again leaves every file in `tests/fixtures/` byte for byte unchanged.
+- Running the script again leaves the CSV and the expected results byte for byte unchanged, and every part of the workbook, on Windows and, in CI, on Linux (ENG-01, 7.5).
 - In each expected result, `by_gl`, `by_ci`, `by_department` and `by_month` each add up to `actual_spend.total`, so do `inside_ids` and `outside_ids`, and the reconciliation `difference` is `0.000`.
 - With no expected result in `real-export/`, the real-export test is skipped with a reason naming the folder, and fails when `IDS_REQUIRE_REAL_EXPORT=1`. An export without its expected result fails it.
 - Put in a folder of its own with an expected result made from its own, the sample file passes the real-export test, and so does an expected result giving only the overall total. A made-up CSV whose amount header only a changed ruleset recognises, with no total row, passes with its `settings` and a typed `control_total`, and fails without either. The test fails when one figure is changed by `0.001`, when a code is missing from the report, when a row is skipped that isn't listed, and when a blocking exception stops approval.
