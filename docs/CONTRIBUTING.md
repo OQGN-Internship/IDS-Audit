@@ -75,7 +75,7 @@ type(scope): subject
 | `ui` | `ids_audit/templates/` and `ids_audit/static/` |
 | `config` | `config/`: settings, URLs, WSGI |
 | `db` | `sql/`: database roles and grants |
-| `ops` | `scripts/`, `Dockerfile`, `compose.yaml`, `.env.example` |
+| `ops` | `scripts/`, `Dockerfile`, `compose.yaml`, `.env.example`, `.github/workflows/` |
 | `tests` | Shared test setup, fixtures and golden files |
 | `docs` | The plan and the user guide |
 | `engineering` | `docs/engineering/` |
@@ -141,7 +141,7 @@ uv run pytest
 - The database tests need PostgreSQL, so start it first with `docker compose up -d db` (ENG-01 7.5). The other tests pass without it.
 - Any change to a figure, a permission or a migration needs a test that would fail without it.
 - After any change to `scripts/`, `compose.yaml`, the `Dockerfile` or a migration, also run `uv run pytest -m docker`, the backup and restore gate, which a plain `uv run pytest` leaves out because it builds the image and takes minutes (ENG-01 7.5). It needs Docker and Git Bash.
-- There is no CI yet. When it's added, it runs the same three commands.
+- **CI** runs the same three commands on GitHub Actions for every push to `development` or `main` and every pull request to `main`, and the backup and restore gate when what it guards changes (ENG-01 7.5). It's a safety net, not a replacement: run the checks before you push. A failed run is fixed before anything else is pushed. CI never sees client data, so the real-export check stays on your machine.
 
 ## 7. Client data and secrets
 
