@@ -70,13 +70,13 @@
 
 a { text-underline-offset: 0.15em; }
 
-/* Every link, button and field focused from the keyboard shows its ring:
-   a button's is Tabler's, in the colour given it above; the rest are set
-   here, since Tabler draws theirs as shadows. */
+/* Every link, button and field focused from the keyboard shows its ring.
+   A button's and a sidebar link's is Tabler's, in the colour given it
+   above; a field's is set here, since Tabler draws it 1px inside the
+   field's border, and a plain link's, which Tabler leaves to the browser. */
 :focus-visible,
 .form-control:focus-visible,
-.form-select:focus-visible,
-.nav-link:focus-visible {
+.form-select:focus-visible {
   outline: 2px solid var(--oqgn-green-text);
   outline-offset: 2px;
 }
