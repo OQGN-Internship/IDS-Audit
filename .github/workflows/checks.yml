@@ -1,0 +1,56 @@
+# The checks CONTRIBUTING 6 asks for before merging, run on every push and
+# pull request (ENG-01 7.5). Only made-up values are used here: no real
+# secret, export or backup ever reaches GitHub, so the real-export test skips
+# (ENG-02 12.2).
+name: Checks
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch stops the run it replaces.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # For the throwaway database this run starts, and for the settings that
+  # require them. Never real values.
+  SECRET_KEY: ci-only-not-a-secret-ci-only-not-a-secret-ci-only-not-a-secret
+  POSTGRES_PASSWORD: ci-only-postgres
+  DB_OWNER_PASSWORD: ci-only-owner
+  DB_APP_PASSWORD: ci-only-app
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+      - name: Install the dependencies uv.lock pins
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Start the database
+        run: docker compose up -d --wait db
+      - name: Install Chromium for the browser tests
+        run: uv run playwright install --with-deps chromium
+      - name: Test
+        # ENG-03 10's 2-second limit is for the developer's machine, so it
+        # isn't timed on GitHub's; the speed test's query counts still run.
+        run: >-
+          uv run pytest
+          --deselect tests/test_speed.py::test_every_screen_answers_within_2_seconds
