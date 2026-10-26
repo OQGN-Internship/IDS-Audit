@@ -31,7 +31,7 @@ The browser reaches the application only through 127.0.0.1. The application is t
 
 ## 3. Technology choices
 
-Every choice favours exact arithmetic, few moving parts and long support. Exact versions of every library are pinned in `uv.lock`. JavaScript libraries are copied into the repository instead of loaded from the internet.
+Every choice favours exact arithmetic, few moving parts and long support. Exact versions of every library are pinned in `uv.lock`. JavaScript and CSS libraries, and the icons, are copied into the repository instead of loaded from the internet, each checked against the hash its registry publishes.
 
 | Layer | Choice | Version | Why | Considered instead |
 | --- | --- | --- | --- | --- |
@@ -43,6 +43,8 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | Database driver | psycopg | 3 | Supports `COPY` from Python | psycopg2, the older driver |
 | Page updates | HTMX | 2, in the repository | The server renders HTML and HTMX swaps parts of the page, so there is no second front-end codebase | React, which needs a separate app and an API |
 | Charts | Apache ECharts | Pinned, in the repository | Fast with long series, with built-in tooltips | Chart.js, which is weaker with large data |
+| Layout and components | Tabler, its stylesheet only | 1.6.1, in the repository | Ready components on Bootstrap 5, the base oqgn.om is built on too: a page with a sidebar and a page header, cards, tables, badges, alerts, buttons and form fields. OQGN's theme is set through its CSS variables, with no build step (ENG-03, 4) | Bootstrap alone, which has no dashboard layout. Tailwind, which needs a build step. A React kit, which needs a separate app and an API |
+| Icons | Tabler Icons, only those used | 3.49.0, in the repository | Line icons drawn to go with Tabler, kept as one file of symbols | Font Awesome, oqgn.om's icons, which come as a font and a stylesheet for a few dozen icons |
 | Excel reading | python-calamine, with openpyxl as a fallback | Pinned | calamine is fast. openpyxl handles unusual files | pandas, which turns amounts into floats by default |
 | Excel writing | XlsxWriter | Pinned | Cell formats, frozen headers, and a memory-saving mode for large exports | openpyxl, which is slower for large exports |
 | Sign-in lock-out | django-axes | Pinned | Counts failed sign-ins and locks accounts, configured by settings | A hand-written counter |
@@ -58,6 +60,7 @@ Every choice favours exact arithmetic, few moving parts and long support. Exact 
 | Background worker (Procrastinate, which uses PostgreSQL as its queue) | Files are large enough that users would wait too long during import | The plan's open question on rows per file |
 | Nginx with HTTPS | The application moves off the developer's machine | The plan's open question on where it runs after sign-off |
 | Alpine.js 3, in the repository, for small behaviours on a page | A screen needs a behaviour that HTMX, HTML and CSS can't give. None does: the sidebar, the narrow bar and long tables need no JavaScript, and every action is a form (ENG-03, 4) | ENG-03, 4 |
+| Tabler's JavaScript, `tabler.min.js` of the same version, in the repository | A screen needs a menu, a dialog or a tooltip that opens. None does: the narrow bar has no menu to open, and every action is a form on its page (ENG-03, 4) | ENG-03, 4 |
 
 ## 4. Code structure
 
@@ -74,7 +77,7 @@ IDS-Audit/
 │   ├── reports/       reports, report screens, FAQ queries, chart data, Excel exports
 │   ├── audit/         the append-only audit log
 │   ├── templates/     pages and the partial templates HTMX swaps in
-│   └── static/        CSS, OQGN's logo, the icons, and the HTMX and ECharts files
+│   └── static/        Tabler's and the theme's CSS, OQGN's logo, the icons, and the HTMX and ECharts files
 ├── sql/               database roles and grants
 ├── tests/             unit, golden-file, permission and browser tests
 │   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)
