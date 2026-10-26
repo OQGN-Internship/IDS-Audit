@@ -79,6 +79,7 @@ IDS-Audit/
 ├── tests/             unit, golden-file, permission and browser tests
 │   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)
 ├── scripts/           backup.sh and restore.sh
+├── .github/workflows/ CI: checks.yml and backup-gate.yml (7.5)
 ├── docs/              the plan, engineering/, CONTRIBUTING.md, and the guide for users and administrators
 ├── backups/           backups made by scripts/backup.sh (7.2). Git ignores everything here except its README
 ├── real-export/       the client's real SAP export and SAP's totals for it (ENG-02, 12.2). Git ignores everything here except its README
@@ -554,6 +555,16 @@ As soon as there's a sign-in page, the `Dockerfile`, `config.settings.production
 - Every test that a statement is refused has a matching test that an allowed statement works (6.3), so a refusal can't come from missing grants.
 - The browser tests (ENG-02, 12.1) drive Chromium with Playwright against pytest-django's live server, which serves the application from the test process. Chromium is installed once, with `uv run playwright install chromium`. They run after every other test: Playwright keeps an event loop running in the main thread until the session ends, and Django refuses database work in a thread with one.
 - A test that needs time to pass, such as a lock-out ending, moves the clock with time-machine (3) instead of waiting. The clock it moves is the application's, so times PostgreSQL sets itself, with `now()`, don't move. None of the tables uses them (ENG-02, 10.2).
+
+**CI**
+
+GitHub Actions runs the same checks on GitHub's Linux machines. It catches a push made without them, and doesn't replace running them before pushing (`docs/CONTRIBUTING.md`, section 6).
+
+- **`.github/workflows/checks.yml`** runs on every push to `development` or `main`, every pull request to `main`, and by hand. In order: `uv sync --locked`, which fails if `uv.lock` is out of date; `ruff check` and `ruff format --check`; `docker compose up -d --wait db`; Chromium for the browser tests; then `uv run pytest`.
+- **It leaves out one check:** `test_every_screen_answers_within_2_seconds`. ENG-03, 10's limit is for the developer's machine, and GitHub's machines are smaller. The speed test's other checks run.
+- **`.github/workflows/backup-gate.yml`** runs the backup and restore gate, `uv run pytest -m docker`, when `scripts/`, `compose.yaml`, the `Dockerfile`, `.dockerignore`, `sql/` or a migration changes, or by hand. It adds `.dockerignore` and `sql/` to the list above, since they change the image and the grants a restore brings back.
+- **No client data.** Both use made-up values for the four secrets and a database thrown away at the end. The real export, its expected results and backups never leave the developer's machine, so the real-export test skips there (ENG-02, 12.2).
+- **Pinned.** Each action is pinned to a commit, and uv to the developer's version, so a run uses exactly what was checked. Updating either is a `ci` commit. Each workflow can only read the repository, and a run stops after 30 minutes.
 
 **First-time setup**, after cloning as in 7.1:
 
