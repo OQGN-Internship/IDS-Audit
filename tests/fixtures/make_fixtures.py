@@ -279,7 +279,9 @@ def write_cells(sheet: Worksheet, row: int, cells: Cells) -> None:
 
 def write_xlsx(path: Path) -> None:
     """Write sample.xlsx: README, Transactions and the two mapping sheets."""
-    workbook = xlsxwriter.Workbook(path)
+    # In memory, since XlsxWriter's temporary files end a line as the system
+    # does, so each part inside is the same on Windows and Linux (ENG-02 12.3).
+    workbook = xlsxwriter.Workbook(path, {"in_memory": True})
     workbook.set_properties({"created": CREATED})
 
     readme = workbook.add_worksheet("README")

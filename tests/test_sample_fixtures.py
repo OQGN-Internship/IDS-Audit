@@ -1,6 +1,7 @@
 """The generated sample files (ENG-02 12.3, Tested by)."""
 
 import json
+import zipfile
 from collections.abc import Iterable
 from decimal import Decimal
 from pathlib import Path
@@ -13,12 +14,26 @@ FIXTURES_DIR = make_fixtures.FIXTURES_DIR
 EXPECTED_RESULTS = ["sample.expected.json", "sample_semicolon.expected.json"]
 
 
+def contents(path: Path) -> object:
+    """Return what a fixture holds: a workbook's parts, each name with its
+    bytes, in order, or any other file's bytes. A ZIP file records the system
+    that made it, so a workbook's own bytes differ between Windows and Linux
+    (ENG-02 12.3).
+    """
+    if path.suffix == ".xlsx":
+        with zipfile.ZipFile(path) as workbook:
+            return [(name, workbook.read(name)) for name in workbook.namelist()]
+    return path.read_bytes()
+
+
 def test_running_the_script_again_changes_no_fixture(tmp_path: Path) -> None:
-    """Verify rerunning the generator leaves fixture files unchanged."""
+    """Verify rerunning the generator leaves every fixture as it is: each
+    part of the workbook, and every other file byte for byte.
+    """
     changed = [
         fresh.name
         for fresh in make_fixtures.write_all(tmp_path)
-        if fresh.read_bytes() != (FIXTURES_DIR / fresh.name).read_bytes()
+        if contents(fresh) != contents(FIXTURES_DIR / fresh.name)
     ]
     assert changed == [], "Run: uv run python -m tests.fixtures.make_fixtures"
 
