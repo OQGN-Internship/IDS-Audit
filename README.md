@@ -13,7 +13,7 @@ Each user has their own account and per-report permissions. Every sign-in, uploa
 
 ## Status
 
-Phase 0, planning. The delivery plan is a draft awaiting the client's sign-off. The build runs over Days 2 to 5, followed by the client's acceptance:
+Phase 4, permissions and handover. The client has approved the delivery plan. The real SAP export hasn't arrived yet, so the build starts on a generated sample file made to look like one (ENG-02 12.3). The build runs over Days 2 to 5, followed by the client's acceptance:
 
 | Phase | Day | Delivers |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Phase 0, planning. The delivery plan is a draft awaiting the client's sign-off. 
 | 3. Reports | 4 | Screens, FAQ, charts, Excel exports |
 | 4. Permissions and handover | 5 | Users and roles, backup and restore, handover |
 
-So far the repository holds only the planning documents. The code starts in Phase 1.
+Phases 1 to 4 are built for the sample file. The figures match its expected totals to the baisa. Fixed administrators create users, give each a role on each report, and manage roles, from the administration screens. A user can upload a file, check its preview, approve, reject or withdraw it, and roll it back, as their role allows, each on record in the audit log, which has its own screen. The report's screens, FAQ pages and charts answer the plan's eight questions, every amount opens the rows behind it, and every screen exports to Excel. Backups restore with every total unchanged, and every screen is in OQGN's theme. For acceptance, the real export goes in `real-export/` with SAP's totals, which the real-export test checks to the baisa (ENG-02 12.2), and a report's ruleset can be changed from the command line when the export needs it (ENG-02 3). Left for the client: the demo, the plan's open questions, the first users, and acceptance with the real export.
 
 ## Documentation
 
@@ -34,35 +34,46 @@ Start with the plan. The engineering documents implement it.
 | [ENG-01 Architecture, Security and Operations](docs/engineering/ENG-01%20Architecture,%20Security%20and%20Operations.md) | Components, code structure, sign-in, roles and grants, running, backup and restore |
 | [ENG-02 Data Model and Import](docs/engineering/ENG-02%20Data%20Model%20and%20Import.md) | Tables, file reading, cleaning rules, upload states, duplicates, reconciliation |
 | [ENG-03 Reports, FAQ and Exports](docs/engineering/ENG-03%20Reports,%20FAQ%20and%20Exports.md) | Screens, filters, drill-down, FAQ answers, Excel exports |
+| [Guide](docs/IDS%20Spend%20Audit%20Guide.md) | Using the application, administering it, and running it day to day |
+| [Workbook](docs/IDS%20Spend%20Audit%20Workbook.md) | The workbook to upload: its three sheets, their columns and the value each expects |
 | [Contributing](docs/CONTRIBUTING.md) | Branches, commits, PRs, checks, client data rules |
 
 ## Built with
 
-Python 3.12, Django 5.2, PostgreSQL 17, HTMX, Alpine.js and ECharts, packaged with Docker Compose. Dependencies are managed with uv; ruff, pytest, Hypothesis and Playwright check the code. ENG-01 explains each choice.
+Python 3.12, Django 5.2, PostgreSQL 17, HTMX and ECharts, packaged with Docker Compose. Dependencies are managed with uv; ruff, pytest, Hypothesis and Playwright check the code. ENG-01 explains each choice.
 
 ## Getting started
 
-**Now (Phase 0):** there's nothing to run yet. Clone the repository and read the documents above, starting with the plan.
+You'll need Docker, Python 3.12 and [uv](https://docs.astral.sh/uv/). Keep the working copy outside any synced folder such as OneDrive.
 
 ```bash
 git clone https://github.com/OQGN-Internship/IDS-Audit.git
+cd IDS-Audit
+cp .env.example .env          # then fill in the settings (ENG-01 7.1)
 ```
 
-**Once Phase 1 lands:** you'll need Docker, Python 3.12 and [uv](https://docs.astral.sh/uv/). The whole app then starts with one command (ENG-01 7.1):
+**The app** starts with one command (ENG-01 7.1). Create each fixed administrator once:
 
 ```bash
-cd IDS-Audit
-cp .env.example .env          # then fill in the settings
 docker compose up -d          # starts the database, runs migrations, starts the app
 docker compose exec app python manage.py create_admin <username>
-uv run pytest
 ```
 
-The app is then at `http://localhost:8000`, reachable only from the same machine.
+The app is then at `http://localhost:8000`, or the `APP_PORT` you set, reachable only from the same machine. Sign in with the initial password you typed, and choose your own.
+
+**The tests** run on your machine, with only the database in Docker (ENG-01 7.5):
+
+```bash
+uv sync
+uv run playwright install chromium   # once, for the browser tests
+docker compose up -d db
+uv run pytest
+uv run pytest -m docker              # the backup and restore gate, which takes minutes
+```
 
 ## Client data
 
-The real SAP export is OQGN's data. Never commit it, any rows taken from it, backups, uploads or `.env`. Keep them outside the repository and outside any synced folder such as OneDrive. Tests use generated sample files only. See [Contributing](docs/CONTRIBUTING.md), section 7.
+The real SAP export is OQGN's data. Never commit it, any rows taken from it, backups, uploads or `.env`. The real export goes in `real-export/` and backups in `backups/`, which Git ignores, and the working copy stays outside any synced folder such as OneDrive. Tests use generated sample files only. See [Contributing](docs/CONTRIBUTING.md), section 7.
 
 ## Contributing
 

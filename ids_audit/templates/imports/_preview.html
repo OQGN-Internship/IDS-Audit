@@ -1,0 +1,112 @@
+{% load figures %}
+<h2>Preview</h2>
+
+<h3>Period</h3>
+<p>
+  {% if upload.period_start %}Postings dated {{ upload.period_start|day }} to {{ upload.period_end|day }}.{% else %}No posting dates.{% endif %}
+  {% if preview.months_replaced %}
+    Months it replaces: {% for m in preview.months_replaced %}{{ m|month }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+  {% endif %}
+</p>
+<p>
+  {% if report.duplicate_mode %}
+    Duplicate mode: {{ report.get_duplicate_mode_display|lower }}.
+  {% else %}
+    The duplicate mode is chosen when the report's first upload is approved. Line key {% if preview.line_key_offered %}can{% else %}can't{% endif %} be chosen for this file.
+  {% endif %}
+</p>
+
+{# The preview's figures, side by side on a wide screen (ENG-03 4). #}
+<div class="preview-grid">
+<section>
+<h3>Rows</h3>
+<table class="figures">
+  <thead><tr><th>Rows</th><th class="amount">Count</th><th class="amount">Amount</th></tr></thead>
+  <tbody>
+    <tr><td>Read</td><td class="amount">{{ upload.rows_read }}</td><td></td></tr>
+    <tr><td>To commit</td><td class="amount">{{ upload.rows_new }}</td><td class="amount">{{ preview.amounts.to_commit|amount }}</td></tr>
+    <tr><td>Duplicates already in the report</td><td class="amount">{{ upload.rows_duplicate }}</td><td class="amount">{{ preview.amounts.duplicates|amount }}</td></tr>
+    <tr><td>Skipped</td><td class="amount">{{ upload.rows_skipped }}</td><td class="amount">{{ preview.amounts.skipped|amount }}</td></tr>
+    <tr><td>Postings it replaces</td><td class="amount">{{ upload.rows_replaced }}</td><td class="amount">{{ preview.amounts.replaced|amount }}</td></tr>
+  </tbody>
+</table>
+</section>
+
+<section>
+<h3>Reconciliation</h3>
+{% if upload.control_total is None %}
+  <p class="error">No control total: the file has no total row, and none was typed with it.</p>
+{% else %}
+  <table class="figures">
+    <tbody>
+      <tr><td>Control total, {% if upload.control_total_source == "entered" %}typed by hand{% else %}from the file's total row{% endif %}</td><td class="amount">{{ upload.control_total|amount }}</td></tr>
+      <tr><td>minus rows to commit</td><td class="amount">{{ preview.amounts.to_commit|amount }}</td></tr>
+      <tr><td>minus duplicates already in the report</td><td class="amount">{{ preview.amounts.duplicates|amount }}</td></tr>
+      <tr><td>minus skipped spend rows</td><td class="amount">{{ preview.amounts.skipped|amount }}</td></tr>
+      <tr class="total"><td>Difference</td><td class="amount">{{ upload.reconciliation_difference|amount }}</td></tr>
+    </tbody>
+  </table>
+{% endif %}
+</section>
+
+<section>
+<h3>Actual spend</h3>
+<table class="figures">
+  <tbody>
+    <tr><td>In this file</td><td class="amount">{{ preview.actual_spend.total|amount }}</td></tr>
+    <tr><td>of it inside IDS</td><td class="amount">{{ preview.actual_spend.inside_ids|amount }}</td></tr>
+    <tr><td>of it outside IDS</td><td class="amount">{{ preview.actual_spend.outside_ids|amount }}</td></tr>
+    <tr><td>Rows to commit that aren't actual spend</td><td class="amount">{{ preview.not_actual|amount }}</td></tr>
+    <tr><td>The report, before approval</td><td class="amount">{{ preview.report_actual_spend.before|amount }}</td></tr>
+    <tr class="total"><td>The report, after approval</td><td class="amount">{{ preview.report_actual_spend.after|amount }}</td></tr>
+  </tbody>
+</table>
+</section>
+
+<section>
+
+{% if value_types %}
+  <h3>Value types</h3>
+  <table class="figures">
+    <thead><tr><th>Value type</th><th>Counts as</th><th class="amount">Rows</th><th class="amount">Amount</th></tr></thead>
+    <tbody>
+      {% for value in value_types %}
+        <tr><td>{{ value.value_type }}</td><td>{{ value.counts_as }}</td><td class="amount">{{ value.rows }}</td><td class="amount">{{ value.amount|amount }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+<h3>Mappings</h3>
+<table class="figures">
+  <tbody>
+    {% for label, number in mappings %}
+      <tr><td>{{ label }} mapping</td><td>{% if number == upload.number %}This upload's own{% elif number %}Upload {{ number }}'s{% else %}None yet{% endif %}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</section>
+</div>
+
+<h3>Exceptions</h3>
+{% if exceptions %}
+  <div class="table-wrap">
+  <table class="exceptions">
+    <thead><tr><th>Exception</th><th>Blocks approval</th><th class="amount">Rows</th><th class="amount">Amount</th><th></th></tr></thead>
+    <tbody>
+      {% for exception in exceptions %}
+        <tr>
+          <td>{{ exception.name }}</td>
+          <td>{% if exception.blocks_approval %}<span class="blocks">Yes</span>{% else %}No{% endif %}</td>
+          <td class="amount">{{ exception.row_count }}</td>
+          <td class="amount">{{ exception.amount|amount }}</td>
+          <td>{% if exception.items %}{% url 'exception_items' report.pk upload.number exception.type as items_url %}<a href="{{ items_url }}" hx-get="{{ items_url }}" hx-target="#items-{{ exception.type }}">{{ exception.items|length }} item{{ exception.items|length|pluralize }}</a>{% endif %}</td>
+        </tr>
+        <tr class="items-row"><td colspan="5" id="items-{{ exception.type }}"></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% else %}
+  <p class="none">None.</p>
+{% endif %}

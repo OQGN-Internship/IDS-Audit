@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load navigation %}
+{% block title %}Roles · Administration · IDS Spend Audit{% endblock %}
+{% block heading %}Roles{% endblock %}
+{% block actions %}<a class="button" href="{% url 'admin_new_role' %}">{% icon "plus" %}New role</a>{% endblock %}
+{% block content %}
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Role</th>{% for label in labels.values %}<th>{{ label }}</th>{% endfor %}<th class="count">Given</th></tr>
+  </thead>
+  <tbody>
+    {% for role in roles %}
+      <tr>
+        <td><a href="{% url 'admin_role' role.pk %}">{{ role.name }}</a></td>
+        {% for name in labels %}<td>{% if name in role.permissions %}Yes{% endif %}</td>{% endfor %}
+        <td class="count">{{ role.given }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

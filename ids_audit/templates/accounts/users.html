@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load figures navigation %}
+{% block title %}Users · Administration · IDS Spend Audit{% endblock %}
+{% block heading %}Users{% endblock %}
+{% block actions %}<a class="button" href="{% url 'admin_new_user' %}">{% icon "plus" %}New user</a>{% endblock %}
+{% block content %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Username</th><th>Full name</th><th>Account</th><th class="count">Reports</th><th>Last sign-in</th></tr></thead>
+  <tbody>
+    {% for row in rows %}{% with account=row.account %}
+      <tr>
+        <td><a href="{% url 'admin_user' account.pk %}">{{ account.username }}</a></td>
+        <td>{{ account.full_name }}</td>
+        <td>{% if account.is_fixed_admin %}Fixed administrator{% else %}User{% endif %}{% if not account.is_active %}, disabled{% endif %}{% if row.locked_until %}, locked out until {{ row.locked_until|moment }}{% endif %}{% if account.must_change_password %}, waiting for its own password{% endif %}</td>
+        <td class="count">{% if account.is_fixed_admin %}All{% else %}{{ account.reports }}{% endif %}</td>
+        <td>{{ account.last_login|moment }}</td>
+      </tr>
+    {% endwith %}{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

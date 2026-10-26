@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load figures %}
+{% block title %}Roll back upload {{ upload.number }} · IDS Spend Audit{% endblock %}
+{% block heading %}Roll back upload {{ upload.number }}{% endblock %}
+{% block content %}
+{% if refusal %}
+  <p class="error">{{ refusal }}</p>
+{% else %}
+  <p class="change">Actual spend: {{ before|amount }} OMR → {{ after|amount }} OMR.</p>
+  <p>The upload stops counting, and every figure returns to what it was before it was approved. Nothing is deleted, and its file can be uploaded again.</p>
+  <form method="post" action="{% url 'roll_back' report.pk upload.number %}" class="narrow">
+    {% csrf_token %}
+    <label for="reason">Reason for rolling back</label>
+    <textarea id="reason" name="reason" rows="2"></textarea>
+    <button type="submit">Roll back upload {{ upload.number }}</button>
+  </form>
+{% endif %}
+{% endblock %}

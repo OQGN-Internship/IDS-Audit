@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Pick columns · Upload {{ upload.number }} · IDS Spend Audit{% endblock %}
+{% block heading %}Pick columns for upload {{ upload.number }}{% endblock %}
+{% block content %}
+<p>For each problem, pick the column that holds the field. The file is then read again with them, and the choice is used again for later files whose sheet has exactly this header, once this upload is approved.</p>
+<form method="post" action="{% url 'columns' report.pk upload.number %}">
+  {% csrf_token %}
+  {% for sheet in sheets %}
+    <h2>{% if sheet.name %}Sheet {{ sheet.name }}{% else %}The file{% endif %}</h2>
+    <div class="sheet-rows">
+      <table>
+        <thead><tr><th>Row</th>{% for letter in sheet.letters %}<th>{{ letter }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for number, cells in sheet.rows %}
+            <tr><th>{{ number }}</th>{% for cell in cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% for index, problem in sheet.problems %}
+      <p>
+        <label for="pick-{{ index }}">{{ problem.text }}</label>
+        <select id="pick-{{ index }}" name="pick-{{ index }}">
+          <option value="">Pick a column for {{ problem.field }}</option>
+          {% for letter, header in sheet.choices %}<option value="{{ letter }}">{{ letter }}{% if header %}: {{ header }}{% endif %}</option>{% endfor %}
+        </select>
+      </p>
+    {% endfor %}
+  {% endfor %}
+  <button type="submit">Read the file again with these columns</button>
+</form>
+{% endblock %}

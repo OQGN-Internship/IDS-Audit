@@ -1,0 +1,278 @@
+"""Running the application in Docker (ENG-01 7.1 and 7.5): the settings the
+migrate and app services use, Gunicorn's, and what compose.yaml gives each
+service. None of these needs the database.
+"""
+
+import importlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from ids_audit.imports.states import READ_TIME_LIMIT
+
+ROOT = Path(__file__).resolve().parents[1]
+# Every setting .env may hold (ENG-01 7.1).
+SETTING_NAMES = [
+    line.split("=")[0]
+    for line in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    if "=" in line and not line.startswith("#")
+]
+DUMMY = {
+    "SECRET_KEY": "test-only-" + "k" * 50,
+    "POSTGRES_PASSWORD": "test-only-postgres",
+    "DB_OWNER_PASSWORD": "test-only-owner",
+    "DB_APP_PASSWORD": "test-only-app",
+}
+
+
+def without_settings() -> dict:
+    """The environment without any setting from .env, so nothing real reaches
+    a command these tests run, or its output, and without a version tag the
+    shell may hold.
+    """
+    return {
+        k: v
+        for k, v in os.environ.items()
+        if k not in SETTING_NAMES and k != "APP_VERSION"
+    }
+
+
+def load(module: str, monkeypatch, **values: str):
+    """Import a settings or config module afresh with these values set."""
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    return importlib.reload(importlib.import_module(module))
+
+
+def test_the_app_connects_as_ids_app_and_migrate_as_the_owner(monkeypatch) -> None:
+    """Verify the production settings connect as ids_app with its password,
+    and the migrate job's as ids_owner with the owner's, each with DEBUG off.
+    """
+    production = load("config.settings.production", monkeypatch, **DUMMY)
+    database = production.DATABASES["default"]
+    assert (database["USER"], database["PASSWORD"]) == ("ids_app", "test-only-app")
+    assert production.DEBUG is False
+    assert production.MIDDLEWARE[:2] == [
+        "django.middleware.security.SecurityMiddleware",
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    ]
+
+    migrate = load("config.settings.migrate", monkeypatch, **DUMMY)
+    database = migrate.DATABASES["default"]
+    assert (database["USER"], database["PASSWORD"]) == ("ids_owner", "test-only-owner")
+    assert migrate.DEBUG is False
+
+
+def test_the_settings_read_the_version_tag_dev_by_default(monkeypatch) -> None:
+    """Verify the settings take APP_VERSION from the environment, and dev
+    when it isn't set (ENG-01 7.1, G25).
+    """
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    assert load("config.settings.base", monkeypatch, **DUMMY).APP_VERSION == "dev"
+    tagged = load("config.settings.base", monkeypatch, APP_VERSION="v1.0.0")
+    assert tagged.APP_VERSION == "v1.0.0"
+
+
+def test_the_production_settings_need_the_app_password(monkeypatch) -> None:
+    """Verify the production settings refuse to load without DB_APP_PASSWORD,
+    rather than connect with none.
+    """
+    from django.core.exceptions import ImproperlyConfigured
+
+    monkeypatch.setenv("DB_APP_PASSWORD", "")
+    with pytest.raises(ImproperlyConfigured, match="DB_APP_PASSWORD"):
+        importlib.reload(importlib.import_module("config.settings.production"))
+
+
+def test_gunicorn_stops_a_request_before_a_read_counts_as_interrupted(
+    monkeypatch,
+) -> None:
+    """Verify Gunicorn listens on port 8000 with 3 workers and a 300-second
+    timeout by default, below the 10 minutes of ENG-02 6, and takes both
+    from the environment.
+    """
+    monkeypatch.delenv("GUNICORN_WORKERS", raising=False)
+    monkeypatch.delenv("GUNICORN_TIMEOUT", raising=False)
+    config = importlib.reload(importlib.import_module("config.gunicorn"))
+    assert (config.bind, config.workers, config.timeout) == ("0.0.0.0:8000", 3, 300)
+    assert config.timeout < READ_TIME_LIMIT.total_seconds()
+    config = load(
+        "config.gunicorn", monkeypatch, GUNICORN_WORKERS="5", GUNICORN_TIMEOUT="120"
+    )
+    assert (config.workers, config.timeout) == (5, 120)
+
+
+def test_check_deploy_warns_only_about_https() -> None:
+    """Verify manage.py check --deploy with the production settings reports
+    only the HTTPS warnings, which don't apply while the application runs
+    locally over plain HTTP (ENG-01 6.4).
+    """
+    result = subprocess.run(
+        [sys.executable, "manage.py", "check", "--deploy"],
+        cwd=ROOT,
+        env={
+            **without_settings(),
+            **DUMMY,
+            "DEBUG": "False",
+            "DJANGO_SETTINGS_MODULE": "config.settings.production",
+        },
+        capture_output=True,
+        text=True,
+    )
+    warnings = sorted(
+        set(part.split(")")[0] for part in result.stderr.split("(security.")[1:])
+    )
+    assert warnings == ["W004", "W008", "W012", "W016"], result.stderr
+
+
+def compose_config(tmp_path, **shell: str) -> dict:
+    """compose.yaml as Docker Compose reads it, with made-up passwords in
+    place of .env's and these values in the shell, or skip when Docker isn't
+    installed.
+    """
+    if shutil.which("docker") is None:
+        pytest.skip("Docker isn't installed.")
+    env_file = tmp_path / "test.env"
+    env_file.write_text("".join(f"{k}={v}\n" for k, v in DUMMY.items()))
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(env_file),
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=ROOT,
+        env={**without_settings(), **shell},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)["services"]
+
+
+@pytest.fixture
+def compose(tmp_path) -> dict:
+    """compose.yaml as Docker Compose reads it, with made-up passwords."""
+    return compose_config(tmp_path)
+
+
+def test_the_app_and_database_are_reachable_from_this_machine_only(compose) -> None:
+    """Verify Compose publishes the app's and the database's ports on
+    127.0.0.1 only (ENG-01 6.4).
+    """
+    for name, target in (("app", 8000), ("db", 5432)):
+        (port,) = compose[name]["ports"]
+        assert (port["host_ip"], port["target"]) == ("127.0.0.1", target)
+
+
+def test_each_service_gets_only_its_own_role_s_password(compose) -> None:
+    """Verify migrate runs as the owner with the migrate settings and app as
+    ids_app with the production settings, and neither gets the other's
+    password or the database superuser's.
+    """
+    app, migrate = compose["app"]["environment"], compose["migrate"]["environment"]
+    assert app["DJANGO_SETTINGS_MODULE"] == "config.settings.production"
+    assert "DB_APP_PASSWORD" in app
+    assert "DB_OWNER_PASSWORD" not in app and "POSTGRES_PASSWORD" not in app
+    assert migrate["DJANGO_SETTINGS_MODULE"] == "config.settings.migrate"
+    assert "DB_OWNER_PASSWORD" in migrate
+    assert "DB_APP_PASSWORD" not in migrate and "POSTGRES_PASSWORD" not in migrate
+    assert app["DB_HOST"] == migrate["DB_HOST"] == "db"
+
+
+def test_app_starts_after_migrate_and_stores_files_on_the_uploads_volume(
+    compose,
+) -> None:
+    """Verify migrate waits for a healthy database, runs the migrations and
+    the grants, and app starts only once it has finished without an error,
+    with UPLOADS_DIR on the uploads volume.
+    """
+    migrate, app = compose["migrate"], compose["app"]
+    assert migrate["depends_on"]["db"]["condition"] == "service_healthy"
+    assert (
+        "migrate --noinput && python manage.py apply_grants" in migrate["command"][-1]
+    )
+    assert app["depends_on"]["migrate"]["condition"] == "service_completed_successfully"
+    assert app["environment"]["UPLOADS_DIR"] == "/uploads"
+    (volume,) = app["volumes"]
+    assert (volume["type"], volume["source"], volume["target"]) == (
+        "volume",
+        "uploads",
+        "/uploads",
+    )
+
+
+def test_the_image_leaves_out_env_and_the_client_s_data() -> None:
+    """Verify .dockerignore keeps .env, the real export and the backups out
+    of the application image (ENG-01 6.4).
+    """
+    ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    for path in (".env", "real-export/", "backups/"):
+        assert path in ignored
+
+
+def test_the_image_is_built_with_the_shell_s_version_tag(compose, tmp_path) -> None:
+    """Verify compose.yaml passes APP_VERSION to the build, dev when the shell
+    doesn't set it, and the Dockerfile keeps it for the settings (ENG-01
+    7.1, G25).
+    """
+    for service in ("migrate", "app"):
+        assert compose[service]["build"]["args"] == {"APP_VERSION": "dev"}
+    tagged = compose_config(tmp_path, APP_VERSION="v1.0.0")
+    assert tagged["app"]["build"]["args"] == {"APP_VERSION": "v1.0.0"}
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "ARG APP_VERSION=dev\nENV APP_VERSION=$APP_VERSION\n" in dockerfile
+
+
+def test_the_image_is_named_after_the_compose_project(compose, tmp_path) -> None:
+    """Verify migrate and app share an image named after the project, so the
+    backup and restore gate's project builds its own and never replaces the
+    live one (ENG-01 7.2).
+    """
+    assert compose["app"]["image"] == compose["migrate"]["image"] == "ids-audit-app"
+    gate = compose_config(tmp_path, COMPOSE_PROJECT_NAME="ids-audit-gate")
+    assert gate["app"]["image"] == gate["migrate"]["image"] == "ids-audit-gate-app"
+
+
+def test_warnings_and_errors_go_to_standard_error() -> None:
+    """Verify the settings send Django's warnings and errors, a failed
+    request's included, and nothing quieter, to standard error with the time
+    and level, and Gunicorn writes each request with its status and duration
+    (ENG-01 7.4).
+    """
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import django, logging; django.setup(); "
+            "logging.getLogger('django.request').error('Internal Server Error: /x'); "
+            "logging.getLogger('ids_audit').warning('a warning'); "
+            "logging.getLogger('ids_audit').info('quiet')",
+        ],
+        cwd=ROOT,
+        env={
+            **without_settings(),
+            **DUMMY,
+            "DJANGO_SETTINGS_MODULE": "config.settings.production",
+        },
+        capture_output=True,
+        text=True,
+    )
+    lines = result.stderr.splitlines()
+    assert result.stdout == ""
+    assert len(lines) == 2, result.stderr
+    assert lines[0].endswith(" ERROR django.request Internal Server Error: /x")
+    assert lines[1].endswith(" WARNING ids_audit a warning")
+    assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", lines[0])
+    config = importlib.reload(importlib.import_module("config.gunicorn"))
+    assert config.accesslog == "-"
+    assert "%(s)s" in config.access_log_format and "%(M)s" in config.access_log_format

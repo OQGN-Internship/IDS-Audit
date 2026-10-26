@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load navigation %}
+{% block title %}Administration · IDS Spend Audit{% endblock %}
+{% block heading %}Administration{% endblock %}
+{% block content %}
+{# The administration's screens as cards, as the sidebar's Administration group lists them (ENG-03 4). #}
+<div class="cards">
+  <section class="card">
+    <h2><a href="{% url 'admin_users' %}">{% icon "users" %}Users</a></h2>
+    <p class="sub">Create accounts, reset passwords, disable accounts, and give each user a role on each report.</p>
+  </section>
+  <section class="card">
+    <h2><a href="{% url 'admin_roles' %}">{% icon "roles" %}Roles</a></h2>
+    <p class="sub">The named sets of permissions you give users.</p>
+  </section>
+  <section class="card">
+    <h2><a href="{% url 'admin_audit' %}">{% icon "audit" %}Whole audit log</a></h2>
+    <p class="sub">Every event, sign-ins and account changes included.</p>
+  </section>
+</div>
+{% endblock %}

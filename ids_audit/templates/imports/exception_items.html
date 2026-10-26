@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load figures %}
+{% block title %}{{ exception.name }} · Upload {{ upload.number }} · IDS Spend Audit{% endblock %}
+{% block heading %}{{ exception.name }}{% endblock %}
+{% block content %}
+<p>{% if exception.blocks_approval %}<span class="blocks">Blocks approval.</span> {% endif %}{{ exception.items|length }} item{{ exception.items|length|pluralize }}{% if exception.amount %}, amounting to {{ exception.amount|amount }}{% endif %}.</p>
+<div class="table-wrap">{% include "imports/_exception_items.html" %}</div>
+{% endblock %}

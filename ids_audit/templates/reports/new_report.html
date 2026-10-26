@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}New report · IDS Spend Audit{% endblock %}
+{% block heading %}New report{% endblock %}
+{% block content %}
+<form method="post" action="{% url 'new_report' %}" class="narrow">
+  {% csrf_token %}
+  <label for="id_name">Name</label>
+  {{ form.name.errors }}{{ form.name }}
+  <p class="hint">A report is a separate set of uploads, with its own totals. No two reports' names may differ only in capitals.</p>
+  <button type="submit">Create report</button>
+</form>
+{% endblock %}

@@ -75,7 +75,7 @@ type(scope): subject
 | `ui` | `ids_audit/templates/` and `ids_audit/static/` |
 | `config` | `config/`: settings, URLs, WSGI |
 | `db` | `sql/`: database roles and grants |
-| `ops` | `scripts/`, `Dockerfile`, `compose.yaml`, `.env.example` |
+| `ops` | `scripts/`, `Dockerfile`, `compose.yaml`, `.env.example`, `.github/workflows/` |
 | `tests` | Shared test setup, fixtures and golden files |
 | `docs` | The plan and the user guide |
 | `engineering` | `docs/engineering/` |
@@ -137,17 +137,21 @@ uv run ruff format --check .
 uv run pytest
 ```
 
-- The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when its folder isn't there (ENG-02 12.2).
+- The tests must pass on a clean checkout, without the real export present. The real-export test is skipped when `real-export/` holds no export with its expected result (ENG-02 12.2). Once the real export is on your machine, run `IDS_REQUIRE_REAL_EXPORT=1 uv run pytest` after any change to reading, cleaning or counting, so the test fails rather than skips if it can't find the export.
+- The database tests need PostgreSQL, so start it first with `docker compose up -d db` (ENG-01 7.5). The other tests pass without it.
 - Any change to a figure, a permission or a migration needs a test that would fail without it.
-- There is no CI yet. When it's added, it runs the same three commands.
+- After any change to `scripts/`, `compose.yaml`, the `Dockerfile` or a migration, also run `uv run pytest -m docker`, the backup and restore gate, which a plain `uv run pytest` leaves out because it builds the image and takes minutes (ENG-01 7.5). It needs Docker and Git Bash.
+- **CI** runs the same three commands on GitHub Actions for every push to `development` or `main` and every pull request to `main`, and the backup and restore gate when what it guards changes (ENG-01 7.5). It's a safety net, not a replacement: run the checks before you push. A failed run is fixed before anything else is pushed. CI never sees client data, so the real-export check stays on your machine.
 
 ## 7. Client data and secrets
 
 The application handles OQGN's real spend data. These rules have no exceptions:
 
-- **The real SAP export never goes into the repository**, nor anything taken from it: not a copy, a sample of its rows, a screenshot, or its expected results. It's kept in a folder outside the repository, and outside any synced or cloud folder such as OneDrive.
-- **Backups and uploads stay out of Git.** `backups/` is excluded, and the uploads volume lives in Docker.
+- **The real SAP export never goes into Git**, nor anything taken from it: not a copy, a sample of its rows, a screenshot, or its expected results. It's kept in `real-export/`, which Git ignores except its README.
+- **Backups and uploads stay out of Git.** Git ignores `backups/` except its README, and the uploads volume lives in Docker.
 - **No secrets in Git.** The real `.env` is excluded. `.env.example` is committed with every setting name and no real values.
+- **The working copy stays outside any synced or cloud folder** such as OneDrive, because it holds `.env`, `real-export/` and `backups/` (ENG-01 6.4).
+- **Never run `git clean -x` or `git clean -X`.** They delete ignored files, and that includes the real export and the backups.
 - **Test data is made up.** The sample file and the golden files are generated, and their README says how.
 - If client data or a secret is ever committed, stop and tell the project owner. Removing it from the history needs a force-push and rotating every exposed secret.
 
@@ -164,6 +168,7 @@ These come from ENG-01 4 and apply in every review:
 ## 9. Files and line endings
 
 - Shell scripts and SQL files must use LF line endings, or they fail inside the Linux containers. Add `*.sh text eol=lf` and `*.sql text eol=lf` to `.gitattributes` before the first script is committed.
+- Generated test fixtures are compared byte for byte (ENG-02 12.3), so Git must never change them. Add `tests/fixtures/*.csv -text`, `tests/fixtures/*.json -text` and `*.xlsx binary` to `.gitattributes` before the first fixture is committed.
 - JavaScript libraries are copied into `ids_audit/static/` at a pinned version, never loaded from the internet.
 - Dependencies are added with `uv add`, and `uv.lock` is committed in the same commit.
 

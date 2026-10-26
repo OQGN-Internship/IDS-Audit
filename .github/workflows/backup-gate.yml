@@ -1,0 +1,63 @@
+# The backup and restore gate, uv run pytest -m docker (ENG-01 7.2 and 7.5).
+# It builds the image and runs a Compose project of its own, which takes
+# minutes, so it runs only when what it guards changes, as CONTRIBUTING 6
+# says, or when started by hand.
+name: Backup gate
+
+on:
+  push:
+    branches: [development, main]
+    paths:
+      - "scripts/**"
+      - "compose.yaml"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "sql/**"
+      - "ids_audit/*/migrations/**"
+      - "tests/test_backup_restore.py"
+      - "tests/scripts.py"
+      - ".github/workflows/backup-gate.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "compose.yaml"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "sql/**"
+      - "ids_audit/*/migrations/**"
+      - "tests/test_backup_restore.py"
+      - "tests/scripts.py"
+      - ".github/workflows/backup-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The settings pytest loads require these. The gate writes its own made-up
+  # values for its Compose project. Never real values.
+  SECRET_KEY: ci-only-not-a-secret-ci-only-not-a-secret-ci-only-not-a-secret
+  POSTGRES_PASSWORD: ci-only-postgres
+  DB_OWNER_PASSWORD: ci-only-owner
+  DB_APP_PASSWORD: ci-only-app
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+      - name: Install the dependencies uv.lock pins
+        run: uv sync --locked
+      - name: Backup and restore gate
+        run: uv run pytest -m docker

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ heading }} · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block scripts %}
+  {% if has_charts %}
+    <script src="{% static 'js/echarts-5.6.0.min.js' %}" defer></script>
+    <script src="{% static 'js/charts.js' %}" defer></script>
+  {% endif %}
+{% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
+{% block content %}
+<div id="panel">{% include "reports/_panel.html" %}</div>
+{% endblock %}

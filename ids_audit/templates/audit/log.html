@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load figures %}
+{% block title %}Audit log{% if report %} · {{ report.name }}{% endif %} · IDS Spend Audit{% endblock %}
+{% block heading %}Audit log{% endblock %}
+{% block content %}
+<p class="hint">{% if full %}Every event, newest first.{% else %}The events of this report, newest first.{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }}.</p>
+{% if rows %}
+  <div class="table-wrap">
+    <table class="log">
+      <thead>
+        <tr><th>Time</th><th>Who</th><th>Action</th>{% if full %}<th>Report</th>{% endif %}<th>Upload</th><th>Details</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="date">{{ row.event.at|stamp }}</td>
+            <td>{{ row.who }}</td>
+            <td>{{ row.action }}</td>
+            {% if full %}<td>{{ row.event.report.name }}</td>{% endif %}
+            <td>{% if row.event.upload %}{{ row.event.upload.number }}{% endif %}</td>
+            <td>{% for name, value in row.details %}<span class="detail">{{ name }}: {{ value }}</span>{% endfor %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p>No events yet.</p>
+{% endif %}
+{% if page.has_previous or page.has_next %}
+  <p class="pager">
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Newer events</a>{% endif %}
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older events</a>{% endif %}
+  </p>
+{% endif %}
+{% endblock %}

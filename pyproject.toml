@@ -1,0 +1,61 @@
+[project]
+name = "ids-audit"
+version = "0.1.0"
+description = "A small application for OQGN that shows how much IDS has actually spent, against which GL account, from which budget line, and by which cost center and department. Every figure can be traced back to the row of the SAP export it came from."
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "argon2-cffi>=25.1.0",
+    "django>=5.2,<5.3",
+    "django-axes>=8.3.1",
+    "gunicorn>=26.2.0",
+    "openpyxl>=3.1.5",
+    "psycopg[binary]>=3.3.6",
+    "python-calamine>=0.9.0",
+    "python-dotenv>=1.2.4",
+    "whitenoise>=6.12.0",
+    "xlsxwriter>=3.3.0",
+]
+
+[tool.ruff]
+# Set the target Python version to 3.12
+target-version = "py312"
+
+# Line length defaults to 88
+line-length = 88
+
+[tool.ruff.lint]
+# Enable the rule sets
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes (real mistakes / unused imports)
+    "I",   # isort (import order)
+    "B",   # flake8-bugbear (common bug patterns)
+    "UP",  # pyupgrade (Python 3.12+ syntax upgrades)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Django writes the migrations, with help texts on one long line each
+"**/migrations/*.py" = ["E501"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# pytest-django loads these settings before any test runs (ENG-01 7.5)
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+# The backup and restore gate builds the image and runs a second Compose
+# project, so it runs only with uv run pytest -m docker (ENG-01 7.5).
+markers = ["docker: needs Docker and Git Bash, and takes minutes"]
+# -rs prints why a test was skipped, so a real-export test skipped for want of
+# its expected result says so (ENG-02 12.2).
+addopts = '-m "not docker" -rs'
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.9",
+    "pytest>=9.1.1",
+    "pytest-django>=4.14.0",
+    "pytest-playwright>=0.10.0",
+    "ruff>=0.17.1",
+    "time-machine>=3.5.1",
+]

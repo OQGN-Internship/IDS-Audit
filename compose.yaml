@@ -1,0 +1,89 @@
+# The database, the migrate job and the application, on this machine only
+# (ENG-01 7.1). Compose reads the values from .env.
+name: ids-audit
+
+# What migrate and app share. Each adds its own settings and the password of
+# the one role it connects as.
+x-app: &app
+  build:
+    context: .
+    # The release, from the shell that builds; dev if it's unset (ENG-01 7.3).
+    args:
+      APP_VERSION: ${APP_VERSION:-dev}
+  # Named after the project, so the backup and restore gate's project
+  # (ENG-01 7.2) builds its own image and never replaces this one.
+  image: ${COMPOSE_PROJECT_NAME:-ids-audit}-app
+  environment: &app-environment
+    SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+    DB_NAME: ${DB_NAME:-ids_audit}
+    # Inside Compose, the database is the db service on its own port.
+    DB_HOST: db
+    DB_PORT: "5432"
+    ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+    MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
+    SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-30}
+    LOCKOUT_ATTEMPTS: ${LOCKOUT_ATTEMPTS:-5}
+    LOCKOUT_MINUTES: ${LOCKOUT_MINUTES:-15}
+    TIME_ZONE: ${TIME_ZONE:-Asia/Muscat}
+    DEBUG: ${DEBUG:-False}
+
+services:
+  db:
+    image: postgres:17
+    # Only the values the database needs, read from .env.
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DB_NAME: ${DB_NAME:-ids_audit}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?Set DB_OWNER_PASSWORD in .env}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs once, on the first start with an empty pgdata volume.
+      - ./sql/init-roles.sh:/docker-entrypoint-initdb.d/init-roles.sh:ro
+    # This machine only (ENG-01 6.4).
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    # Ready only once the real server accepts connections over TCP.
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Runs the migrations as the owner, then sql/grants.sql, and exits.
+  migrate:
+    <<: *app
+    environment:
+      <<: *app-environment
+      DJANGO_SETTINGS_MODULE: config.settings.migrate
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?Set DB_OWNER_PASSWORD in .env}
+    command:
+      ["sh", "-c", "python manage.py migrate --noinput && python manage.py apply_grants"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # Gunicorn, connected as ids_app, once migrate has finished without an error.
+  app:
+    <<: *app
+    environment:
+      <<: *app-environment
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env}
+      UPLOADS_DIR: /uploads
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-300}
+    volumes:
+      - uploads:/uploads
+    # This machine only (ENG-01 6.4).
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:

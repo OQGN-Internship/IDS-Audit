@@ -1,0 +1,39 @@
+{% load figures %}
+<h2>{{ table.title }}</h2>
+{% if table.layout == "tiles" %}
+  {# The overview's Actual spend as tiles, the total first: the same table drawn another way (ENG-03 4). #}
+  <div class="tiles">
+    {% with total=table.total %}
+      <div class="tile"><p class="label">Actual spend</p><p class="figure"><a href="{{ total.1.link }}">{{ total.1|shown }}</a> <span class="unit">OMR</span></p><p class="sub">{{ total.2|shown }} line{{ total.2.value|pluralize }}</p></div>
+    {% endwith %}
+    {% for row in table.rows %}
+      <div class="tile"><p class="label">{{ row.0|shown }}</p><p class="figure"><a href="{{ row.1.link }}">{{ row.1|shown }}</a> <span class="unit">OMR</span></p><p class="sub">{{ row.2|shown }} line{{ row.2.value|pluralize }}</p></div>
+    {% endfor %}
+  </div>
+{% else %}
+<div{% if table.layout == "beside" %} class="beside"{% endif %}>
+{% for chart in table.charts %}
+  {# The chart's data, which charts.js reads with JSON.parse, never as code (ENG-03 5). #}
+  {{ chart.points|json_script:chart.id }}
+  <figure class="chart-box">
+    <figcaption>{{ chart.title }}</figcaption>
+    <div class="chart {{ chart.kind }}" data-chart="{{ chart.id }}" data-kind="{{ chart.kind }}"></div>
+    {% if chart.has_outside %}<p class="legend"><span class="swatch outside"></span>Outside IDS</p>{% endif %}
+  </figure>
+{% endfor %}
+{% if table.rows %}
+  <div class="table-wrap">
+  <table class="figures-table{% if table.layout == "wide" %} wide{% endif %}">
+    <thead><tr>{% for column in table.columns %}<th class="{{ column.kind }}">{{ column.title }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in table.rows %}<tr>{% for cell in row %}{% td cell %}{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+    {% if table.total %}<tfoot><tr class="total">{% for cell in table.total %}{% td cell %}{% endfor %}</tr></tfoot>{% endif %}
+  </table>
+  </div>
+{% else %}
+  <p class="none">None.</p>
+{% endif %}
+</div>
+{% endif %}
