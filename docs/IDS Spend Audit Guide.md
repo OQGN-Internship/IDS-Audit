@@ -34,7 +34,7 @@ Each report has these screens, linked in the sidebar on its pages under the repo
 | Exceptions | GL accounts with no budget line, cost centers outside IDS, IDS cost centers with no department, budget-line and department changes between files, and rows skipped while reading |
 | FAQ | The eight questions in the plan, each answered on its own page |
 | Uploads | Every file uploaded to the report, and its state. It says **Waiting** in the sidebar while an upload awaits approval or needs its columns picked |
-| Audit log | Who did what on this report, and when. Only for users whose role holds View audit log |
+| Audit log | Who did what on this report, and when, with a search and filters to narrow it. Only for users whose role holds View audit log |
 
 On every screen:
 
@@ -104,6 +104,8 @@ Before the client names the first users, the plan's default is one demo account 
 ### The whole audit log
 
 **Whole audit log** lists every event, newest first, sign-ins and account changes included. Nobody can change or delete an event.
+
+To find events, type words in **Search**, such as a username, a file name or a word from the details, or choose an action, who did it, the dates from and to, or a report (No report for sign-ins and account changes), then **Search**. **Clear** shows the whole log again. A report's Audit log has the same search, without the report.
 
 ### Fixed administrators, from the command line
 
