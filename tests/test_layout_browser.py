@@ -57,6 +57,42 @@ def test_a_long_table_keeps_its_headings_and_total_in_view(
     assert abs(total["y"] + total["height"] - bottom + 1) < 1.5, (total, bottom)
 
 
+def test_a_table_s_cells_are_dense_and_its_total_row_lined(
+    page: Page, live_server
+) -> None:
+    """Verify every cell of a report's tables and of an upload's preview, the
+    headings and the first and last of a row too, is padded 4px by 8px, and
+    each total row, in a table's foot or its body, has a 2px ink line above
+    it, where Tabler would pad a heading 0.5rem above and below, and a card
+    table's outer cells 1.25rem, and drop the line above its foot (ENG-03 4,
+    Denser tables).
+    """
+    admin = make_admin()
+    report = sample(admin)
+    sign_in(page, live_server, admin.username)
+    page.set_viewport_size({"width": 1440, "height": 900})
+    drawn = """() => [...document.querySelectorAll('.card-table')].map(table => [
+        [...table.querySelectorAll('td, th')]
+            .filter(cell => cell.offsetParent && !cell.matches('.items-row td:empty'))
+            .map(cell => getComputedStyle(cell).padding),
+        [...table.querySelectorAll('tr.total td')].map(cell => {
+            const style = getComputedStyle(cell);
+            return [cell.closest('tfoot, tbody').tagName, style.borderTopStyle,
+                    style.borderTopWidth, style.borderTopColor];
+        }),
+    ])"""
+    for address, part in (("overview", "TFOOT"), ("uploads/1", "TBODY")):
+        page.goto(f"{live_server.url}/reports/{report.pk}/{address}")
+        tables = page.evaluate(drawn)
+        assert tables, address
+        totals = [line for _, lines in tables for line in lines]
+        assert part in [line[0] for line in totals], (address, totals)
+        for paddings, lines in tables:
+            assert paddings and set(paddings) == {"4px 8px"}, (address, set(paddings))
+            for line in lines:
+                assert line[1:] == ["solid", "2px", "rgb(0, 0, 0)"], (address, line)
+
+
 def test_no_button_is_stretched_past_its_words(page: Page, live_server) -> None:
     """Verify an upload's actions keep each button as tall as one line of
     words and narrower than its form, however tall the form beside it.

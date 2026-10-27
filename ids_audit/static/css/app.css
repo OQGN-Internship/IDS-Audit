@@ -288,7 +288,12 @@ td.error { border-inline-start: 4px solid var(--oqgn-danger); }
   border-block-end: 1px solid var(--oqgn-line);
 }
 .table-vcenter > :not(caption) > * > * { vertical-align: middle; }
-.table thead th { color: var(--oqgn-ink); background: var(--oqgn-surface-alt); white-space: normal; }
+.table thead th {
+  padding-block: 4px;
+  color: var(--oqgn-ink);
+  background: var(--oqgn-surface-alt);
+  white-space: normal;
+}
 .table th a { color: var(--oqgn-ink); }
 .table tbody th { font-weight: bold; }
 td.amount, th.amount, td.share, th.share, td.count, th.count, td.exact, th.exact {
@@ -297,7 +302,14 @@ td.amount, th.amount, td.share, th.share, td.count, th.count, td.exact, th.exact
   white-space: nowrap;
 }
 td.code, td.date { white-space: nowrap; }
-.table tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
+/* Tabler pads a heading 0.5rem above and below, and a card table's first
+   and last cell of a row 1.25rem, and drops the line above its foot; these
+   rules keep them dense, and the total's line, with Tabler's own selectors
+   coming later. */
+.card-table tr td:first-child, .card-table tr th:first-child { padding-inline-start: 8px; }
+.card-table tr td:last-child, .card-table tr th:last-child { padding-inline-end: 8px; }
+.table tr.total td,
+.card-table tfoot tr.total td { font-weight: bold; border-block-start: 2px solid var(--oqgn-ink); }
 .table-wrap { overflow: auto; margin: 0.5rem 0 1.25rem; }
 .table-wrap .table { margin: 0; }
 /* A long table scrolls in its box, its headings and total held in view. */
