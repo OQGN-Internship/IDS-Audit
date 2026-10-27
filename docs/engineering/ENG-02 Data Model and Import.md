@@ -8,7 +8,7 @@ This document defines where every number comes from: the tables that hold the da
 
 It covers the data model, file reading, cleaning, upload states, duplicates, mapping versions, reconciliation, commit and rollback. Sign-in and access are in ENG-01, and the report screens and exports are in ENG-03. Which parts are built in Phase 1 and which in Phase 2 is set by the build order in ENG-01, 4.
 
-The rules are written against the agreed file structure: spend lines plus the GL and cost center mapping sheets, all in one file. Until the real export arrives, they're built and tested against the sample file (12.2). Anything marked **Confirm with the real export** may change when the real file arrives. Section 13 lists those items.
+The rules are written against the agreed file structure: spend lines plus the GL and cost center mapping sheets, all in one file, or the mapping sheets on their own (8.5). Until the real export arrives, they're built and tested against the sample file (12.2). Anything marked **Confirm with the real export** may change when the real file arrives. Section 13 lists those items.
 
 ## 2. Data model
 
@@ -51,6 +51,7 @@ Every arrow points from one row to many: a report has many uploads, and an uploa
 | `original_name`, `size_bytes` | text, integer |  |
 | `uploaded_by`, `uploaded_at` | user, time |  |
 | `ruleset_id` | reference to `ruleset` | The settings it was read with |
+| `kind` | text | `spend`, a file of spend lines with or without mapping sheets, or `mapping`, the mapping sheets on their own (8.5). Set by the form the file was sent with, when the upload is created, and never changed |
 | `status` | text | One of the states in Section 6 |
 | `column_layout` | JSON | Which column held each field, per sheet, with the sheet's header and any columns picked for it (4.5) |
 | `period_start`, `period_end` | date | The first and last posting date in the file |
@@ -169,7 +170,7 @@ Each sheet is classified by the key fields found in its header row:
 
 A sheet's other required fields, such as the amount or the commitment item, are checked after it's classified (4.5). A missing one stops the upload at `needs_columns` instead of hiding the sheet.
 
-A file with no spend sheet, or with two sheets of the same type, ends at `failed` (Section 6), with a message naming the sheets. Choosing between two sheets would be a guess.
+A spend upload's file with no spend sheet, or any file with two sheets of the same type, ends at `failed` (Section 6), with a message naming the sheets. Choosing between two sheets would be a guess. A mapping upload's file has mapping sheets and no spend sheet (8.5).
 
 If the spend sheet itself has commitment item or department columns, their values build that upload's mappings too. Where they disagree with the mapping sheets, the mapping sheets win, and each disagreement is shown as an exception. The rules for mapping rows are in Section 5.
 
@@ -319,7 +320,7 @@ Any change not drawn is refused. Committed is the only state whose postings coun
 |  |  | `rejected` | A user with **approve**, or the uploader withdrawing it |
 | `committed` | The postings are written and count in the report | `rolled_back` | A user with **roll\_back** (Section 10) |
 | `rejected` | No postings were written, so the report didn't change | Final |  |
-| `failed` | The file couldn't be read: it was damaged, it couldn't be opened in the format its first bytes showed, or it had no spend sheet | Final |  |
+| `failed` | The file couldn't be read: it was damaged, it couldn't be opened in the format its first bytes showed, or it lacked the sheets its kind needs (4.2 and 8.5) | Final |  |
 | `rolled_back` | The postings are kept but no longer count (Section 10) | Final |  |
 
 **Rules**
@@ -367,14 +368,14 @@ Each report uses one of two modes, set in `report.duplicate_mode`.
 
 |  | Replace by period (the default) | Line key |
 | --- | --- | --- |
-| Used when | Always, unless line-key mode is chosen | The approver chooses it when approving the report's first upload. It's offered only when the file has rows to commit and every one has a full `line_key`. A spend row skipped for another reason doesn't count against it |
+| Used when | Always, unless line-key mode is chosen | The approver chooses it when approving the report's first spend upload. It's offered only when the file has rows to commit and every one has a full `line_key`. A spend row skipped for another reason doesn't count against it |
 | What committing does | Every posting already in the report dated in the file's months is replaced. The months run from the month of `period_start` to the month of `period_end` | Rows whose `line_key` matches a posting that counts are marked `is_duplicate` and not committed. Only new lines are added |
 | Suits | Year-to-date exports, where each file restates every month it covers | Exports that overlap irregularly |
 | Preview shows | The months replaced, and the number and amount of postings replaced | The number and amount of duplicates |
 | A posting that disappears from a later export | Disappears from the report too | Stays in the report |
 | Rows without a full line key | Accepted | Skipped with the reason "No line key", and counted in reconciliation (Section 5) |
 
-The mode can't change once a report has a committed upload, and a rollback doesn't clear it: a report whose only commit was rolled back keeps the mode that commit chose. A report's first upload means any upload made before the report's first commit (10.1), such as a new try after a rejected file. Nothing is in the report yet, so both modes give the same preview figures.
+The report's first approved spend upload sets the mode (10.1), and it can't change after, and a rollback doesn't clear it: a report whose only spend commit was rolled back keeps the mode that commit chose. A report's first spend upload means any spend upload made while the mode isn't set, such as a new try after a rejected file. Nothing is in the report yet, so both modes give the same preview figures. A mapping upload never sets the mode (8.5), since it has no lines to compare.
 
 Replacement never deletes or edits a posting. A replaced posting simply stops counting (Section 10.2), so rolling back the upload that replaced it makes it count again.
 
@@ -389,7 +390,7 @@ A duplicate whose amount differs from the posting already in the report is shown
 - In line-key mode, a second file overlapping the first adds only its new lines, and the preview counts the others as duplicates, with their amount.
 - In line-key mode, a duplicate whose amount differs is an exception, and approving leaves the posting already in the report unchanged.
 - In line-key mode, a row without a full line key is skipped as `No line key`, and the file still reconciles. In replace-by-period mode the same row is staged.
-- Line-key mode is offered for a first upload whose rows to commit all have a full line key, and refused at approval for one where a row doesn't, or for a report that already has a committed upload.
+- Line-key mode is offered for a first spend upload whose rows to commit all have a full line key, and refused at approval for one where a row doesn't, or for a report whose mode is set.
 - A posting whose upload was rolled back doesn't make a row a duplicate.
 - After a report's only commit is rolled back, the report keeps its mode, and the next file isn't offered line-key mode.
 - A line repeated in one file is skipped once, and the file still reconciles.
@@ -470,6 +471,30 @@ Reports never join the tables themselves. A database view, `posting_resolved`, j
 - A second file moving `610100` to another commitment item shows the move and its amount in the preview. After approval, every `610100` posting reports under the new item, and after rollback, under the old one.
 - A second file whose mapping leaves out a cost center makes that cost center outside IDS under `latest`.
 
+### 8.5 A mapping on its own
+
+A mapping can be uploaded without spend lines, as a **mapping upload**, so the validator's sheets don't have to be added to every export. On 2026-10-27 the developer asked for it: SAP's line item export has no mapping sheets, so adding them to each file by hand is work every month, and a stale or partial sheet moves spend without anyone meaning it to.
+
+It's an upload like any other, with `upload.kind` set to `mapping` by the form it was sent with (ENG-03, 4). The rest of this document applies to it, except as this section says.
+
+- **The file** is an Excel workbook with a GL mapping sheet, a cost center mapping sheet, or both, found and read as in 4.2 to 5. Each sheet it has replaces that whole mapping once approved (8.1), and a mapping it lacks stays as it is. Other sheets, such as a README, are ignored.
+- **What fails.** A workbook with a spend sheet ends at `failed`, with a message saying to send it with the upload form for spend, since its lines would otherwise be left out. So does a workbook with no mapping sheet, and a delimited text file, which holds one table and never a mapping (4.1).
+- **No reconciliation.** It has no spend rows, so it has no control total and nothing to reconcile, and neither blocks it (9.3). Its row figures and their amounts are `0`, and it has no period or months replaced.
+- **Its preview** names the mappings it brings, and lists each mapping change approving makes, with the spend it moves, already committed spend included (8.3), and any exception its mapping rows raise (Section 5).
+- **Approving it** writes no postings and never sets the report's duplicate mode, which its first approved spend upload sets (7.3). A mode chosen when approving it is refused, as `mode_not_allowed` (10.1).
+- **Otherwise as any upload.** Sending it needs **upload**, and approving it **approve**. While it's open it's the report's open upload (Section 6), a file already committed is refused (7.1), its columns are picked at `needs_columns` (4.5), and it's rolled back newest first (10.3), which puts the mapping before it back in force.
+
+A spend file may still carry mapping sheets (4.2). The most recently committed upload with a mapping, of either kind, gives the mapping in force (8.1), so a spend file with an old sheet replaces a newer mapping upload's, and its preview shows each difference as a mapping change for the approver to see.
+
+**Tested by**
+
+- A mapping upload with both mapping sheets reaches `awaiting_approval` with no rows, no control total and no exception for either. Once it's approved, a CSV uploaded after it takes its budget lines and departments.
+- A mapping upload with only the GL mapping changes only the GL mapping in force. The cost center mapping stays the earlier upload's.
+- A mapping upload whose file has a spend sheet, one with no mapping sheet, and a CSV each end at `failed`, with their message.
+- A mapping upload that moves a GL account to another budget line lists the change with the committed spend it moves. Once it's approved the report shows the new budget line, and once it's rolled back the old one again.
+- Approving a mapping upload on a new report leaves the duplicate mode unset, and the next spend upload is offered line key. Choosing a mode when approving a mapping upload is refused with `mode_not_allowed`.
+- A mapping upload whose commitment item header isn't recognised stops at `needs_columns`, and reads once the column is picked.
+
 ## 9. Reconciliation
 
 Reconciliation proves the file was read completely: every amount in it is either staged or skipped with a reason, and together they add up to the file's own total.
@@ -507,7 +532,7 @@ With no control total there's nothing to subtract from, so `reconciliation_diffe
 | A row's value type is unclassified (Section 5) | Counting it or leaving it out would be a guess. The upload is rejected, a fixed administrator classifies the value in a new ruleset version, and the file is uploaded again |
 | A mapping code is listed with different values (Section 5) | The budget line or department its postings get would be a guess |
 
-A skipped spend row whose amount can't be read leaves a difference, so it blocks approval through the first condition.
+A skipped spend row whose amount can't be read leaves a difference, so it blocks approval through the first condition. A mapping upload has no spend rows, so it's never reconciled, and neither of the first two conditions applies to it (8.5).
 
 The preview lists each condition that applies as an exception that blocks approval (11.2), and the commit refuses an upload whose preview lists one (10.1).
 
@@ -536,7 +561,7 @@ Approval runs as one database transaction. Either every step happens or none doe
 3. Check that the report's committed uploads, in the order of commits (10.2), are still the ones the preview was built against, which it keeps as `committed_uploads` (11.1). An upload committed or rolled back since would make the preview's figures wrong. The rules in Section 6 mean this can only happen through a fault, so the approval is refused rather than the preview rebuilt: the upload is rejected and the file uploaded again, which builds a new preview.
 4. Copy the staging rows not marked `is_duplicate` into `posting`.
 5. Check that the count and total of the new postings equal the preview's. If they don't, stop.
-6. Set the upload to `committed` with `decided_by` and `decided_at` (10.2). On the report's first commit, also set `report.duplicate_mode` to the mode the approver chose (7.3): replace by period unless they chose line-key mode and the preview offers it. Choosing a mode on any later commit is refused. Write the audit event, with the duplicate mode in its details on a first commit.
+6. Set the upload to `committed` with `decided_by` and `decided_at` (10.2). On the report's first commit of a spend upload, also set `report.duplicate_mode` to the mode the approver chose (7.3): replace by period unless they chose line-key mode and the preview offers it. Choosing a mode on any other commit, a mapping upload's included (8.5), is refused. Write the audit event, with the duplicate mode in its details on the commit that sets it.
 7. Delete the upload's staging rows.
 
 If the transaction stops at any step, nothing is written, the upload stays at `awaiting_approval`, and the error is shown. Because the audit event is in the same transaction, a commit can't happen without its audit event.
@@ -587,7 +612,7 @@ The preview is the approver's whole view of a file before it counts. It's built 
 | --- | --- | --- |
 | File | Name, size, uploader, time, ruleset version | `upload` |
 | Period | First and last posting date, and the months replaced (replace-by-period mode) | `period_start`, `period_end` |
-| Duplicate mode | On a report with no committed upload, whether line-key mode can be chosen (7.3) | `preview` |
+| Duplicate mode | On a report whose duplicate mode isn't set, whether line-key mode can be chosen (7.3) | `preview` |
 | Rows | Read, to commit, duplicates, replaced and skipped | `rows_*` |
 | Amounts | The amount for each row figure above | `preview` |
 | Reconciliation | The formula in 9.2, line by line, with the difference | `control_total`, `reconciliation_difference` |
@@ -615,7 +640,7 @@ Each exception lists the rows it covers, by sheet and row number in the original
 | Key | Holds |
 | --- | --- |
 | `amounts` | `to_commit`, `duplicates`, `skipped` and `replaced`: the amounts of the row figures above |
-| `line_key_offered` | `true` when the report's duplicate mode isn't set yet, so this is its first upload, and line-key mode can be chosen for this file (7.3) |
+| `line_key_offered` | `true` when the report's duplicate mode isn't set yet, so this is its first spend upload, and line-key mode can be chosen for this file (7.3). Always `false` for a mapping upload (8.5) |
 | `committed_uploads` | The numbers of the report's committed uploads in the order of commits (10.2) when the preview was built, which the commit checks (10.1, step 3) |
 | `months_replaced` | Each month from `period_start` to `period_end`, such as `"2026-03"`, unless the report is in line-key mode (7.3) |
 | `actual_spend` | `total`, `inside_ids` and `outside_ids`: the rows to commit with `is_actual` true |
@@ -858,7 +883,7 @@ Every assumption the rules above depend on is listed here, including each one ma
 | --- | --- | --- | --- | --- |
 | 1 | The file is a real Excel file, not HTML saved as `.xls` | 4.1 | Opening the file | Add an HTML table reader |
 | 2 | The headers match the built-in names | 4.4 | Opening the file | Add the names to `header_names` |
-| 3 | The GL and cost center mapping sheets are in the file, and the cost center sheet lists only IDS cost centers | 4.2, 8.2 | Opening the file, and the client by Day 2 | Set `outside_ids_rule` to the rule the client gives, before the report's first commit (Section 3) |
+| 3 | The cost center mapping, in the file or uploaded on its own, lists only IDS cost centers | 4.2, 8.2, 8.5 | Opening the file, and the client by Day 2 | Set `outside_ids_rule` to the rule the client gives, before the report's first commit (Section 3) |
 | 4 | Company code, fiscal year, document number and line item are in the file | 2, 7.3 | Opening the file, and the client by Day 3 | Line-key mode isn't offered. Replace by period is used |
 | 5 | The amount column is in the local currency, OMR, and the currency column read is the local currency's (`LCurr`), not the invoice's | 4.4, 5 | The client, by Day 2 | Point the amount and currency fields at the local-currency columns in `header_names`. An amount in `Val/COArea Crcy` is in the controlling area's currency, so it's used only once the client confirms that's OMR |
 | 6 | Credits are negative amounts in the amount column | 5 | Opening the file | Read SAP's debit and credit column (S or H), and make H amounts negative |
@@ -872,6 +897,6 @@ Every assumption the rules above depend on is listed here, including each one ma
 | 14 | A text export is in UTF-8, or in UTF-16 with its byte-order mark | 4.1 | Opening the file, if it's text | Add a `text_encoding` setting to the ruleset (Section 3) |
 | 15 | Amounts in a text export use a point for decimals, such as `12,400.000` | 3, 5 | Opening the file, if it's text | Set `decimal_separator` to `","` |
 | 16 | Every spend line has a cost center. A line with a GL account, a date and an amount but no cost center is an other row (Section 5), so its file can't reconcile | 5 | Opening the file, and the client before acceptance | Read such a line as spend, in the group the client names, which changes Section 5 and ENG-03, 2.3 |
-| 17 | Each file's mapping sheets list every GL account and every IDS cost center, and the validator supplies them | 8.1 | The client, before acceptance | Resolve `latest` code by code: each code takes its row from the most recently committed upload that lists it |
+| 17 | Each mapping, uploaded on its own or in a file, lists every GL account and every IDS cost center, and the validator supplies it | 8.1, 8.5 | The client, before acceptance | Resolve `latest` code by code: each code takes its row from the most recently committed upload that lists it |
 | 18 | The mapping sheet, not a commitment item on each spend line, decides the budget line | 4.2, 8.1 | The client, before acceptance | Keep each line's commitment item on `posting`, and use it before the mapping |
 | 19 | No spend row in the real export is skipped | 5, 9.3 | The real-export test (12.2) | Fix the reading rule each skipped row shows. A row the client agrees to leave out is listed in the export's expected result, whose totals then leave it out too (12.2) |
