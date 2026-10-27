@@ -93,6 +93,42 @@ def test_a_table_s_cells_are_dense_and_its_total_row_lined(
                 assert line[1:] == ["solid", "2px", "rgb(0, 0, 0)"], (address, line)
 
 
+def test_the_filter_card_lines_up_its_controls_and_says_what_is_shown(
+    page: Page, live_server
+) -> None:
+    """Verify a report screen's filter card holds its lists, Show and Export in
+    one row, the bottoms of the lists, Show and Export lined up, Export at
+    the row's end, and its footer holds the filter tags and the as-of line
+    under the row (ENG-03 4, The filter card).
+    """
+    admin = make_admin()
+    report = sample(admin)
+    sign_in(page, live_server, admin.username)
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(f"{live_server.url}/reports/{report.pk}/overview?year=2026")
+    card = page.locator(".filter-card")
+    row = [
+        card.locator(selector).bounding_box()
+        for selector in (
+            "select[name=year]",
+            "select[name=exclude_outside]",
+            "button",
+            ".export",
+        )
+    ]
+    bottoms = {round(box["y"] + box["height"]) for box in row}
+    assert len(bottoms) == 1, row
+    body = card.locator(".card-body").bounding_box()
+    assert row[-1]["x"] + row[-1]["width"] > body["x"] + body["width"] - 40, (row, body)
+    footer = card.locator(".card-footer")
+    assert footer.locator(".tag").all_inner_texts() == [
+        "Year: 2026",
+        "Outside IDS: included",
+    ]
+    expect(footer.locator(".as-of")).to_contain_text("Figures as of upload 1")
+    assert footer.bounding_box()["y"] >= max(bottoms), footer.bounding_box()
+
+
 def test_no_button_is_stretched_past_its_words(page: Page, live_server) -> None:
     """Verify an upload's actions keep each button as tall as one line of
     words and narrower than its form, however tall the form beside it.
@@ -192,18 +228,18 @@ def test_the_narrow_bar_is_short_and_nothing_scrolls_sideways(
 def test_a_printed_page_holds_the_figures_without_the_controls(
     page: Page, live_server
 ) -> None:
-    """Verify a printed screen leaves out the sidebar, the toolbar and every
-    button, keeps the crumbs, the filter and as-of lines and the figures,
-    and prints its tables whole, out of their boxes.
+    """Verify a printed screen leaves out the sidebar, the filter card's form
+    and every button, keeps the crumbs, the filter tags, the as-of line, the
+    notes and the figures, and prints its tables whole, out of their boxes.
     """
     admin = make_admin()
     report = sample(admin)
     sign_in(page, live_server, admin.username)
     page.goto(f"{live_server.url}/reports/{report.pk}/rows")
     page.emulate_media(media="print")
-    for hidden in ("nav.sidebar", ".toolbar", "button"):
+    for hidden in ("nav.sidebar", ".filter-card form", ".export", "button"):
         expect(page.locator(hidden).first).to_be_hidden()
-    for shown in (".crumbs", ".filter-line", ".as-of", "table"):
+    for shown in (".crumbs", ".filter-tags", ".as-of", ".note", "table"):
         expect(page.locator(shown).first).to_be_visible()
     expect(page.locator(".crumbs")).to_contain_text(report.name)
     box = page.locator(".table-wrap").evaluate(

@@ -405,7 +405,10 @@ def test_the_year_filter_shows_only_that_year_and_says_so(
     """
     page = text(get(client, "overview", sample_report, query="?year=2025"))
     assert amount(sample_expected["screens"]["by_year"]["2025"]) in page
-    assert "Year: 2025. Outside IDS: included." in page
+    assert (
+        '<li class="tag">Year: 2025</li><li class="tag">Outside IDS: included</li>'
+        in page
+    )
     assert '<option value="2025" selected>2025</option>' in page
     assert '<option value="2026">2026</option>' in page
 
@@ -419,7 +422,10 @@ def test_excluding_outside_ids_drops_its_row_and_its_amount(
     excluding = sample_expected["screens"]["excluding_outside"]
     for name in ("overview", "departments"):
         page = text(get(client, name, sample_report, query="?exclude_outside=1"))
-        assert "Year: all. Outside IDS: excluded." in page
+        assert (
+            '<li class="tag">Year: all</li><li class="tag">Outside IDS: excluded</li>'
+            in page
+        )
         assert ">Outside IDS<" not in page
         assert amount(excluding["total"]) in page
         links = ROWS_LINK.findall(page)
@@ -501,7 +507,10 @@ def test_an_htmx_request_gets_the_panel_with_the_new_filters(
     )
     assert "<html" not in panel
     assert '<option value="2026" selected>2026</option>' in panel
-    assert "Year: 2026. Outside IDS: included." in panel
+    assert (
+        '<li class="tag">Year: 2026</li><li class="tag">Outside IDS: included</li>'
+        in panel
+    )
     assert all("year=2026" in url for url, _ in ROWS_LINK.findall(panel))
 
 

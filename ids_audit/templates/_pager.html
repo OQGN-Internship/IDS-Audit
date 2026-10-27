@@ -1,0 +1,4 @@
+{# The links to a list's other pages, as Tabler's pagination (ENG-03 4). pages holds (label, address) pairs. #}
+<nav class="pager" aria-label="Pages">
+  <ul class="pagination">{% for label, url in pages %}<li class="page-item"><a class="page-link" href="{{ url }}">{{ label }}</a></li>{% endfor %}</ul>
+</nav>

@@ -90,7 +90,7 @@ def test_every_answer_for_the_sample_equals_its_expected_answer(
         "'", "&#x27;"
     ) in text.replace("'", "&#x27;")
     assert '<p class="counted">Counted: the actual spend' in text
-    assert "<h2>How to check it by hand</h2>" in text
+    assert '<h2 class="card-title">How to check it by hand</h2>' in text
     assert "Figures as of upload 1, sample.xlsx" in re.sub(r"<[^>]+>", "", text)
 
 

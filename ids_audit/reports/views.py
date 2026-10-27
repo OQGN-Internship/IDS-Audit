@@ -145,7 +145,7 @@ def show(
         "heading": screen.title if screen else name,
         "hidden": hidden or {},
         "filters": filters,
-        "filter_line": addresses.in_words(
+        "filter_tags": addresses.tags(
             filters, screen.outside_applies if screen else True
         ),
         "latest": latest,
