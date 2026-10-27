@@ -42,7 +42,7 @@ ABOVE = {
     "budget_line": (*REPORT, "budget_lines"),
     "faq_page": (*REPORT, "faq"),
     **dict.fromkeys(
-        ("new_upload", "upload", "approve", "reject", "withdraw"),
+        ("new_upload", "new_mapping", "upload", "approve", "reject", "withdraw"),
         (*REPORT, "uploads"),
     ),
     **dict.fromkeys(("exception_items", "columns", "roll_back"), UPLOAD),

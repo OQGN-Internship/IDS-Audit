@@ -1,6 +1,8 @@
 {% load figures %}
 <h2>Preview</h2>
 
+{# A mapping upload has no period, rows, reconciliation or spend (ENG-02 8.5). #}
+{% if upload.kind == "spend" %}
 <h3>Period</h3>
 <div class="card facts-card"><div class="card-body">
 <p>
@@ -13,13 +15,15 @@
   {% if report.duplicate_mode %}
     Duplicate mode: {{ report.get_duplicate_mode_display|lower }}.
   {% else %}
-    The duplicate mode is chosen when the report's first upload is approved. Line key {% if preview.line_key_offered %}can{% else %}can't{% endif %} be chosen for this file.
+    The duplicate mode is chosen when the report's first spend upload is approved. Line key {% if preview.line_key_offered %}can{% else %}can't{% endif %} be chosen for this file.
   {% endif %}
 </p>
 </div></div>
+{% endif %}
 
 {# The preview's figures, side by side on a wide screen (ENG-03 4). #}
 <div class="preview-grid">
+{% if upload.kind == "spend" %}
 <section>
 <h3>Rows</h3>
 <div class="card figures">
@@ -70,6 +74,7 @@
 </table>
 </div>
 </section>
+{% endif %}
 
 <section>
 

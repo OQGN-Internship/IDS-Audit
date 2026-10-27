@@ -157,6 +157,7 @@ def receive_file(
     original_name: str,
     data: bytes,
     control_total: Decimal | None = None,
+    kind: str = Upload.Kind.SPEND,
 ) -> Upload:
     """Store a file under its hash, then create its upload at reading, numbered
     after the report's last upload (ENG-01 5.1, step 2).
@@ -164,6 +165,8 @@ def receive_file(
     control_total is SAP's total for the file, if the uploader typed one on
     the upload form. It's used only if the file has no total row (ENG-02 9.1),
     and a value that isn't an amount numeric(18,3) holds is a ValueError.
+    kind is the form the file was sent with: spend, or mapping for the
+    mapping sheets on their own, which have no total (8.5).
 
     A file over MAX_UPLOAD_MB, of an unknown format, matching a committed
     upload in the report, or sent while the report has an open upload is
@@ -172,6 +175,9 @@ def receive_file(
     after the file is stored, the stored file stays: another upload may share
     it, and a new try writes the same bytes.
     """
+    kind = Upload.Kind(kind)
+    if kind == Upload.Kind.MAPPING and control_total is not None:
+        raise ValueError("A mapping has no spend lines, so no control total.")
     check_typed_total(control_total)
     facts = {"original_name": original_name, "size_bytes": len(data)}
     try:
@@ -211,6 +217,7 @@ def receive_file(
                 uploaded_by=user,
                 # It will be read with the report's latest settings.
                 ruleset=report.rulesets.order_by("-version").first(),
+                kind=kind,
                 control_total=control_total,
                 control_total_source=(
                     "" if control_total is None else Upload.ControlTotalSource.ENTERED
@@ -218,6 +225,7 @@ def receive_file(
             )
             details = {
                 "number": upload.number,
+                "kind": kind.value,
                 "original_name": original_name,
                 "size_bytes": upload.size_bytes,
                 "file_sha256": file_sha256,

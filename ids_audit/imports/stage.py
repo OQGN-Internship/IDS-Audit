@@ -66,6 +66,7 @@ def stage_upload(upload: Upload, user: User, choices: Sequence[Choice] = ()) -> 
                 upload.ruleset.settings,
                 need_line_key=line_key_mode,
                 choices=[*choices, *saved_choices(upload.report)],
+                mapping_only=upload.kind == Upload.Kind.MAPPING,
             )
         except NeedsColumns as stop:
             problems = [

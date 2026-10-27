@@ -38,3 +38,9 @@ class UploadForm(forms.Form):
                 f"{typed} isn't an amount. Type it as SAP shows it, such as "
                 "1,234.500 or 1,234.500-."
             ) from None
+
+
+class MappingForm(forms.Form):
+    """A workbook with the mapping sheets on their own (ENG-02 8.5)."""
+
+    file = forms.FileField(label="Mapping file")

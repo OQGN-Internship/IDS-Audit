@@ -16,11 +16,12 @@ import pytest
 from playwright.sync_api import Page
 
 from ids_audit.audit.models import AuditEvent
+from ids_audit.imports.models import Upload
 from ids_audit.imports.services import create_report, receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.reports.faq import ENTRIES
 from tests.factories import PASSWORD, make_admin, make_user
-from tests.files import HEADER, LINE, csv_file, total_row
+from tests.files import HEADER, LINE, csv_file, total_row, xlsx_file
 from tests.test_browser import SAMPLE, sign_in
 from tests.test_report_browser import sample
 from tests.test_theme import THEME, contrast_of
@@ -51,8 +52,9 @@ def pages(page: Page, live_server) -> list[str]:
     """Sign in as a fixed administrator over a report with the sample file
     approved and a second report whose first upload awaits approval, and
     return the address of each kind of page: every screen's layout, the
-    upload's summary, preview and actions, the duplicate mode's choice, the
-    forms, the administration, the audit log, a message and an error.
+    upload's summary, preview and actions, the duplicate mode's choice, a
+    mapping upload's, the forms, the administration, the audit log, a message
+    and an error.
     """
     admin = make_admin()
     report = sample(admin)
@@ -69,6 +71,25 @@ def pages(page: Page, live_server) -> list[str]:
             admin,
             "no-amount.csv",
             csv_file(LINE, total_row("1000.000"), header=header),
+        ),
+        admin,
+    )
+    # The mapping sheets on their own, awaiting approval (ENG-02 8.5).
+    mapping = create_report("Mapping", admin)
+    gl = ("G/L Account", "G/L Account Name", "Commitment Item", "Commitment Item Name")
+    cc = ("Cost Center", "Cost Center Name", "Department Code", "Department Name")
+    stage_upload(
+        receive_file(
+            mapping,
+            admin,
+            "mapping.xlsx",
+            xlsx_file(
+                {
+                    "GL Mapping": [gl, ("610100", "Licences", "2101", "Software")],
+                    "Cost Center Mapping": [cc, ("4510", "Apps", "APP", "Apps")],
+                }
+            ),
+            kind=Upload.Kind.MAPPING,
         ),
         admin,
     )
@@ -90,11 +111,13 @@ def pages(page: Page, live_server) -> list[str]:
         f"{r}/uploads/1/exceptions/missing_from_gl_map",
         f"{r}/uploads/1/roll-back",
         f"{r}/uploads/new",
+        f"{r}/uploads/new-mapping",
         f"{r}/audit",
         f"{base}/reports/{waiting.pk}/overview",
         f"{base}/reports/{waiting.pk}/uploads/1",
         f"{base}/reports/{picking.pk}/uploads/1",
         f"{base}/reports/{picking.pk}/uploads/1/columns",
+        f"{base}/reports/{mapping.pk}/uploads/1",
         f"{base}/admin/",
         f"{base}/admin/users",
         f"{base}/admin/users/{viewer.pk}",

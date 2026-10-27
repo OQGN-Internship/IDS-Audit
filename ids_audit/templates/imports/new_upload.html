@@ -9,7 +9,7 @@
   {% if form.non_field_errors %}<div class="error">{% for error in form.non_field_errors %}{{ error }} {% endfor %}</div>{% endif %}
   <label class="form-label" for="id_file">{{ form.file.label }}</label>
   {{ form.file.errors }}{{ form.file|control }}
-  <p class="hint">An Excel file with its mapping sheets, or a CSV of spend lines.</p>
+  <p class="hint">An Excel file, with or without its mapping sheets, or a CSV of spend lines. Mapping sheets on their own go in Upload a mapping.</p>
   <label class="form-label" for="id_control_total">{{ form.control_total.label }}</label>
   {{ form.control_total.errors }}{{ form.control_total|control }}
   <p class="hint">{{ form.control_total.help_text }}</p>

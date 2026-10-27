@@ -8,7 +8,7 @@
 {% else %}
   <div class="card form-card"><div class="card-body">
   <p class="change">Actual spend: {{ before|amount }} OMR → {{ after|amount }} OMR.</p>
-  <p>The upload stops counting, and every figure returns to what it was before it was approved. Nothing is deleted, and its file can be uploaded again.</p>
+  <p>The upload stops counting, and every figure returns to what it was before it was approved.{% if upload.kind == "mapping" %} Its mapping stops being in force, and the mapping before it applies again.{% endif %} Nothing is deleted, and its file can be uploaded again.</p>
   <form method="post" action="{% url 'roll_back' report.pk upload.number %}" class="narrow">
     {% csrf_token %}
     <label class="form-label" for="reason">Reason for rolling back</label>

@@ -84,6 +84,7 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
         ),
         (reverse("upload", args=[report.pk, upload.number]), [top, home, uploads]),
         (reverse("new_upload", args=[report.pk]), [top, home, uploads]),
+        (reverse("new_mapping", args=[report.pk]), [top, home, uploads]),
         (
             reverse("roll_back", args=[report.pk, upload.number]),
             [top, home, uploads, one],

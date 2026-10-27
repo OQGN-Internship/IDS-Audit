@@ -37,7 +37,7 @@
         </ul>
         <ul class="navbar-nav">
           {% waiting report as open_upload %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'uploads' report.pk %}" {% open_now "uploads" "new_upload" "upload" "exception_items" "columns" "roll_back" %}>{% icon "uploads" %}Uploads{% if open_upload %} <span class="badge open">Waiting</span>{% endif %}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'uploads' report.pk %}" {% open_now "uploads" "new_upload" "new_mapping" "upload" "exception_items" "columns" "roll_back" %}>{% icon "uploads" %}Uploads{% if open_upload %} <span class="badge open">Waiting</span>{% endif %}</a></li>
           {% may "view_audit_log" as can_see_log %}{% if can_see_log %}<li class="nav-item"><a class="nav-link" href="{% url 'audit' report.pk %}" {% open_now "audit" %}>{% icon "audit" %}Audit log</a></li>{% endif %}
         </ul>
       {% endif %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load navigation %}
+{% block title %}Upload a mapping · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}Upload a mapping{% endblock %}
+{% block content %}
+<div class="card form-card"><div class="card-body">
+<form method="post" action="{% url 'new_mapping' report.pk %}" enctype="multipart/form-data" class="narrow">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="error">{% for error in form.non_field_errors %}{{ error }} {% endfor %}</div>{% endif %}
+  <label class="form-label" for="id_file">{{ form.file.label }}</label>
+  {{ form.file.errors }}{{ form.file|control }}
+  <p class="hint">An Excel file with the GL mapping sheet, the cost center mapping sheet, or both, and no spend lines. Once approved, each sheet replaces that whole mapping, for every line in the report.</p>
+  <button type="submit" class="btn btn-primary">Upload and read</button>
+</form>
+</div></div>
+{% endblock %}

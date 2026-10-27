@@ -145,9 +145,11 @@ def file_exceptions(
     imports/.
     """
     found = []
-    if reconciliation.control_total is None:
+    # A mapping upload's file has no spend sheet, so nothing to reconcile (8.5).
+    reconciled = result.spend_sheet is not None
+    if reconciled and reconciliation.control_total is None:
         found.append(exception(NO_CONTROL_TOTAL, []))
-    elif reconciliation.difference != 0:
+    elif reconciled and reconciliation.difference != 0:
         found.append(exception(DIFFERENCE_NOT_ZERO, [], reconciliation.difference))
 
     in_currency = [r for r in result.skipped_rows if r.reason == ANOTHER_CURRENCY]
@@ -227,6 +229,8 @@ def value_types(result: ReadResult, to_commit: Sequence[CleanRow]) -> list[dict]
     """Return each value type among the rows to commit, with its row count,
     amount and class, when the spend sheet has a value-type column (11.2).
     """
+    if result.spend_sheet is None:
+        return []
     columns = result.column_layout[result.spend_sheet]["columns"]
     if "value_type" not in columns:
         return []

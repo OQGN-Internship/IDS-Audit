@@ -118,7 +118,7 @@ def for_you(client: Client, report) -> dict[int, str]:
     for row in re.findall(r"<tr>(.*?)</tr>", body, re.S):
         cells = re.findall(r"<td>(.*?)</td>", row, re.S)
         number = int(re.search(r">Upload (\d+)</a>", cells[0])[1])
-        found = re.search(r'<span class="for-you">([^<]+)</span>', cells[2])
+        found = re.search(r'<span class="for-you">([^<]+)</span>', row)
         said[number] = found[1] if found else ""
     return said
 

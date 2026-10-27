@@ -218,10 +218,10 @@ def buttons() -> dict[str, list[str]]:
 
 def test_each_button_is_of_its_kind() -> None:
     """Verify only Show, Search and Sign out are quiet buttons, only Reject,
-    Withdraw, Disable and Remove are secondary ones, Export to Excel and
-    Roll back are the secondary links, every button and link drawn as one is
-    one of Tabler's, and the theme gives each kind its colours (ENG-03 4,
-    Buttons).
+    Withdraw, Disable and Remove are secondary ones, Upload a mapping, Export
+    to Excel and Roll back are the secondary links, every button and link
+    drawn as one is one of Tabler's, and the theme gives each kind its colours
+    (ENG-03 4, Buttons).
     """
     kinds = buttons()
     assert sorted(kinds["quiet"]) == ["Search", "Show", "Sign out"]
@@ -234,6 +234,7 @@ def test_each_button_is_of_its_kind() -> None:
     assert sorted(kinds["link secondary"]) == [
         "Export to Excel",
         "Roll back upload {{ upload.number }}",
+        "Upload a mapping",
     ]
     assert sorted(kinds["link main"]) == [
         "New report",
@@ -338,6 +339,7 @@ def test_the_sidebar_marks_the_screen_open_now() -> None:
         (reverse("gl_account", args=[report.pk, "610100"]), "gl_accounts"),
         (reverse("faq", args=[report.pk]), "faq"),
         (reverse("uploads", args=[report.pk]), "uploads"),
+        (reverse("new_mapping", args=[report.pk]), "uploads"),
         (reverse("audit", args=[report.pk]), "audit"),
     ):
         page = client.get(address).content.decode()

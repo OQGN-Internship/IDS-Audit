@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.models import Upload
+from ids_audit.ledger.models import CcDeptMap, GlCiMap
 from ids_audit.pipeline import preview as types
 from ids_audit.pipeline.columns import ColumnProblem
 
@@ -144,6 +145,37 @@ def mappings(preview: dict) -> list[tuple[str, int | None]]:
     """
     found = preview.get("mappings", {})
     return [(MAPPING_NAMES[name], found.get(name)) for name in ("gl", "cc")]
+
+
+def mapping_codes(upload: Upload) -> list[dict]:
+    """Return how many codes each of the upload's mappings lists, and for a
+    mapping it hasn't, the upload whose mapping stays in force, by number, or
+    None when no upload has one (ENG-03 4, a mapping upload's summary).
+    """
+    found = (upload.preview or {}).get("mappings", {})
+    return [
+        {
+            "label": MAPPING_NAMES[name],
+            "codes": model.objects.filter(upload=upload).count(),
+            "noun": noun,
+            "in_force": found.get(name),
+        }
+        for name, model, noun in (
+            ("gl", GlCiMap, "GL account"),
+            ("cc", CcDeptMap, "cost center"),
+        )
+    ]
+
+
+def moves(preview: dict) -> dict:
+    """Return the spend approving moves to another budget line or department,
+    and how many codes change: the preview's mapping change exception, whose
+    amount is its items' (ENG-02 11.2).
+    """
+    for exception in preview.get("exceptions", ()):
+        if exception["type"] == types.MAPPING_CHANGE:
+            return {"amount": exception["amount"], "codes": len(exception["items"])}
+    return {"amount": "0.000", "codes": 0}
 
 
 def find_exception(upload: Upload, kind: str) -> dict | None:

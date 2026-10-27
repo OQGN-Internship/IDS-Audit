@@ -25,13 +25,20 @@
   {# The preview's own figures, so the summary can't differ from it. #}
   <h2>Summary</h2>
   <div class="tiles summary">
-    {% if upload.control_total is None %}
+    {% if upload.kind == "mapping" %}
+      {% for mapping in codes %}
+        <div class="card tile"><div class="card-body"><p class="subheader label">{{ mapping.label }} mapping</p>{% if mapping.codes %}<p class="figure">{{ mapping.codes }}</p><p class="sub">{{ mapping.noun|capfirst }}{{ mapping.codes|pluralize }} listed. Once approved, it replaces the {{ mapping.label }} mapping in force.</p>{% else %}<p class="figure">None</p><p class="sub">{% if mapping.in_force %}Upload {{ mapping.in_force }}'s stays in force.{% else %}No upload has one yet.{% endif %}</p>{% endif %}</div></div>
+      {% endfor %}
+      <div class="card tile"><div class="card-body"><p class="subheader label">Spend it moves</p><p class="figure">{{ moves.amount|amount }} <span class="unit">OMR</span></p><p class="sub">{% if moves.codes %}To another budget line or department, by {{ moves.codes }} changed code{{ moves.codes|pluralize }}.{% else %}No code changes budget line or department.{% endif %}</p></div></div>
+    {% elif upload.control_total is None %}
       <div class="card tile problem"><div class="card-body"><p class="subheader label">Difference</p><p class="figure">No control total</p><p class="sub">Blocks approval: the file has no total row, and none was typed with it.</p></div></div>
     {% else %}
       <div class="card tile{% if upload.reconciliation_difference %} problem{% endif %}"><div class="card-body"><p class="subheader label">Difference</p><p class="figure">{{ upload.reconciliation_difference|amount }} <span class="unit">OMR</span></p><p class="sub">{% if upload.reconciliation_difference %}Blocks approval: the rows don't add up to{% else %}The rows add up to{% endif %} the control total, {{ upload.control_total|amount }} OMR.</p></div></div>
     {% endif %}
+    {% if upload.kind == "spend" %}
     <div class="card tile"><div class="card-body"><p class="subheader label">Actual spend after approval</p><p class="figure">{{ preview.report_actual_spend.after|amount }} <span class="unit">OMR</span></p><p class="sub">The report's, now {{ preview.report_actual_spend.before|amount }} OMR.</p></div></div>
     <div class="card tile"><div class="card-body"><p class="subheader label">Rows to commit</p><p class="figure">{{ upload.rows_new }}</p><p class="sub">Of {{ upload.rows_read }} read: {{ upload.rows_duplicate }} already in the report, {{ upload.rows_skipped }} skipped.</p></div></div>
+    {% endif %}
     <div class="card tile{% if blocking %} problem{% endif %}"><div class="card-body"><p class="subheader label">Exception types</p><p class="figure">{{ exceptions|length }}</p><p class="sub">{% if blocking %}Block approval: {{ blocking|join:", " }}.{% else %}None blocks approval.{% endif %}</p></div></div>
   </div>
   {% if can_approve or can_reject or can_withdraw or can_roll_back %}
