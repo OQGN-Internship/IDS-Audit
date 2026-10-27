@@ -3,6 +3,7 @@
 {% block title %}New user · Administration · IDS Spend Audit{% endblock %}
 {% block heading %}New user{% endblock %}
 {% block content %}
+<div class="card form-card"><div class="card-body">
 <form method="post" action="{% url 'admin_new_user' %}" class="narrow">
   {% csrf_token %}
   {{ form.non_field_errors }}
@@ -20,4 +21,5 @@
   {{ form.password2.errors }}{{ form.password2|control }}
   <button type="submit" class="btn btn-primary">Create user</button>
 </form>
+</div></div>
 {% endblock %}

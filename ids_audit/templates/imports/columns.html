@@ -1,12 +1,15 @@
 {% extends "base.html" %}
+{% load navigation %}
 {% block title %}Pick columns · Upload {{ upload.number }} · IDS Spend Audit{% endblock %}
 {% block heading %}Pick columns for upload {{ upload.number }}{% endblock %}
 {% block content %}
-<p>For each problem, pick the column that holds the field. The file is then read again with them, and the choice is used again for later files whose sheet has exactly this header, once this upload is approved.</p>
+<p class="alert note">{% icon "info" %}<span>For each problem, pick the column that holds the field. The file is then read again with them, and the choice is used again for later files whose sheet has exactly this header, once this upload is approved.</span></p>
 <form method="post" action="{% url 'columns' report.pk upload.number %}">
   {% csrf_token %}
   {% for sheet in sheets %}
-    <h2>{% if sheet.name %}Sheet {{ sheet.name }}{% else %}The file{% endif %}</h2>
+    <section class="card sheet-card">
+    <div class="card-header"><h2 class="card-title">{% if sheet.name %}Sheet {{ sheet.name }}{% else %}The file{% endif %}</h2></div>
+    <div class="card-body">
     <div class="card sheet-rows">
       <table class="table card-table">
         <thead><tr><th>Row</th>{% for letter in sheet.letters %}<th>{{ letter }}</th>{% endfor %}</tr></thead>
@@ -26,6 +29,8 @@
         </select>
       </p>
     {% endfor %}
+    </div>
+    </section>
   {% endfor %}
   <button type="submit" class="btn btn-primary">Read the file again with these columns</button>
 </form>

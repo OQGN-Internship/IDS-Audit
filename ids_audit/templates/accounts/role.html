@@ -3,6 +3,7 @@
 {% block title %}{% if role %}{{ role.name }}{% else %}New role{% endif %} · Administration · IDS Spend Audit{% endblock %}
 {% block heading %}{% if role %}Role {{ role.name }}{% else %}New role{% endif %}{% endblock %}
 {% block content %}
+<div class="card form-card"><div class="card-body">
 <form method="post" action="{% if role %}{% url 'admin_role' role.pk %}{% else %}{% url 'admin_new_role' %}{% endif %}" class="narrow">
   {% csrf_token %}
   {{ form.non_field_errors }}
@@ -15,8 +16,10 @@
   <p class="hint">Every role holds View, which every screen of a report needs.</p>
   <button type="submit" class="btn btn-primary">{% if role %}Save role{% else %}Create role{% endif %}</button>
 </form>
+</div></div>
 {% if role %}
   <h2>Remove</h2>
+  <div class="card form-card"><div class="card-body">
   {% if given %}
     <p>This role is given {{ given }} time{{ given|pluralize }}, so it can't be removed until that access changes.</p>
   {% else %}
@@ -25,5 +28,6 @@
       <button type="submit" class="btn btn-outline-primary">Remove {{ role.name }}</button>
     </form>
   {% endif %}
+  </div></div>
 {% endif %}
 {% endblock %}

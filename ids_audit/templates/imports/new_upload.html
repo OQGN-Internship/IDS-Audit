@@ -3,6 +3,7 @@
 {% block title %}Upload a file · {{ report.name }} · IDS Spend Audit{% endblock %}
 {% block heading %}Upload a file{% endblock %}
 {% block content %}
+<div class="card form-card"><div class="card-body">
 <form method="post" action="{% url 'new_upload' report.pk %}" enctype="multipart/form-data" class="narrow">
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="error">{% for error in form.non_field_errors %}{{ error }} {% endfor %}</div>{% endif %}
@@ -14,4 +15,5 @@
   <p class="hint">{{ form.control_total.help_text }}</p>
   <button type="submit" class="btn btn-primary">Upload and read</button>
 </form>
+</div></div>
 {% endblock %}

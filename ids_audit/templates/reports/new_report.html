@@ -3,6 +3,7 @@
 {% block title %}New report · IDS Spend Audit{% endblock %}
 {% block heading %}New report{% endblock %}
 {% block content %}
+<div class="card form-card"><div class="card-body">
 <form method="post" action="{% url 'new_report' %}" class="narrow">
   {% csrf_token %}
   <label class="form-label" for="id_name">Name</label>
@@ -10,4 +11,5 @@
   <p class="hint">A report is a separate set of uploads, with its own totals. No two reports' names may differ only in capitals.</p>
   <button type="submit" class="btn btn-primary">Create report</button>
 </form>
+</div></div>
 {% endblock %}

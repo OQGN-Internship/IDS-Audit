@@ -5,6 +5,7 @@
 {% block beside_heading %}<span class="badge {{ upload|tone }}">{{ upload.get_status_display }}</span>{% endblock %}
 {% block content %}
 {# In reading order: who and when, the summary, the preview, the file, and the actions last (ENG-03 4). #}
+<div class="card facts-card"><div class="card-body">
 <div class="datagrid facts">
   <div class="datagrid-item"><div class="datagrid-title">Uploaded</div><div class="datagrid-content">By {{ upload.uploaded_by }} on {{ upload.uploaded_at|moment }}</div></div>
   {% if upload.decided_by %}
@@ -18,6 +19,7 @@
   {% endif %}
   {% if upload.error %}<div class="datagrid-item"><div class="datagrid-title">Error</div><div class="datagrid-content error">{{ upload.error }}</div></div>{% endif %}
 </div>
+</div></div>
 
 {% if preview %}
   {# The preview's own figures, so the summary can't differ from it. #}
@@ -39,18 +41,20 @@
 
 {% if problems %}
   <h2>Columns to pick</h2>
-  <ul>{% for problem in problems %}<li>{{ problem.text }}</li>{% endfor %}</ul>
+  <div class="alert notice"><ul class="problems">{% for problem in problems %}<li>{{ problem.text }}</li>{% endfor %}</ul></div>
 {% endif %}
 
 {% if preview %}{% include "imports/_preview.html" %}{% endif %}
 
 <h2>File</h2>
+<div class="card facts-card"><div class="card-body">
 <div class="datagrid facts">
   <div class="datagrid-item"><div class="datagrid-title">Name</div><div class="datagrid-content">{{ upload.original_name }}</div></div>
   <div class="datagrid-item"><div class="datagrid-title">Size</div><div class="datagrid-content">{{ upload.size_bytes }} bytes</div></div>
   <div class="datagrid-item"><div class="datagrid-title">SHA-256</div><div class="datagrid-content">{{ upload.file_sha256 }}</div></div>
   <div class="datagrid-item"><div class="datagrid-title">Read with</div><div class="datagrid-content">Ruleset version {{ upload.ruleset.version }}</div></div>
 </div>
+</div></div>
 
 {% if can_approve or can_reject or can_withdraw or can_pick or can_roll_back %}
 <h2 id="actions">Actions</h2>
@@ -59,7 +63,7 @@
     <p><a class="btn btn-primary" href="{% url 'columns' report.pk upload.number %}">{% icon "columns" %}Pick the columns</a></p>
   {% endif %}
   {% if can_approve %}
-    <form method="post" action="{% url 'approve' report.pk upload.number %}" class="approve">
+    <form method="post" action="{% url 'approve' report.pk upload.number %}" class="card approve">
       {% csrf_token %}
       {% if blocking %}
         <p class="error">Approval is blocked by: {{ blocking|join:", " }}. Approving is refused, and the attempt is kept in the audit log.</p>
@@ -76,7 +80,7 @@
     </form>
   {% endif %}
   {% if can_reject %}
-    <form method="post" action="{% url 'reject' report.pk upload.number %}">
+    <form method="post" action="{% url 'reject' report.pk upload.number %}" class="card">
       {% csrf_token %}
       <label class="form-label" for="reject-reason">Reason for rejecting</label>
       <textarea class="form-control" id="reject-reason" name="reason" rows="2"></textarea>
@@ -84,7 +88,7 @@
     </form>
   {% endif %}
   {% if can_withdraw %}
-    <form method="post" action="{% url 'withdraw' report.pk upload.number %}">
+    <form method="post" action="{% url 'withdraw' report.pk upload.number %}" class="card">
       {% csrf_token %}
       <label class="form-label" for="withdraw-reason">Reason for withdrawing</label>
       <textarea class="form-control" id="withdraw-reason" name="reason" rows="2"></textarea>

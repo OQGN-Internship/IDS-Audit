@@ -19,6 +19,7 @@ from ids_audit.imports.services import create_report, receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.reports.faq import ENTRIES
 from tests.factories import PASSWORD, make_admin, make_user
+from tests.files import HEADER, LINE, csv_file, total_row
 from tests.test_browser import SAMPLE, sign_in
 from tests.test_report_browser import sample
 from tests.test_theme import THEME, contrast_of
@@ -58,6 +59,18 @@ def pages(page: Page, live_server) -> list[str]:
     stage_upload(
         receive_file(waiting, admin, "sample.xlsx", SAMPLE.read_bytes()), admin
     )
+    # A file with no amount column stops for a column to be picked.
+    picking = create_report("Picking", admin)
+    header = tuple("Value" if name == "Amount in LC" else name for name in HEADER)
+    stage_upload(
+        receive_file(
+            picking,
+            admin,
+            "no-amount.csv",
+            csv_file(LINE, total_row("1000.000"), header=header),
+        ),
+        admin,
+    )
     viewer = make_user(fixed_admin=False)
     sign_in(page, live_server, admin.username)
     base = live_server.url
@@ -73,11 +86,14 @@ def pages(page: Page, live_server) -> list[str]:
         f"{r}/faq/{ENTRIES[3].slug}",
         f"{r}/uploads",
         f"{r}/uploads/1",
+        f"{r}/uploads/1/exceptions/missing_from_gl_map",
         f"{r}/uploads/1/roll-back",
         f"{r}/uploads/new",
         f"{r}/audit",
         f"{base}/reports/{waiting.pk}/overview",
         f"{base}/reports/{waiting.pk}/uploads/1",
+        f"{base}/reports/{picking.pk}/uploads/1",
+        f"{base}/reports/{picking.pk}/uploads/1/columns",
         f"{base}/admin/",
         f"{base}/admin/users",
         f"{base}/admin/users/{viewer.pk}",
@@ -127,6 +143,43 @@ def test_each_kind_of_page_draws_only_the_theme(page: Page, live_server) -> None
                 assert found[kind] == [], (address, width, kind, found[kind][:5])
     assert len(seen) >= 8, seen
     assert checked > 1000, checked
+
+
+# Every text under the page header that sits outside a box: a card, a
+# table, a notice, a note or another alert, a message, an empty list's box,
+# the pagination or a section's heading. A button, and the link to an
+# upload's actions, which leads to a box, are left out.
+LOOSE = """() => {
+    const boxes = '.card, table, .alert, .messages, .none, .empty, .pagination'
+        + ', h2, h3, .btn, .jump, script';
+    const loose = [];
+    const walker = document.createTreeWalker(
+        document.querySelector('.page-body'), NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+        const text = walker.currentNode.textContent.trim();
+        const element = walker.currentNode.parentElement;
+        if (text && element.offsetParent && !element.closest(boxes)) {
+            loose.push(element.tagName + ': ' + text.slice(0, 60));
+        }
+    }
+    const charts = [...document.querySelectorAll('[data-chart]')];
+    return [loose, charts.filter(chart => !chart.closest('.card.chart-card')).length];
+}"""
+
+
+def test_nothing_sits_loose_on_a_page(page: Page, live_server) -> None:
+    """Verify on each kind of page no text under the page header sits outside
+    a card, a table, a notice, a note, a message, an empty list's box, the
+    pagination or a section's heading, and every chart is in a card (ENG-03
+    4, Nothing loose on the page, and Charts in cards).
+    """
+    charts = 0
+    for address in pages(page, live_server):
+        page.goto(address)
+        loose, unboxed = page.evaluate(LOOSE)
+        assert loose == [] and unboxed == 0, (address, loose, unboxed)
+        charts += page.locator(".chart-card").count()
+    assert charts >= 4, charts
 
 
 def test_a_message_and_a_refusal_are_drawn_in_the_theme(

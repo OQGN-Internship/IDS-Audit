@@ -3,6 +3,7 @@
 {% block title %}{{ account.username }} · Administration · IDS Spend Audit{% endblock %}
 {% block heading %}{{ account }}{% endblock %}
 {% block content %}
+<div class="card facts-card"><div class="card-body">
 <div class="datagrid">
   <div class="datagrid-item"><div class="datagrid-title">Account</div><div class="datagrid-content">{% if account.is_fixed_admin %}Fixed administrator{% else %}User{% endif %}, {% if account.is_active %}active{% else %}disabled{% endif %}{% if account.must_change_password %}, waiting for its own password{% endif %}</div></div>
   {% if locked_until %}<div class="datagrid-item"><div class="datagrid-title">Locked out</div><div class="datagrid-content">Until {{ locked_until|moment }}</div></div>{% endif %}
@@ -10,8 +11,9 @@
   <div class="datagrid-item"><div class="datagrid-title">Last sign-in</div><div class="datagrid-content">{% if account.last_login %}{{ account.last_login|moment }}{% else %}Never{% endif %}</div></div>
   <div class="datagrid-item"><div class="datagrid-title">Created</div><div class="datagrid-content">{{ account.date_joined|moment }}</div></div>
 </div>
+</div></div>
 {% if account.is_fixed_admin %}
-  <p>A fixed administrator holds every permission on every report. The account is changed only from the command line: <code>disable_admin</code>, <code>changepassword</code> and <code>axes_reset_username</code>.</p>
+  <p class="alert note">{% icon "info" %}<span>A fixed administrator holds every permission on every report. The account is changed only from the command line: <code>disable_admin</code>, <code>changepassword</code> and <code>axes_reset_username</code>.</span></p>
 {% else %}
   <h2>Report access</h2>
   {% if reports %}
@@ -39,10 +41,11 @@
     </table>
     </div>
   {% else %}
-    <p>There are no reports yet.</p>
+    <p class="none">There are no reports yet.</p>
   {% endif %}
 
   <h2>Details</h2>
+<div class="card form-card"><div class="card-body">
   <form method="post" action="{% url 'admin_user_details' account.pk %}" class="narrow">
     {% csrf_token %}
     {{ details.non_field_errors }}
@@ -52,8 +55,10 @@
     {{ details.email.errors }}{{ details.email|control }}
     <button type="submit" class="btn btn-primary">Save details</button>
   </form>
+</div></div>
 
   <h2>Reset password</h2>
+<div class="card form-card"><div class="card-body">
   <form method="post" action="{% url 'admin_user_password' account.pk %}" class="narrow">
     {% csrf_token %}
     {{ password.non_field_errors }}
@@ -64,23 +69,24 @@
     {{ password.password2.errors }}{{ password.password2|control }}
     <button type="submit" class="btn btn-primary">Reset password</button>
   </form>
+</div></div>
 
   <h2>Signing in</h2>
   <div class="actions">
     {% if locked_until %}
-      <form method="post" action="{% url 'admin_user_unlock' account.pk %}">
+      <form method="post" action="{% url 'admin_user_unlock' account.pk %}" class="card">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary">Unlock {{ account.username }}</button>
       </form>
     {% endif %}
     {% if account.is_active %}
-      <form method="post" action="{% url 'admin_user_disable' account.pk %}">
+      <form method="post" action="{% url 'admin_user_disable' account.pk %}" class="card">
         {% csrf_token %}
         <p class="hint">A disabled account can't sign in. Its history stays in the audit log.</p>
         <button type="submit" class="btn btn-outline-primary">Disable {{ account.username }}</button>
       </form>
     {% else %}
-      <form method="post" action="{% url 'admin_user_enable' account.pk %}">
+      <form method="post" action="{% url 'admin_user_enable' account.pk %}" class="card">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary">Enable {{ account.username }}</button>
       </form>

@@ -2,6 +2,7 @@
 <h2>Preview</h2>
 
 <h3>Period</h3>
+<div class="card facts-card"><div class="card-body">
 <p>
   {% if upload.period_start %}Postings dated {{ upload.period_start|day }} to {{ upload.period_end|day }}.{% else %}No posting dates.{% endif %}
   {% if preview.months_replaced %}
@@ -15,6 +16,7 @@
     The duplicate mode is chosen when the report's first upload is approved. Line key {% if preview.line_key_offered %}can{% else %}can't{% endif %} be chosen for this file.
   {% endif %}
 </p>
+</div></div>
 
 {# The preview's figures, side by side on a wide screen (ENG-03 4). #}
 <div class="preview-grid">

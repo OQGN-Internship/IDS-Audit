@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% load figures %}
+{% load figures navigation %}
 {% block title %}Audit log{% if report %} · {{ report.name }}{% endif %} · IDS Spend Audit{% endblock %}
 {% block heading %}Audit log{% endblock %}
 {% block content %}
-<p class="hint">{% if full %}Every event, newest first.{% else %}The events of this report, newest first.{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }}.</p>
+<p class="alert note">{% icon "info" %}<span>{% if full %}Every event, newest first.{% else %}The events of this report, newest first.{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }}.</span></p>
 {% if rows %}
   <div class="card table-wrap">
     <table class="table card-table log">
@@ -25,7 +25,7 @@
     </table>
   </div>
 {% else %}
-  <p>No events yet.</p>
+  <p class="none">No events yet.</p>
 {% endif %}
 {% if page.has_previous or page.has_next %}
   <p class="pager">

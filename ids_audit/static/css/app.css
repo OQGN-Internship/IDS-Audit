@@ -362,8 +362,19 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
 .card.figures { max-width: 40rem; margin: 0.5rem 0 1.25rem; }
 .card.figures .table { margin: 0; }
 
+/* Forms, facts and lists in cards, so nothing sits loose on the page
+   (ENG-03 4). */
+.form-card { max-width: 34rem; margin: 0.5rem 0 1.5rem; }
+.form-card form.narrow { max-width: none; }
+.form-card > .card-body > p { margin: 0 0 0.75rem; }
+.facts-card, .list-card, .sheet-card { margin: 0.5rem 0 1.5rem; }
+.facts-card > .card-body > p { margin: 0.25rem 0; }
+.sheet-card .card-title { margin: 0; font-size: 1rem; }
+.questions { margin: 0; }
+.problems { margin: 0; padding-inline-start: 1.25rem; }
+
 /* Facts: Tabler's datagrid, each fact's name over its value. */
-.datagrid { margin: 0.5rem 0 1.5rem; }
+.datagrid { margin: 0; }
 .datagrid-title { color: var(--oqgn-ink-subtle); }
 .datagrid-content { overflow-wrap: anywhere; }
 .datagrid-content.error { color: var(--oqgn-ink); border-inline-start: 4px solid var(--oqgn-danger); padding-inline-start: 0.4rem; }

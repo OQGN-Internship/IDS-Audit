@@ -6,6 +6,7 @@
 {% if refusal %}
   <p class="error">{{ refusal }}</p>
 {% else %}
+  <div class="card form-card"><div class="card-body">
   <p class="change">Actual spend: {{ before|amount }} OMR → {{ after|amount }} OMR.</p>
   <p>The upload stops counting, and every figure returns to what it was before it was approved. Nothing is deleted, and its file can be uploaded again.</p>
   <form method="post" action="{% url 'roll_back' report.pk upload.number %}" class="narrow">
@@ -14,5 +15,6 @@
     <textarea class="form-control" id="reason" name="reason" rows="2"></textarea>
     <button type="submit" class="btn btn-primary">Roll back upload {{ upload.number }}</button>
   </form>
+  </div></div>
 {% endif %}
 {% endblock %}
