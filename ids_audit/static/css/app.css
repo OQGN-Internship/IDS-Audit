@@ -227,7 +227,7 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--oqgn-green-dar
 }
 
 /* Secondary text, on white only. */
-.hint, .as-of, .counted, .chart-legend, .none, .sub, .form-hint {
+.hint, .as-of, .found, .counted, .chart-legend, .none, .sub, .form-hint {
   color: var(--oqgn-ink-subtle);
 }
 .hint { margin: 0; }
@@ -413,6 +413,11 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
   font-weight: bold;
 }
 .as-of { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
+/* The audit log's search: words, the lists and the days in one row. */
+.filters .form-control { width: auto; font-weight: normal; }
+.filters .search .form-control { min-width: 16rem; }
+.filters .clear { align-self: center; }
+.found { margin: 0; }
 
 /* Tiles and cards: Tabler's cards, white with a line around them. */
 .card {
