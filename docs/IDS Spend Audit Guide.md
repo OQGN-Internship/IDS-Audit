@@ -49,12 +49,22 @@ On every screen:
 If your role holds Upload:
 
 1. Open the report's **Uploads**, then **Upload a file**.
-2. Choose the SAP export: an Excel file with its GL and cost center mapping sheets, or a CSV of spend lines. [IDS Spend Audit Workbook](IDS%20Spend%20Audit%20Workbook.md) gives the best shape for it. If the file has no total row, type SAP's total for it.
+2. Choose the SAP export: an Excel file, with or without its GL and cost center mapping sheets, or a CSV of spend lines. A file without mapping sheets uses the report's latest approved mapping. [IDS Spend Audit Workbook](IDS%20Spend%20Audit%20Workbook.md) gives the best shape for it. If the file has no total row, type SAP's total for it.
 3. **Upload and read** reads the file and opens its preview: rows read and skipped, new rows, duplicates, exceptions, and whether the file's rows add up to its control total.
 4. If a column couldn't be found, the upload says **Needs columns**, and Uploads says **Waiting for you to pick columns**. **Pick the columns** shows the sheet's first rows, and you choose the column for each field.
 5. The upload then waits for an approver. It doesn't count in the report until it's approved. Until then you can withdraw it, with a reason.
 
 A report has one open upload at a time. A file already approved in the report is refused if it's sent again.
+
+### Uploading a mapping
+
+When the validator gives new GL or cost center mapping sheets, send them on their own, if your role holds Upload:
+
+1. Open the report's **Uploads**, then **Upload a mapping**.
+2. Choose an Excel file holding the GL mapping sheet, the cost center mapping sheet, or both, and no spend lines.
+3. **Upload and read** opens its preview: which budget lines and departments change, and the spend each change moves, spend already approved included.
+
+It's approved, rejected, withdrawn and rolled back as a file is. Once approved, every line in the report takes the new mapping, in earlier months too. A mapping sheet replaces the whole mapping, so a GL account it leaves out has no budget line, and a cost center it leaves out is outside IDS.
 
 ### Approving, rejecting and rolling back
 
@@ -62,7 +72,7 @@ If your role holds Approve:
 
 - Open an upload awaiting approval from **Uploads**, where it says **Waiting for your approval**. Its summary at the top shows the difference from the control total, the report's actual spend before and after, the rows to commit and the exceptions, and marks anything that blocks approval. Read the preview under it. The actions come last: **Approve upload** adds it to the report. **Reject upload** closes it, with a reason, and changes nothing.
 - Approval is refused while something blocks it, such as a control total that doesn't match. The preview names what blocks it, and the refused attempt is kept in the audit log.
-- On a report's first approval, you also choose how later files replace earlier ones: by the period they cover, or by line item where the file allows it. This can't change later.
+- On a report's first approval of a spend file, you also choose how later files replace earlier ones: by the period they cover, or by line item where the file allows it. This can't change later.
 
 If your role holds Roll back, **Roll back upload** on the newest approved upload removes it from the report's figures, with a reason. The confirmation shows the report's actual spend now and once rolled back. Uploads are rolled back newest first, and nothing is ever deleted: a rolled-back upload stays in the list and the audit log.
 

@@ -27,7 +27,7 @@ The goal is an auditable view of cumulative IDS actual spend by GL account, show
 
 **In scope**
 
-- Uploading the SAP export: an Excel file with the GL and cost center mapping sheets inside it, or a CSV of spend lines only, which uses the mappings the report already has.
+- Uploading the SAP export: an Excel file, with or without the GL and cost center mapping sheets inside it, or a CSV of spend lines only. A file without mapping sheets uses the mappings the report already has. The mapping sheets can also be uploaded on their own, whenever they change.
 - Several report instances. Each upload adds to an existing report, or starts a new one if the user is allowed to create reports.
 - Automatic checks: column detection, code matching, duplicate detection, and reconciliation against the file's control total.
 - Preview before approval, plus rollback of approved uploads, newest first. To undo an older upload, the newer ones are rolled back before it, and their files can then be uploaded again.
@@ -216,7 +216,7 @@ Each answer is needed by the day shown, or that phase uses the default.
 | Can every spend line in the export include its company code, fiscal year, document number and line item? | Day 3 | Replace the period the file covers |
 | Does the export include a control total? | Day 3 | The uploader enters SAP's total for the file before approval |
 | If a GL account's budget line changes between files, which applies: the latest file, the posting's own file, or the one for its fiscal year? | Day 3 | The latest file, with the change flagged as an exception |
-| Who maintains the GL and cost center mapping sheets added to each file, and does each list every GL account and IDS cost center, or only those in that file? | Before acceptance | The validator supplies complete, current sheets, and the uploader adds them to every file. The latest file's mapping applies whole: a code it leaves out loses its budget line or department, and the preview shows the spend that moves |
+| Who maintains the GL and cost center mapping sheets added to each file, and does each list every GL account and IDS cost center, or only those in that file? | Before acceptance | The validator supplies complete, current sheets, and the uploader uploads them on their own whenever they change, or adds them to a file. The latest approved mapping applies whole: a code it leaves out loses its budget line or department, and the preview shows the spend that moves |
 | Does each spend line carry its own commitment item, and can it differ from the one the mapping sheet gives its GL account? Should budget-line figures match an SAP Funds Management report, or the mapping sheet? | Before acceptance | The mapping sheet decides each GL account's budget line, a spend line that disagrees is listed as an exception, and budget-line figures are checked against the mapping sheet |
 | Can a file be approved when some of its spend rows can't be read, such as a row with an impossible date? | Before acceptance | Yes. Each such row is listed with its reason and amount in the preview and on the exceptions screen, and the report's total is lower than SAP's by exactly those amounts. The validator checks each one before signing off |
 | May an administrator remove a file uploaded by mistake, such as one holding another department's data, if it was never approved? | Before acceptance | No. Nothing is ever removed: a rejected file stays stored, with its preview, and in every backup |
