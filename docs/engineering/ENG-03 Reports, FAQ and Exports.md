@@ -161,7 +161,7 @@ The report list at `/reports/` shows only the reports the user can access (ENG-0
 
 | Address under `/reports/<id>/` | Shows or does | Needs |
 | --- | --- | --- |
-| `uploads` | Every upload, newest first: its number, file name, what it holds, spend or a mapping (ENG-02, 8.5), state, who uploaded it and when, and who decided it and when. An open upload says beside its state when it waits for the signed-in user: "Waiting for your approval" to a user who may approve it, and "Waiting for you to pick columns" to a user who may pick them. Opening it first marks any interrupted read `failed` (ENG-02, 6) | **view** |
+| `uploads` | Every upload, newest first: its number, file name, kind, spend or a mapping on its own (ENG-02, 8.5), state, who uploaded it and when, and who decided it and when. An open upload says beside its state when it waits for the signed-in user: "Waiting for your approval" to a user who may approve it, and "Waiting for you to pick columns" to a user who may pick them. Opening it first marks any interrupted read `failed` (ENG-02, 6) | **view** |
 | `uploads/new` | The upload form for spend: the file, and SAP's total for a file with no total row (ENG-02, 9.1). Sending it receives the file and reads it, then opens the upload | **upload** |
 | `uploads/new-mapping` | The mapping form: the file alone, an Excel workbook with a GL mapping sheet, a cost center mapping sheet or both (ENG-02, 8.5). Sending it receives the file as a mapping upload and reads it, then opens the upload | **upload** |
 | `uploads/<n>` | The upload: its file, state and decisions, the reason given for a rejection, withdrawal or rollback, its column problems at `needs_columns`, its error at `failed`, its preview once read (ENG-02, 11), and a form for each action the user may take | **view**. For an upload never committed, also **upload** or **approve** |
@@ -280,7 +280,7 @@ On 2026-10-26 the developer asked for clearer navigation and a more modern, poli
 - Uploads says "Waiting for your approval" only to a user who may approve the upload, and "Waiting for you to pick columns" only to a user who may pick them.
 - An upload's summary shows its saved preview's difference, the report's actual spend before and after, its rows and its exception types, and marks a tile that blocks approval. It comes before the preview, which comes before the actions, and links to the actions only for a user who may take one.
 - An upload's state shows as a badge in words, with the bar its state has.
-- A mapping upload's summary shows its mappings' codes, the spend it moves and its exception types, with no difference, rows or reconciliation, and its approval offers no duplicate mode. Uploads says which uploads hold a mapping.
+- A mapping upload's summary shows its mappings' codes, the spend it moves and its exception types, with no difference, rows or reconciliation, and its approval offers no duplicate mode. Uploads names each upload's kind.
 - In the browser, no button is stretched past its words, a long table's headings stay in view while it scrolls, and below 62rem the bar across the top is at most 10rem tall and the page doesn't scroll sideways.
 - A printed page has no sidebar, button or form, keeps the filter tags and the as-of line, and its tables aren't in a box.
 - The overview shows its *Actual spend* as tiles, each amount linking to source rows that add up to it, and its export still has the *Actual spend* sheet.

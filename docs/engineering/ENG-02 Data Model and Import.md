@@ -434,7 +434,7 @@ The preview compares the upload's mappings with the mappings in force, and lists
 
 With the `latest` rule, approving moves postings that are already committed too, and the preview says so: for example, "Approving moves 12,400.000 OMR from 2101 to 2401, including 9,100.000 OMR already committed." Rolling the upload back moves them back.
 
-On a report with no committed upload, no mapping is in force to compare with, so the preview lists no mapping changes. It lists none either for a GL or cost center mapping the upload doesn't have (8.1). Instead, the preview names the upload whose mapping applies. If no committed upload has that mapping yet, the preview says so, and its postings show No budget line or Outside IDS (8.2).
+While no committed upload has a GL mapping, none is in force to compare with, so the preview lists no GL mapping changes, and the same for the cost center mapping. So a report's first mapping lists no changes, even when spend approved before it moves out of No budget line or Outside IDS. The preview lists none either for a GL or cost center mapping the upload doesn't have (8.1). Instead, the preview names the upload whose mapping applies. If no committed upload has that mapping yet, the preview says so, and its postings show No budget line or Outside IDS (8.2).
 
 ### 8.4 The resolved view
 
