@@ -82,6 +82,7 @@ IDS-Audit/
 ├── tests/             unit, golden-file, permission and browser tests
 │   └── fixtures/      the generated sample files, their script and expected results (ENG-02, 12.3)
 ├── scripts/           backup.sh and restore.sh
+├── Demo/              made-up files to upload for a demo, the script that makes them, and the order to upload them in
 ├── .github/workflows/ CI: checks.yml and backup-gate.yml (7.5)
 ├── docs/              the plan, engineering/, CONTRIBUTING.md, and the guide for users and administrators
 ├── backups/           backups made by scripts/backup.sh (7.2). Git ignores everything here except its README
