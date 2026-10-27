@@ -15,10 +15,13 @@
 {% for chart in table.charts %}
   {# The chart's data, which charts.js reads with JSON.parse, never as code (ENG-03 5). #}
   {{ chart.points|json_script:chart.id }}
-  <figure class="chart-box">
-    <figcaption>{{ chart.title }}</figcaption>
-    <div class="chart {{ chart.kind }}" data-chart="{{ chart.id }}" data-kind="{{ chart.kind }}"></div>
-    {% if chart.has_outside %}<p class="chart-legend"><span class="swatch outside"></span>Outside IDS</p>{% endif %}
+  {# A card, so the chart stands apart from the page as its table does (ENG-03 4). #}
+  <figure class="card chart-card">
+    <figcaption class="card-header"><span class="card-title">{{ chart.title }}</span></figcaption>
+    <div class="card-body">
+      <div class="chart {{ chart.kind }}" data-chart="{{ chart.id }}" data-kind="{{ chart.kind }}"></div>
+      {% if chart.has_outside %}<p class="chart-legend"><span class="swatch outside"></span>Outside IDS</p>{% endif %}
+    </div>
   </figure>
 {% endfor %}
 {% if table.rows %}

@@ -129,6 +129,38 @@ def test_the_filter_card_lines_up_its_controls_and_says_what_is_shown(
     assert footer.bounding_box()["y"] >= max(bottoms), footer.bounding_box()
 
 
+def test_each_chart_is_a_card_with_its_title_in_the_header(
+    page: Page, live_server
+) -> None:
+    """Verify each chart on the overview and on a GL account's screen is drawn
+    inside a card, with a line around it, its title in the card's header
+    above the chart (ENG-03 4, Charts in cards).
+    """
+    admin = make_admin()
+    report = sample(admin)
+    sign_in(page, live_server, admin.username)
+    page.set_viewport_size({"width": 1440, "height": 900})
+    for address, titles in (
+        ("overview", ["Spend by GL account", "Running total"]),
+        ("gl/610100", ["Running total", "Spend by month"]),
+    ):
+        page.goto(f"{live_server.url}/reports/{report.pk}/{address}")
+        page.wait_for_selector("[data-chart] canvas")
+        found = page.evaluate(
+            """() => [...document.querySelectorAll('[data-chart]')].map(chart => {
+                const card = chart.closest('.card');
+                if (!card) return null;
+                const header = card.querySelector(':scope > .card-header');
+                const style = getComputedStyle(card);
+                return [header && header.innerText.trim(),
+                        header && header.getBoundingClientRect().bottom
+                            <= chart.getBoundingClientRect().top,
+                        style.borderTopStyle, style.borderTopWidth];
+            })"""
+        )
+        assert found == [[title, True, "solid", "1px"] for title in titles], found
+
+
 def test_no_button_is_stretched_past_its_words(page: Page, live_server) -> None:
     """Verify an upload's actions keep each button as tall as one line of
     words and narrower than its form, however tall the form beside it.

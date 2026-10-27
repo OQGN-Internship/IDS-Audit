@@ -227,7 +227,7 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--oqgn-green-dar
 }
 
 /* Secondary text, on white only. */
-.hint, .as-of, .counted, figcaption, .chart-legend, .none, .sub, .form-hint {
+.hint, .as-of, .counted, .chart-legend, .none, .sub, .form-hint {
   color: var(--oqgn-ink-subtle);
 }
 .hint { margin: 0; }
@@ -408,6 +408,7 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
   --tblr-card-border-color: var(--oqgn-line);
   --tblr-card-cap-bg: var(--oqgn-surface);
 }
+.card > .card-header { min-height: 0; padding-block: 0.6rem; }
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
@@ -445,10 +446,13 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
 .actions > p { margin: 0; }
 .change { font-size: 1rem; font-weight: bold; }
 
-/* Charts and FAQ pages (ENG-03 5 and 7). */
-.chart-box { margin: 0.5rem 0 1rem; }
+/* Charts and FAQ pages (ENG-03 5 and 7): each chart a card, its title in
+   the card's header. */
+.chart-card { margin: 0.5rem 0 1.25rem; }
+.chart-card .card-title { margin: 0; font-size: 1rem; }
+.chart-card .card-body { padding: 0.75rem 1rem; }
 .chart { height: 22rem; max-width: 56rem; }
-.chart-legend { margin: 0.2rem 0; }
+.chart-legend { margin: 0.2rem 0 0; }
 .swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-inline-end: 0.4rem; vertical-align: -0.1rem; }
 .swatch.outside { background: var(--oqgn-orange-text); }
 /* An FAQ page's answer, and the check by hand, each a card (ENG-03 4). */
@@ -518,7 +522,7 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
   .table-wrap { max-height: none; overflow: visible; border: 0; }
   .table-wrap thead th, .table-wrap tfoot td { position: static; }
   thead { display: table-header-group; }
-  tr, .tile, .chart-box { break-inside: avoid; }
+  tr, .tile, .chart-card { break-inside: avoid; }
   a { color: var(--oqgn-ink); text-decoration: none; }
   .beside, .preview-grid { display: block; }
 }
