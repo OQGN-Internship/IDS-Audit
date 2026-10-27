@@ -133,6 +133,7 @@ def find_layouts(
     *,
     is_text: bool,
     choices: Sequence[Choice] = (),
+    mapping_only: bool = False,
 ) -> dict[str, Layout]:
     """Return the layout of each classified sheet, by sheet type.
 
@@ -140,7 +141,8 @@ def find_layouts(
     first such choice, in place of what the header names matched (ENG-02 4.5).
     Raise FileUnreadable when the file has no spend sheet or two sheets of one
     type (4.2), and NeedsColumns when a classified sheet's columns don't pass
-    the column check (4.5).
+    the column check (4.5). mapping_only is True for a mapping upload, whose
+    file has mapping sheets and no spend sheet (8.5).
     """
     names = header_lookup(settings["header_names"])
     found: dict[str, list[tuple[Sheet, int, dict[str, list[int]]]]] = {
@@ -170,7 +172,20 @@ def find_layouts(
             (sheet, row_number, {f: c for f, c in columns.items() if f in read})
         )
 
-    if not found[SPEND]:
+    if mapping_only and found[SPEND]:
+        listed = " and ".join(sheet.name for sheet, _, _ in found[SPEND])
+        raise FileUnreadable(
+            f"The file has a spend sheet, {listed}, so it isn't a mapping on its "
+            "own. Upload it with Upload a file, which reads its mapping sheets "
+            "too."
+        )
+    if mapping_only and not (found[GL_MAP] or found[CC_MAP]):
+        raise FileUnreadable(
+            "The file has no mapping sheet: no sheet has a GL account or a cost "
+            f"center column, and no amount, in its first {HEADER_SEARCH_ROWS} "
+            "rows."
+        )
+    if not mapping_only and not found[SPEND]:
         raise FileUnreadable(
             "The file has no spend sheet: no sheet has a GL account and a cost "
             f"center column in its first {HEADER_SEARCH_ROWS} rows."

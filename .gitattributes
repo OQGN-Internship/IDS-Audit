@@ -7,3 +7,5 @@ tests/fixtures/*.json -text
 *.xlsx binary
 # The official logo is kept byte for byte (ENG-03 4).
 ids_audit/static/brand/* binary
+# Tabler's stylesheet is kept byte for byte, as its hash says (ENG-03 4).
+ids_audit/static/css/tabler-*.min.css -text

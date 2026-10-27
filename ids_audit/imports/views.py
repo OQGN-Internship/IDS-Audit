@@ -26,7 +26,7 @@ from ids_audit.accounts.middleware import is_htmx
 from ids_audit.imports import screens
 from ids_audit.imports.commit import commit_upload
 from ids_audit.imports.decisions import reject_upload, withdraw_upload
-from ids_audit.imports.forms import UploadForm
+from ids_audit.imports.forms import MappingForm, UploadForm
 from ids_audit.imports.models import Upload
 from ids_audit.imports.rollback import (
     actual_spend_change,
@@ -160,6 +160,27 @@ def new_upload(request, report: Report):
     return render(request, "imports/new_upload.html", {"report": report, "form": form})
 
 
+@report_permission(UPLOAD)
+def new_mapping(request, report: Report):
+    """The mapping form. Sending it receives the file as a mapping upload and
+    reads it, then opens the upload (ENG-02 8.5).
+    """
+    form = MappingForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        file = form.cleaned_data["file"]
+        try:
+            upload = receive_file(
+                report, request.user, file.name, file.read(), kind=Upload.Kind.MAPPING
+            )
+        except Refused as refusal:
+            form.add_error(None, str(refusal))
+        else:
+            upload = stage_upload(upload, request.user)
+            messages.add_message(request, *read_outcome(upload))
+            return to_upload(upload)
+    return render(request, "imports/new_mapping.html", {"report": report, "form": form})
+
+
 @report_permission(VIEW)
 def upload_page(request, report: Report, number: int):
     """One upload: its file, state and decisions, why it stopped or failed,
@@ -182,11 +203,15 @@ def upload_page(request, report: Report, number: int):
             "preview": upload.preview,
             "value_types": screens.value_types(upload.preview or {}),
             "mappings": screens.mappings(upload.preview or {}),
+            "codes": screens.mapping_codes(upload),
+            "moves": screens.moves(upload.preview or {}),
             "exceptions": exceptions,
             "blocking": [e["name"] for e in exceptions if e["blocks_approval"]],
             "closing": screens.closing(upload),
             "problems": problems,
-            "first_upload": not report.duplicate_mode,
+            # A mapping upload never sets the duplicate mode (ENG-02 8.5).
+            "first_upload": not report.duplicate_mode
+            and upload.kind == Upload.Kind.SPEND,
             "can_approve": upload.status == Status.AWAITING_APPROVAL
             and allowed(user, report, APPROVE),
             "can_reject": open_upload and allowed(user, report, APPROVE),

@@ -1,5 +1,5 @@
 {% load navigation %}{% if messages %}
   <ul class="messages">
-    {% for message in messages %}<li class="{{ message.tags }}">{% if message.level_tag == "success" %}{% icon "check" %}{% else %}{% icon "alert" %}{% endif %}<span>{{ message }}</span></li>{% endfor %}
+    {% for message in messages %}<li class="alert {{ message.tags }}">{% if message.level_tag == "success" %}{% icon "check" %}{% else %}{% icon "alert" %}{% endif %}<span>{{ message }}</span></li>{% endfor %}
   </ul>
 {% endif %}

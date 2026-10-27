@@ -160,13 +160,15 @@ class ReadResult:
     """Everything read from one file.
 
     control_total is the total row's amount exactly as read, before any
-    rounding (ENG-02 9.1), or None if the file has no total row. column_layout
+    rounding (ENG-02 9.1), or None if the file has no total row. spend_sheet
+    and header_row are None for a mapping upload's file, which has no spend
+    sheet (8.5). column_layout
     is what upload.column_layout keeps: for each classified sheet, its header
     row and the column letter of each field.
     """
 
-    spend_sheet: str
-    header_row: int
+    spend_sheet: str | None
+    header_row: int | None
     column_layout: dict[str, dict]
     clean_rows: tuple[CleanRow, ...]
     skipped_rows: tuple[SkippedRow, ...]

@@ -1,12 +1,53 @@
 {% extends "base.html" %}
-{% load figures %}
+{% load figures navigation %}
 {% block title %}Audit log{% if report %} · {{ report.name }}{% endif %} · IDS Spend Audit{% endblock %}
 {% block heading %}Audit log{% endblock %}
 {% block content %}
-<p class="hint">{% if full %}Every event, newest first.{% else %}The events of this report, newest first.{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }}.</p>
+{# The search and filters only narrow what the log shows; the log stays read-only (ENG-03 4, ENG-01 6.3). A form sent with GET, so it works without JavaScript. #}
+<div class="card filter-card">
+<div class="card-body">
+<form method="get" action="{{ request.path }}" class="filters audit-search">
+  <label class="search">Search
+    <input class="form-control" type="search" name="q" value="{{ search.q }}" maxlength="100">
+  </label>
+  <label>Action
+    <select class="form-select" name="action">
+      <option value="">All actions</option>
+      {% for value, words in actions %}<option value="{{ value }}"{% if value == search.action %} selected{% endif %}>{{ words }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Who
+    <select class="form-select" name="user">
+      <option value="">Anyone</option>
+      {% for value, words in users %}<option value="{{ value }}"{% if value == search.user %} selected{% endif %}>{{ words }}</option>{% endfor %}
+    </select>
+  </label>
+  {% if full %}
+    <label>Report
+      <select class="form-select" name="report">
+        <option value="">All reports</option>
+        <option value="none"{% if search.report == "none" %} selected{% endif %}>No report</option>
+        {% for value, words in reports %}<option value="{{ value }}"{% if value == search.report %} selected{% endif %}>{{ words }}</option>{% endfor %}
+      </select>
+    </label>
+  {% endif %}
+  <label>From
+    <input class="form-control" type="date" name="from" value="{{ search.start|date:'Y-m-d' }}">
+  </label>
+  <label>To
+    <input class="form-control" type="date" name="to" value="{{ search.end|date:'Y-m-d' }}">
+  </label>
+  <button type="submit" class="btn">{% icon "search" %}Search</button>
+  {% if search.on %}<a class="clear" href="{{ request.path }}">Clear</a>{% endif %}
+</form>
+</div>
+<div class="card-footer what">
+  <p class="found">{{ found }}, newest first. Page {{ page.number }} of {{ page.paginator.num_pages }}.</p>
+</div>
+</div>
 {% if rows %}
-  <div class="table-wrap">
-    <table class="log">
+  <div class="card table-wrap">
+    <table class="table card-table log">
       <thead>
         <tr><th>Time</th><th>Who</th><th>Action</th>{% if full %}<th>Report</th>{% endif %}<th>Upload</th><th>Details</th></tr>
       </thead>
@@ -25,12 +66,7 @@
     </table>
   </div>
 {% else %}
-  <p>No events yet.</p>
+  <p class="none">{% if search.on %}No events match.{% else %}No events yet.{% endif %}</p>
 {% endif %}
-{% if page.has_previous or page.has_next %}
-  <p class="pager">
-    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Newer events</a>{% endif %}
-    {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older events</a>{% endif %}
-  </p>
-{% endif %}
+{% if pager %}{% include "_pager.html" with pages=pager %}{% endif %}
 {% endblock %}

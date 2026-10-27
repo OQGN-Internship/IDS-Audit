@@ -53,7 +53,7 @@ def commit_upload(
     step happens or none does (ENG-02 10.1).
 
     duplicate_mode is the approver's choice of mode on the report's first
-    commit, replace by period if it's None (7.3). An upload not at
+    spend commit, replace by period if it's None (7.3). An upload not at
     awaiting_approval is refused with WrongState. One whose preview lists an
     exception that blocks approval, whose preview is out of date, or that
     can't take the mode chosen is refused with ApprovalRefused, which an
@@ -142,10 +142,19 @@ def approve(upload: Upload, user: User, duplicate_mode: str | None) -> Upload:
 
 
 def mode_to_set(report: Report, upload: Upload, chosen: str | None) -> str | None:
-    """Return the duplicate mode a first commit sets, or None on a later one
-    (ENG-02 7.3 and 10.1, step 6). Refuse a mode chosen on a later commit, and
-    line-key mode for a file the preview doesn't offer it for.
+    """Return the duplicate mode the report's first spend commit sets, or None
+    on any other (ENG-02 7.3 and 10.1, step 6). Refuse a mode chosen on any
+    other, a mapping upload's included (8.5), and line-key mode for a file the
+    preview doesn't offer it for.
     """
+    if upload.kind == Upload.Kind.MAPPING:
+        if chosen is not None:
+            raise ApprovalRefused(
+                [ApprovalRefused.MODE_NOT_ALLOWED],
+                "A mapping upload doesn't set the duplicate mode. It's chosen on "
+                "the report's first spend upload.",
+            )
+        return None
     if report.duplicate_mode:
         if chosen is not None:
             raise ApprovalRefused(

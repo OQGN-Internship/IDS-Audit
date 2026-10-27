@@ -1,7 +1,10 @@
 {% load figures %}
 <h2>Preview</h2>
 
+{# A mapping upload has no period, rows, reconciliation or spend (ENG-02 8.5). #}
+{% if upload.kind == "spend" %}
 <h3>Period</h3>
+<div class="card facts-card"><div class="card-body">
 <p>
   {% if upload.period_start %}Postings dated {{ upload.period_start|day }} to {{ upload.period_end|day }}.{% else %}No posting dates.{% endif %}
   {% if preview.months_replaced %}
@@ -12,15 +15,19 @@
   {% if report.duplicate_mode %}
     Duplicate mode: {{ report.get_duplicate_mode_display|lower }}.
   {% else %}
-    The duplicate mode is chosen when the report's first upload is approved. Line key {% if preview.line_key_offered %}can{% else %}can't{% endif %} be chosen for this file.
+    The duplicate mode is chosen when the report's first spend upload is approved. Line key {% if preview.line_key_offered %}can{% else %}can't{% endif %} be chosen for this file.
   {% endif %}
 </p>
+</div></div>
+{% endif %}
 
 {# The preview's figures, side by side on a wide screen (ENG-03 4). #}
 <div class="preview-grid">
+{% if upload.kind == "spend" %}
 <section>
 <h3>Rows</h3>
-<table class="figures">
+<div class="card figures">
+<table class="table card-table">
   <thead><tr><th>Rows</th><th class="amount">Count</th><th class="amount">Amount</th></tr></thead>
   <tbody>
     <tr><td>Read</td><td class="amount">{{ upload.rows_read }}</td><td></td></tr>
@@ -30,6 +37,7 @@
     <tr><td>Postings it replaces</td><td class="amount">{{ upload.rows_replaced }}</td><td class="amount">{{ preview.amounts.replaced|amount }}</td></tr>
   </tbody>
 </table>
+</div>
 </section>
 
 <section>
@@ -37,7 +45,8 @@
 {% if upload.control_total is None %}
   <p class="error">No control total: the file has no total row, and none was typed with it.</p>
 {% else %}
-  <table class="figures">
+  <div class="card figures">
+  <table class="table card-table">
     <tbody>
       <tr><td>Control total, {% if upload.control_total_source == "entered" %}typed by hand{% else %}from the file's total row{% endif %}</td><td class="amount">{{ upload.control_total|amount }}</td></tr>
       <tr><td>minus rows to commit</td><td class="amount">{{ preview.amounts.to_commit|amount }}</td></tr>
@@ -46,12 +55,14 @@
       <tr class="total"><td>Difference</td><td class="amount">{{ upload.reconciliation_difference|amount }}</td></tr>
     </tbody>
   </table>
+  </div>
 {% endif %}
 </section>
 
 <section>
 <h3>Actual spend</h3>
-<table class="figures">
+<div class="card figures">
+<table class="table card-table">
   <tbody>
     <tr><td>In this file</td><td class="amount">{{ preview.actual_spend.total|amount }}</td></tr>
     <tr><td>of it inside IDS</td><td class="amount">{{ preview.actual_spend.inside_ids|amount }}</td></tr>
@@ -61,13 +72,16 @@
     <tr class="total"><td>The report, after approval</td><td class="amount">{{ preview.report_actual_spend.after|amount }}</td></tr>
   </tbody>
 </table>
+</div>
 </section>
+{% endif %}
 
 <section>
 
 {% if value_types %}
   <h3>Value types</h3>
-  <table class="figures">
+  <div class="card figures">
+  <table class="table card-table">
     <thead><tr><th>Value type</th><th>Counts as</th><th class="amount">Rows</th><th class="amount">Amount</th></tr></thead>
     <tbody>
       {% for value in value_types %}
@@ -75,23 +89,26 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 {% endif %}
 
 <h3>Mappings</h3>
-<table class="figures">
+<div class="card figures">
+<table class="table card-table">
   <tbody>
     {% for label, number in mappings %}
       <tr><td>{{ label }} mapping</td><td>{% if number == upload.number %}This upload's own{% elif number %}Upload {{ number }}'s{% else %}None yet{% endif %}</td></tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 </section>
 </div>
 
 <h3>Exceptions</h3>
 {% if exceptions %}
-  <div class="table-wrap">
-  <table class="exceptions">
+  <div class="card table-wrap">
+  <table class="table card-table exceptions">
     <thead><tr><th>Exception</th><th>Blocks approval</th><th class="amount">Rows</th><th class="amount">Amount</th><th></th></tr></thead>
     <tbody>
       {% for exception in exceptions %}

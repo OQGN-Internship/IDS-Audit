@@ -2,7 +2,9 @@
 {% block title %}FAQ · {{ report.name }} · IDS Spend Audit{% endblock %}
 {% block heading %}FAQ{% endblock %}
 {% block content %}
+<div class="card list-card"><div class="card-body">
 <ol class="questions">
   {% for entry in entries %}<li><a href="{% url 'faq_page' report.pk entry.slug %}">{{ entry.question }}</a></li>{% endfor %}
 </ol>
+</div></div>
 {% endblock %}

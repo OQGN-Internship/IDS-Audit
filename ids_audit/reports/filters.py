@@ -134,9 +134,9 @@ def query(filters: Filters = ALL, keys: Keys = NO_KEYS, **extra: object) -> str:
     return f"?{urlencode(values)}" if values else ""
 
 
-def in_words(filters: Filters, outside_applies: bool = True) -> str:
-    """Return the filter line, such as "Year: 2026. Outside IDS: excluded."
-    (ENG-03 3.1).
+def tags(filters: Filters, outside_applies: bool = True) -> list[str]:
+    """Return each filter in words, as a screen's tags show them, such as
+    "Year: 2026" and "Outside IDS: excluded" (ENG-03 3.1).
     """
     year = "all" if filters.year is None else str(filters.year)
     if not outside_applies:
@@ -145,7 +145,14 @@ def in_words(filters: Filters, outside_applies: bool = True) -> str:
         outside = "excluded"
     else:
         outside = "included"
-    return f"Year: {year}. Outside IDS: {outside}."
+    return [f"Year: {year}", f"Outside IDS: {outside}"]
+
+
+def in_words(filters: Filters, outside_applies: bool = True) -> str:
+    """Return the filters as one line, such as "Year: 2026. Outside IDS:
+    excluded.", as an export's Source sheet states them (ENG-03 3.1).
+    """
+    return ". ".join(tags(filters, outside_applies)) + "."
 
 
 def keys_in_words(keys: Keys) -> str:

@@ -7,6 +7,7 @@ from ids_audit.imports import views
 urlpatterns = [
     path("uploads", views.uploads, name="uploads"),
     path("uploads/new", views.new_upload, name="new_upload"),
+    path("uploads/new-mapping", views.new_mapping, name="new_mapping"),
     path("uploads/<int:number>", views.upload_page, name="upload"),
     path(
         "uploads/<int:number>/exceptions/<slug:kind>",

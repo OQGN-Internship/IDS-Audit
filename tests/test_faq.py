@@ -86,11 +86,11 @@ def test_every_answer_for_the_sample_equals_its_expected_answer(
     assert (
         answer(client, sample_report, entry.slug) == sample_expected["faq"][str(number)]
     )
-    assert f"<h1>{entry.question}</h1>".replace("'", "&#x27;") in text.replace(
+    assert f'<h1 class="page-title">{entry.question}</h1>'.replace(
         "'", "&#x27;"
-    )
+    ) in text.replace("'", "&#x27;")
     assert '<p class="counted">Counted: the actual spend' in text
-    assert "<h2>How to check it by hand</h2>" in text
+    assert '<h2 class="card-title">How to check it by hand</h2>' in text
     assert "Figures as of upload 1, sample.xlsx" in re.sub(r"<[^>]+>", "", text)
 
 
@@ -210,7 +210,9 @@ def test_q6_picks_any_department_outside_ids_included(client, sample_report) -> 
         "Outside IDS spent most on Software licences (610100): 11,090.750 OMR."
     )
     text = page(client, sample_report, "department-gl-accounts")
-    picker = re.search(r'<select name="dept">(.*?)</select>', text, re.S)[1]
+    picker = re.search(
+        r'<select class="form-select" name="dept">(.*?)</select>', text, re.S
+    )[1]
     assert '<option value="outside">Outside IDS</option>' in picker
     assert '<option value="APP" selected>APP Applications</option>' in picker
     assert re.findall(r'<option value="([A-Za-z]+)"', picker) == [

@@ -4,10 +4,10 @@
   {# The overview's Actual spend as tiles, the total first: the same table drawn another way (ENG-03 4). #}
   <div class="tiles">
     {% with total=table.total %}
-      <div class="tile"><p class="label">Actual spend</p><p class="figure"><a href="{{ total.1.link }}">{{ total.1|shown }}</a> <span class="unit">OMR</span></p><p class="sub">{{ total.2|shown }} line{{ total.2.value|pluralize }}</p></div>
+      <div class="card tile"><div class="card-body"><p class="subheader label">Actual spend</p><p class="figure"><a href="{{ total.1.link }}">{{ total.1|shown }}</a> <span class="unit">OMR</span></p><p class="sub">{{ total.2|shown }} line{{ total.2.value|pluralize }}</p></div></div>
     {% endwith %}
     {% for row in table.rows %}
-      <div class="tile"><p class="label">{{ row.0|shown }}</p><p class="figure"><a href="{{ row.1.link }}">{{ row.1|shown }}</a> <span class="unit">OMR</span></p><p class="sub">{{ row.2|shown }} line{{ row.2.value|pluralize }}</p></div>
+      <div class="card tile"><div class="card-body"><p class="subheader label">{{ row.0|shown }}</p><p class="figure"><a href="{{ row.1.link }}">{{ row.1|shown }}</a> <span class="unit">OMR</span></p><p class="sub">{{ row.2|shown }} line{{ row.2.value|pluralize }}</p></div></div>
     {% endfor %}
   </div>
 {% else %}
@@ -15,15 +15,18 @@
 {% for chart in table.charts %}
   {# The chart's data, which charts.js reads with JSON.parse, never as code (ENG-03 5). #}
   {{ chart.points|json_script:chart.id }}
-  <figure class="chart-box">
-    <figcaption>{{ chart.title }}</figcaption>
-    <div class="chart {{ chart.kind }}" data-chart="{{ chart.id }}" data-kind="{{ chart.kind }}"></div>
-    {% if chart.has_outside %}<p class="legend"><span class="swatch outside"></span>Outside IDS</p>{% endif %}
+  {# A card, so the chart stands apart from the page as its table does (ENG-03 4). #}
+  <figure class="card chart-card">
+    <figcaption class="card-header"><span class="card-title">{{ chart.title }}</span></figcaption>
+    <div class="card-body">
+      <div class="chart {{ chart.kind }}" data-chart="{{ chart.id }}" data-kind="{{ chart.kind }}"></div>
+      {% if chart.has_outside %}<p class="chart-legend"><span class="swatch outside"></span>Outside IDS</p>{% endif %}
+    </div>
   </figure>
 {% endfor %}
 {% if table.rows %}
-  <div class="table-wrap">
-  <table class="figures-table{% if table.layout == "wide" %} wide{% endif %}">
+  <div class="card table-wrap">
+  <table class="table card-table figures-table{% if table.layout == "wide" %} wide{% endif %}">
     <thead><tr>{% for column in table.columns %}<th class="{{ column.kind }}">{{ column.title }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for row in table.rows %}<tr>{% for cell in row %}{% td cell %}{% endfor %}</tr>

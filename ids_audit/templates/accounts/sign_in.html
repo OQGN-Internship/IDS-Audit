@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load navigation %}
 {% block title %}Sign in · IDS Spend Audit{% endblock %}
 {% block heading %}Sign in{% endblock %}
 {% block content %}
@@ -6,11 +7,11 @@
 <form method="post" action="{% url 'sign_in' %}" class="narrow">
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <label for="id_username">Username</label>
-  {{ form.username }}
-  <label for="id_password">Password</label>
-  {{ form.password }}
+  <label class="form-label" for="id_username">Username</label>
+  {{ form.username|control }}
+  <label class="form-label" for="id_password">Password</label>
+  {{ form.password|control }}
   {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-  <button type="submit">Sign in</button>
+  <button type="submit" class="btn btn-primary">Sign in</button>
 </form>
 {% endblock %}

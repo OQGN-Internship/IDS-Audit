@@ -82,7 +82,7 @@ def test_a_report_s_address_opens_its_overview(client, sample_report) -> None:
     response = client.get(reverse("report", args=[sample_report.pk]))
     assert response["Location"] == reverse("overview", args=[sample_report.pk])
     page = text(get(client, "overview", sample_report))
-    page = re.search(r'<nav class="sidebar"[^>]*>(.*?)</nav>', page, re.S)[1]
+    page = re.search(r'<nav class="[^"]*\bsidebar"[^>]*>(.*?)</nav>', page, re.S)[1]
     for name in (
         "overview",
         "gl_accounts",
@@ -128,9 +128,10 @@ def test_the_overview_shows_its_actual_spend_as_tiles(
     without Outside IDS once it's excluded (ENG-03 4).
     """
     tile = re.compile(
-        r'<div class="tile"><p class="label">([^<]+)</p><p class="figure">'
+        r'<div class="card tile"><div class="card-body">'
+        r'<p class="subheader label">([^<]+)</p><p class="figure">'
         r'<a href="([^"]+)">([-0-9,.]+)</a> <span class="unit">OMR</span></p>'
-        r'<p class="sub">(\d+) lines?</p></div>'
+        r'<p class="sub">(\d+) lines?</p></div></div>'
     )
     tiles = tile.findall(text(get(client, "overview", sample_report)))
     spend = sample_expected["actual_spend"]
@@ -193,7 +194,7 @@ def test_a_department_s_screen_lists_its_gl_accounts(
     for url, written in ROWS_LINK.findall(page):
         assert rows_said(client, url)[1] == written, url
     if key == "outside":
-        assert "<h1>Outside IDS</h1>" in page
+        assert '<h1 class="page-title">Outside IDS</h1>' in page
 
 
 def test_a_budget_line_s_screen_lists_its_gl_accounts(
@@ -203,7 +204,7 @@ def test_a_budget_line_s_screen_lists_its_gl_accounts(
     page = text(get(client, "budget_line", sample_report, "none"))
     for figure in sample_expected["screens"]["budget_line_by_gl"]["none"].values():
         assert amount(figure) in page
-    assert "<h1>No budget line</h1>" in page
+    assert '<h1 class="page-title">No budget line</h1>' in page
 
 
 def test_every_list_ends_with_a_total_row_equal_to_its_figure(
@@ -303,7 +304,7 @@ def test_source_rows_say_their_keys_count_and_total(client, sample_report) -> No
     cover every page.
     """
     page = text(get(client, "rows", sample_report, query="?gl=610100&cc=4510"))
-    assert "<h1>GL account 610100, cost center 4510</h1>" in page
+    assert '<h1 class="page-title">GL account 610100, cost center 4510</h1>' in page
     assert "2 rows, adding up to 11,150.000 OMR." in page
 
 
@@ -365,7 +366,7 @@ def test_no_department_has_its_screen_rows_and_list(client) -> None:
     """
     report = no_department_report()
     page = text(get(client, "department", report, "none"))
-    assert "<h1>No department</h1>" in page and "7.000" in page
+    assert '<h1 class="page-title">No department</h1>' in page and "7.000" in page
     url = reverse("rows", args=[report.pk]) + "?dept=none"
     assert rows_said(client, url) == (1, "7.000")
     assert '<td class="text">No department</td>' in text(client.get(url))
@@ -404,7 +405,10 @@ def test_the_year_filter_shows_only_that_year_and_says_so(
     """
     page = text(get(client, "overview", sample_report, query="?year=2025"))
     assert amount(sample_expected["screens"]["by_year"]["2025"]) in page
-    assert "Year: 2025. Outside IDS: included." in page
+    assert (
+        '<li class="tag">Year: 2025</li><li class="tag">Outside IDS: included</li>'
+        in page
+    )
     assert '<option value="2025" selected>2025</option>' in page
     assert '<option value="2026">2026</option>' in page
 
@@ -418,7 +422,10 @@ def test_excluding_outside_ids_drops_its_row_and_its_amount(
     excluding = sample_expected["screens"]["excluding_outside"]
     for name in ("overview", "departments"):
         page = text(get(client, name, sample_report, query="?exclude_outside=1"))
-        assert "Year: all. Outside IDS: excluded." in page
+        assert (
+            '<li class="tag">Year: all</li><li class="tag">Outside IDS: excluded</li>'
+            in page
+        )
         assert ">Outside IDS<" not in page
         assert amount(excluding["total"]) in page
         links = ROWS_LINK.findall(page)
@@ -500,7 +507,10 @@ def test_an_htmx_request_gets_the_panel_with_the_new_filters(
     )
     assert "<html" not in panel
     assert '<option value="2026" selected>2026</option>' in panel
-    assert "Year: 2026. Outside IDS: included." in panel
+    assert (
+        '<li class="tag">Year: 2026</li><li class="tag">Outside IDS: included</li>'
+        in panel
+    )
     assert all("year=2026" in url for url, _ in ROWS_LINK.findall(panel))
 
 
@@ -532,7 +542,7 @@ def test_the_filter_form_swaps_the_panel_and_works_without_javascript(
     url = reverse("gl_accounts", args=[sample_report.pk])
     assert f'method="get" action="{url}"' in page
     assert f'hx-get="{url}" hx-target="#panel" hx-push-url="true"' in page
-    assert '<button type="submit" class="quiet">Show</button>' in page
+    assert '<button type="submit" class="btn">Show</button>' in page
     assert '<div id="panel">' in page
 
 
@@ -609,7 +619,7 @@ def test_the_notice_of_a_waiting_upload_links_it_for_who_may_open_it(
     link = f'<a href="{reverse("upload", args=[report.pk, 2])}">Open upload 2</a>'
     for name in ("overview", "gl_accounts", "exceptions"):
         page = text(get(browser, name, report))
-        notice = re.search(r'<p class="notice">(.*?)</p>', page)[1]
+        notice = re.search(r'<p class="alert notice">(.*?)</p>', page)[1]
         assert "Upload 2 is awaiting approval and isn't included." in notice
         assert (link in notice) is linked, name
         response = browser.get(reverse("upload", args=[report.pk, 2]))
@@ -621,7 +631,7 @@ def test_source_rows_keep_each_value_on_one_line(client, sample_report) -> None:
     line, except the item text, and no other screen's table is.
     """
     page = text(get(client, "rows", sample_report))
-    assert '<table class="figures-table wide">' in page
+    assert '<table class="table card-table figures-table wide">' in page
     assert '<td class="item" dir="auto">' in page
     assert " wide" not in text(get(client, "gl_accounts", sample_report))
 

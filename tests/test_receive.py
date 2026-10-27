@@ -125,6 +125,7 @@ def test_receive_file_creates_upload_1_at_reading_with_its_event(
     )
     assert event.details == {
         "number": 1,
+        "kind": "spend",
         "original_name": "FAGLL03_Jan.xlsx",
         "size_bytes": len(SAMPLE),
         "file_sha256": SAMPLE_SHA256,

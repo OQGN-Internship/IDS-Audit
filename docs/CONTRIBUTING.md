@@ -169,7 +169,7 @@ These come from ENG-01 4 and apply in every review:
 
 - Shell scripts and SQL files must use LF line endings, or they fail inside the Linux containers. Add `*.sh text eol=lf` and `*.sql text eol=lf` to `.gitattributes` before the first script is committed.
 - Generated test fixtures are compared byte for byte (ENG-02 12.3), so Git must never change them. Add `tests/fixtures/*.csv -text`, `tests/fixtures/*.json -text` and `*.xlsx binary` to `.gitattributes` before the first fixture is committed.
-- JavaScript libraries are copied into `ids_audit/static/` at a pinned version, never loaded from the internet.
+- JavaScript and CSS libraries, and the icons, are copied into `ids_audit/static/` at a pinned version, never loaded from the internet.
 - Dependencies are added with `uv add`, and `uv.lock` is committed in the same commit.
 
 ## 10. Versions

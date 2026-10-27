@@ -27,6 +27,14 @@ class Upload(models.Model):
         FAILED = "failed", "Failed"
         ROLLED_BACK = "rolled_back", "Rolled back"
 
+    class Kind(models.TextChoices):
+        """What the file holds: spend lines, with or without mapping sheets, or
+        the mapping sheets on their own (ENG-02 2 and 8.5).
+        """
+
+        SPEND = "spend", "Spend"
+        MAPPING = "mapping", "Mapping"
+
     class ControlTotalSource(models.TextChoices):
         """Where the total to reconcile against came from (ENG-02 9.1)."""
 
@@ -47,6 +55,8 @@ class Upload(models.Model):
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
     ruleset = models.ForeignKey(Ruleset, on_delete=models.PROTECT, related_name="+")
+    # Set by the form the file was sent with, and never changed.
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.SPEND)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.READING
     )

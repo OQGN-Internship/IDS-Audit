@@ -93,6 +93,8 @@ def addresses(report: Report, kind: str) -> list[tuple[str, str, Needs]]:
         ("get", reverse("uploads", args=base), VIEW),
         ("get", reverse("new_upload", args=base), UPLOAD),
         ("post", reverse("new_upload", args=base), UPLOAD),
+        ("get", reverse("new_mapping", args=base), UPLOAD),
+        ("post", reverse("new_mapping", args=base), UPLOAD),
         ("get", reverse("upload", args=done), VIEW),
         ("get", reverse("upload", args=waiting), OPEN_PREVIEW),
         ("get", reverse("exception_items", args=[*waiting, kind]), OPEN_PREVIEW),

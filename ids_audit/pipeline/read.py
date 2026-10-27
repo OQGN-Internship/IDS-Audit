@@ -47,7 +47,7 @@ from ids_audit.pipeline.mappings import (
     rows_below_header,
     settle,
 )
-from ids_audit.pipeline.readers import Cell, read_sheets
+from ids_audit.pipeline.readers import Cell, FileUnreadable, read_sheets
 from ids_audit.pipeline.results import (
     ANOTHER_CURRENCY,
     INVALID_DATE,
@@ -102,20 +102,35 @@ def read_file(
     *,
     need_line_key: bool = False,
     choices: Sequence[Choice] = (),
+    mapping_only: bool = False,
 ) -> ReadResult:
     """Read and clean a file with a ruleset version's settings (ENG-02 3).
 
     need_line_key is True for a report in line-key mode, where a spend row
     without a full line key is skipped (ENG-02 7.3). choices are the columns
     picked for sheets with a given header, the first that matches applying
-    (4.5).
+    (4.5). mapping_only is True for a mapping upload, whose file is a workbook
+    with mapping sheets and no spend sheet (8.5).
     """
     file_format = detect_format(data)
+    if mapping_only and file_format == TEXT:
+        raise FileUnreadable(
+            "A mapping is uploaded as an Excel file: a CSV file holds one table, "
+            "never a mapping sheet."
+        )
     sheets = read_sheets(data, file_format)
     layouts = find_layouts(
-        sheets, settings, is_text=file_format == TEXT, choices=choices
+        sheets,
+        settings,
+        is_text=file_format == TEXT,
+        choices=choices,
+        mapping_only=mapping_only,
     )
-    spend = read_spend_sheet(layouts[SPEND], settings, need_line_key)
+    spend = (
+        read_spend_sheet(layouts[SPEND], settings, need_line_key)
+        if SPEND in layouts
+        else SpendRows()
+    )
 
     skipped, other = list(spend.skipped), list(spend.other)
     mappings = {}
@@ -143,8 +158,8 @@ def read_file(
 
     dates = [row.posting_date for row in spend.clean]
     return ReadResult(
-        spend_sheet=layouts[SPEND].sheet.name,
-        header_row=layouts[SPEND].header_row,
+        spend_sheet=layouts[SPEND].sheet.name if SPEND in layouts else None,
+        header_row=layouts[SPEND].header_row if SPEND in layouts else None,
         column_layout={
             layout.sheet.name: {
                 "header_row": layout.header_row,

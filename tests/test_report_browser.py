@@ -50,7 +50,7 @@ def sample(admin) -> Report:
 
 def rows_said(page: Page) -> tuple[str, str]:
     """The count and total the source rows on the page say."""
-    found = ROWS_SAID.search(page.locator("p.hint").first.inner_text())
+    found = ROWS_SAID.search(page.locator(".note").first.inner_text())
     return found[1], found[2]
 
 
@@ -123,10 +123,11 @@ def test_both_filters_change_the_panel_and_the_export_follows(
     sign_in(page, live_server, admin.username)
     page.goto(f"{live_server.url}/reports/{report.pk}/overview")
     page.select_option("select[name=year]", "2025")
-    expect(page.get_by_text("Year: 2025. Outside IDS: included.")).to_be_visible()
+    tags = page.locator(".filter-tags .tag")
+    expect(tags).to_have_text(["Year: 2025", "Outside IDS: included"])
     settled(page)
     page.select_option("select[name=exclude_outside]", "1")
-    expect(page.get_by_text("Year: 2025. Outside IDS: excluded.")).to_be_visible()
+    expect(tags).to_have_text(["Year: 2025", "Outside IDS: excluded"])
     expect(page).to_have_url(re.compile(r"year=2025&exclude_outside=1$"))
     # The panel swapped in has its charts drawn again.
     expect(page.locator('[data-chart="chart-gl"] canvas')).to_have_count(1)
@@ -287,4 +288,4 @@ def test_the_logo_is_drawn_and_a_focused_link_shows_its_ring(
                     style.outlineColor, style.outlineOffset];
         }"""
     )
-    assert ring == ["logo", "solid", "2px", "rgb(88, 125, 57)", "2px"]
+    assert ring == ["navbar-brand logo", "solid", "2px", "rgb(88, 125, 57)", "2px"]

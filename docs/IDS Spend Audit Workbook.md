@@ -12,7 +12,8 @@ It sums up the reading and cleaning rules in [ENG-02 Data Model and Import](engi
 - **One header row on each sheet,** best on row 1. Title lines above it are allowed, as long as the header is within the first 25 rows.
 - **Each header once.** Headers are compared ignoring case, spaces and punctuation, so `G/L Account` and `gl account` are the same. A column whose header isn't in the tables below, such as `Doc. Date`, `Reference` or `Type`, is ignored. A second column with a recognised header, such as `Date` beside `Pstng Date`, or `Item Text` beside `Text`, matches a field already matched, and the upload stops at Needs columns until the uploader picks one.
 - **Saved values.** Only a formula's saved result is read. A workbook saved in Excel keeps them, but one written by a program that doesn't calculate may not, and a missing result reads as an empty cell. `#N/A` and other error cells also read as empty.
-- **A CSV file** can be uploaded instead, but it holds only the Transactions sheet, so its postings use the mappings of the last approved workbook. It must be saved as CSV UTF-8 (ENG-02 4.1). The workbook is better.
+- **A CSV file** can be uploaded instead, but it holds only the Transactions sheet, so its postings use the report's latest approved mapping. It must be saved as CSV UTF-8 (ENG-02 4.1).
+- **The mapping sheets on their own,** in a workbook without Transactions, are sent with **Upload a mapping** whenever they change (ENG-02 8.5). The files after it then need only Transactions.
 
 ## 2. Transactions: one row per SAP line item
 
@@ -56,7 +57,7 @@ This is the spend sheet. A row is a spend row when both its GL account and its c
 | `Commitment Item Name` | `Cmmt Item Name` | No, but best kept | The budget line's name | `Software and licences` |
 
 - **No amount or cost center column.** With either, the sheet is no longer a GL mapping sheet.
-- **Every GL account IDS spends on, in every file,** not only the accounts in that file. The latest approved file's mapping applies whole, so an account it leaves out shows No budget line, in earlier months too (ENG-02 8.1).
+- **Every GL account IDS spends on, in every mapping,** not only the accounts in one file. The latest approved mapping applies whole, so an account it leaves out shows No budget line, in earlier months too (ENG-02 8.1).
 - **Each account once.** An account listed twice with the same commitment item changes nothing. With two different ones, approval is blocked.
 - **One name for each code.** A code named differently on two rows is listed as an exception, and its first name is used everywhere.
 - **No note rows.** A row with no GL account is listed in the preview as an other row.
@@ -71,7 +72,7 @@ This is the spend sheet. A row is a spend row when both its GL account and its c
 | `Department Name` | `Dept Name` | No, but best kept | The department's name | `Applications` |
 
 - **IDS cost centers only.** A cost center on Transactions that this sheet doesn't list is outside IDS. Its spend still counts in the total, and every screen marks it and can leave it out.
-- **Every IDS cost center, in every file,** for the same reason as on GL Mapping.
+- **Every IDS cost center, in every mapping,** for the same reason as on GL Mapping.
 - **No amount or GL account column.** Watch for a column headed `Account`, which reads as a GL account.
 - **`Department Code` and `Department Name`** are the clearest headers. If the sheet has `Department` and `Department Code`, the one ending in "code" is the code and the other is the name.
 - **Each cost center once, one name for each code, and no note rows,** as on GL Mapping.
@@ -105,7 +106,7 @@ These rows are made up.
 ## 6. Each new file
 
 - **Whole months, complete, best year to date.** Each file is SAP's complete selection for the months it covers, taken after they close. In the default mode, approving a file replaces every posting already in the report dated in those months (ENG-02 7.3). A year-to-date file therefore restates the year, and a file covering part of a month hides the rest of that month.
-- **Both mapping sheets, complete, every time.** A file without one uses the last approved file's mapping.
+- **Both mapping sheets, complete, whenever they change,** with **Upload a mapping**, or in the file. A file without them uses the latest approved mapping.
 - **A new file each time.** A file already approved in the report is refused if it's sent again.
 
 ## 7. What the preview shows
@@ -138,4 +139,4 @@ A column pick is for one file. When a needed column, such as the amount, the pos
 The GL account and cost center columns can't be picked, since their headers are how each sheet is found (section 1). When one isn't recognised:
 
 - **On Transactions,** the file fails with "The file has no spend sheet".
-- **On GL Mapping or Cost Center Mapping,** that sheet is ignored without a message, and the file still reads with the last approved file's mapping, as a file without that sheet does (section 6). On the report's first file there's none, so every GL account has no budget line, or every cost center is outside IDS. Those exceptions don't block approval, so the approver checks them before approving.
+- **On GL Mapping or Cost Center Mapping,** that sheet is ignored without a message, and the file still reads with the latest approved mapping, as a file without that sheet does (section 6). A mapping sent with **Upload a mapping** whose sheets are all ignored this way fails, since it has no mapping sheet. On the report's first file there's none, so every GL account has no budget line, or every cost center is outside IDS. Those exceptions don't block approval, so the approver checks them before approving.

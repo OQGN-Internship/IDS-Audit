@@ -293,7 +293,10 @@ def test_an_export_past_the_row_limit_is_refused_with_no_event(
     text = response.content.decode()
     assert "This export has 35 rows, more than Excel" in text
     home = reverse("overview", args=[sample_report.pk])
-    assert f'<li><a href="{home}">{sample_report.name}</a></li>' in text
+    assert (
+        f'<li class="breadcrumb-item"><a href="{home}">{sample_report.name}</a></li>'
+        in text
+    )
     assert not AuditEvent.objects.filter(action="export_downloaded").exists()
     monkeypatch.setattr(export, "MAX_DATA_ROWS", 35)
     download(client, "rows", sample_report)
@@ -361,7 +364,7 @@ def test_the_export_link_carries_the_screen_s_filters_keys_and_pick(
         url = reverse(name, args=[sample_report.pk, *args]) + query
         page = client.get(url).content.decode()
         assert re.search(
-            rf'<a class="button secondary export" href="{re.escape(link)}">'
+            rf'<a class="btn btn-outline-primary export" href="{re.escape(link)}">'
             r"<svg [^>]*>.*?</svg>Export to Excel</a>",
             page,
         ), name

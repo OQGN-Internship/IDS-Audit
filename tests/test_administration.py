@@ -108,7 +108,7 @@ def test_the_header_links_administration_only_for_a_fixed_admin(client) -> None:
         for name in ("admin_users", "admin_roles", "admin_audit")
     ]
     page = client.get(reverse("reports")).content.decode()
-    assert '<p class="group-label">Administration</p>' in page
+    assert '<p class="subheader group-label">Administration</p>' in page
     assert all(link in page for link in links)
     other = Client()
     other.force_login(a_user())

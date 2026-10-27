@@ -2,24 +2,24 @@
 {% load figures navigation %}
 {% block title %}Reports · IDS Spend Audit{% endblock %}
 {% block heading %}Reports{% endblock %}
-{% block actions %}{% if can_create %}<a class="button" href="{% url 'new_report' %}">{% icon "plus" %}New report</a>{% endif %}{% endblock %}
+{% block actions %}{% if can_create %}<a class="btn btn-primary" href="{% url 'new_report' %}">{% icon "plus" %}New report</a>{% endif %}{% endblock %}
 {% block content %}
 {% if cards %}
   <div class="cards">
     {% for card in cards %}
-      <section class="card">
-        <h2><a href="{% url 'report' card.report.pk %}">{{ card.report.name }}</a></h2>
+      <section class="card report-card"><div class="card-body">
+        <h2 class="card-title"><a href="{% url 'report' card.report.pk %}">{{ card.report.name }}</a></h2>
         {% if card.latest %}
-          <p class="label">Actual spend</p>
+          <p class="subheader label">Actual spend</p>
           <p class="figure"><a href="{{ card.rows }}">{{ card.totals.total|amount }}</a> <span class="unit">OMR</span></p>
           <p class="sub">{{ card.totals.lines }} line{{ card.totals.lines|pluralize }}. As of upload {{ card.latest.number }}, approved on {{ card.latest.decided_at|moment }}.</p>
         {% else %}
           <p class="sub">No approved uploads yet.</p>
         {% endif %}
         {% if card.waiting %}
-          <p class="notice">{% icon "alert" %} Upload {{ card.waiting.number }} {% if card.waiting.status == "needs_columns" %}needs its columns picked{% else %}is awaiting approval{% endif %}.{% if card.can_open_waiting %} <a href="{% url 'upload' card.report.pk card.waiting.number %}">Open upload {{ card.waiting.number }}</a>{% endif %}</p>
+          <p class="alert notice">{% icon "alert" %} Upload {{ card.waiting.number }} {% if card.waiting.status == "needs_columns" %}needs its columns picked{% else %}is awaiting approval{% endif %}.{% if card.can_open_waiting %} <a href="{% url 'upload' card.report.pk card.waiting.number %}">Open upload {{ card.waiting.number }}</a>{% endif %}</p>
         {% endif %}
-      </section>
+      </div></section>
     {% endfor %}
   </div>
 {% else %}

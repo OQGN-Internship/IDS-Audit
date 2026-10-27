@@ -2,10 +2,10 @@
 {% load figures navigation %}
 {% block title %}Users · Administration · IDS Spend Audit{% endblock %}
 {% block heading %}Users{% endblock %}
-{% block actions %}<a class="button" href="{% url 'admin_new_user' %}">{% icon "plus" %}New user</a>{% endblock %}
+{% block actions %}<a class="btn btn-primary" href="{% url 'admin_new_user' %}">{% icon "plus" %}New user</a>{% endblock %}
 {% block content %}
-<div class="table-wrap">
-<table>
+<div class="card table-wrap">
+<table class="table card-table">
   <thead><tr><th>Username</th><th>Full name</th><th>Account</th><th class="count">Reports</th><th>Last sign-in</th></tr></thead>
   <tbody>
     {% for row in rows %}{% with account=row.account %}
