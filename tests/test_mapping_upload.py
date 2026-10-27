@@ -254,8 +254,8 @@ def signed_in(user) -> Client:
 
 def test_the_mapping_form_reads_a_mapping_upload_and_opens_it(admin, report) -> None:
     """Verify Upload a mapping is offered on Uploads, its form receives the
-    file as a mapping upload and opens it, and Uploads then says it holds a
-    mapping (ENG-03 4).
+    file as a mapping upload and opens it, and Uploads then names its kind,
+    Mapping (ENG-03 4).
     """
     client = signed_in(admin)
     uploads = client.get(reverse("uploads", args=[report.pk])).content.decode()
@@ -269,7 +269,7 @@ def test_the_mapping_form_reads_a_mapping_upload_and_opens_it(admin, report) -> 
     assert sent.url == reverse("upload", args=[report.pk, upload.number])
     assert (upload.kind, upload.status) == (MAPPING, Status.AWAITING_APPROVAL)
     uploads = client.get(reverse("uploads", args=[report.pk])).content.decode()
-    assert "<th>Holds</th>" in uploads
+    assert "<th>Kind</th>" in uploads
     assert re.search(r"<td>map\.xlsx</td>\s*<td>Mapping</td>", uploads)
 
 
