@@ -129,6 +129,27 @@ def test_the_filter_card_lines_up_its_controls_and_says_what_is_shown(
     assert footer.bounding_box()["y"] >= max(bottoms), footer.bounding_box()
 
 
+def test_a_note_has_its_own_bar_and_icon(page: Page, live_server) -> None:
+    """Verify each note on the exceptions screen, such as what a filter
+    doesn't apply to, has a 4px ink-subtle bar at its start and an info icon,
+    so it isn't taken for a problem's alert or a notice (ENG-03 4).
+    """
+    admin = make_admin()
+    report = sample(admin)
+    sign_in(page, live_server, admin.username)
+    page.goto(f"{live_server.url}/reports/{report.pk}/exceptions")
+    notes = page.locator(".note").evaluate_all(
+        """notes => notes.map(note => {
+            const style = getComputedStyle(note);
+            return [style.borderLeftStyle, style.borderLeftWidth,
+                    style.borderLeftColor,
+                    note.querySelector('use').getAttribute('href').split('#')[1]];
+        })"""
+    )
+    assert len(notes) == 2, notes
+    assert all(note == ["solid", "4px", "rgb(112, 111, 111)", "info"] for note in notes)
+
+
 def test_each_chart_is_a_card_with_its_title_in_the_header(
     page: Page, live_server
 ) -> None:

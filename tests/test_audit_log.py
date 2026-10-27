@@ -260,16 +260,29 @@ def test_each_filter_narrows_the_whole_log(query: str, kept: list[str]) -> None:
 
 def test_a_report_s_log_is_searched_within_its_own_events() -> None:
     """Verify a report's log, however searched, lists only its own events,
-    refuses report, and its page links keep the search (ENG-03 4).
+    offers in Who only the accounts that acted in them, keeps a chosen
+    action it holds none of, refuses report, and its page links keep the
+    search (ENG-03 4).
     """
-    approver = make_user(fixed_admin=False)
+    approver, outsider = make_user(fixed_admin=False), make_user(fixed_admin=False)
     report, other = make_report(), make_report()
     grant(approver, report, "Approver")
-    audit.record(Action.REPORT_CREATED, report=report, details={"name": "shared"})
-    audit.record(Action.REPORT_CREATED, report=other, details={"name": "shared"})
+    audit.record(
+        Action.REPORT_CREATED, user=approver, report=report, details={"name": "shared"}
+    )
+    audit.record(
+        Action.REPORT_CREATED, user=outsider, report=other, details={"name": "shared"}
+    )
     audit.record(Action.SIGN_IN, user=approver, details={"name": "shared"})
     client, url = signed_in(approver), reverse("audit", args=[report.pk])
     assert searched(client, url, "?q=shared") == ["name: shared"]
+    page = client.get(url + "?action=upload_rolled_back").content.decode()
+    assert f'<option value="{approver.username}">{approver}</option>' in page
+    assert f'value="{outsider.username}"' not in page
+    assert (
+        '<option value="upload_rolled_back" selected>Upload rolled back</option>'
+        in page
+    )
     assert client.get(url + f"?report={other.pk}").status_code == 400
     AuditEvent.objects.bulk_create(
         AuditEvent(action=Action.EXPORT_DOWNLOADED, report=report, details={"n": n})
@@ -287,6 +300,7 @@ def test_a_report_s_log_is_searched_within_its_own_events() -> None:
         "?action=upload_lost",
         "?from=2026-13-01",
         "?from=26-10-27",
+        "?from=20261027",
         "?to=27.10.2026",
         "?report=x",
         "?report=0",
@@ -296,7 +310,8 @@ def test_a_report_s_log_is_searched_within_its_own_events() -> None:
     ],
 )
 def test_the_whole_log_refuses_a_wrong_search(query: str) -> None:
-    """Verify an unknown action, a date not written as 2026-10-27, a report
+    """Verify an unknown action, a date not written as 2026-10-27, which
+    Python would read in other forms too, such as 20261027, a report
     that isn't an id or none, a search over 100 characters, a key given
     twice and an unknown key each return 400 (ENG-03 4).
     """

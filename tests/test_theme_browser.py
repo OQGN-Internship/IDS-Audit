@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page
 
+from ids_audit.audit.models import AuditEvent
 from ids_audit.imports.services import create_report, receive_file
 from ids_audit.imports.stage import stage_upload
 from ids_audit.reports.faq import ENTRIES
@@ -180,6 +181,35 @@ def test_nothing_sits_loose_on_a_page(page: Page, live_server) -> None:
         assert loose == [] and unboxed == 0, (address, loose, unboxed)
         charts += page.locator(".chart-card").count()
     assert charts >= 4, charts
+
+
+def test_the_pagination_is_drawn_in_the_theme(page: Page, live_server) -> None:
+    """Verify a list's other pages are linked by Tabler's pagination in the
+    theme: each link in green-text on white, in a box with a line around it,
+    and nothing else on the page drawn in a colour of its own (ENG-03 4).
+    """
+    admin = make_admin()
+    report = create_report("Paged", admin)
+    AuditEvent.objects.bulk_create(
+        AuditEvent(action=AuditEvent.Action.EXPORT_DOWNLOADED, report=report)
+        for _ in range(101)
+    )
+    sign_in(page, live_server, admin.username)
+    found = drawn(page, f"{live_server.url}/reports/{report.pk}/audit")
+    assert all(colour in THEME.values() for colour, _ in found["colours"]), found
+    link = page.locator(".pagination .page-link")
+    assert link.inner_text() == "Older events"
+    assert link.evaluate(
+        """e => { const s = getComputedStyle(e);
+            return [s.color, s.backgroundColor, s.borderTopStyle,
+                    s.borderTopWidth, s.borderTopColor]; }"""
+    ) == [
+        "rgb(88, 125, 57)",
+        "rgb(255, 255, 255)",
+        "solid",
+        "1px",
+        "rgb(209, 211, 212)",
+    ]
 
 
 def test_a_message_and_a_refusal_are_drawn_in_the_theme(
