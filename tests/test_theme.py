@@ -219,9 +219,9 @@ def buttons() -> dict[str, list[str]]:
 def test_each_button_is_of_its_kind() -> None:
     """Verify only Show, Search and Sign out are quiet buttons, only Reject,
     Withdraw, Disable and Remove are secondary ones, Upload a mapping, Export
-    to Excel and Roll back are the secondary links, every button and link
-    drawn as one is one of Tabler's, and the theme gives each kind its colours
-    (ENG-03 4, Buttons).
+    to Excel, Roll back and a rule's Change are the secondary links, every
+    button and link drawn as one is one of Tabler's, and the theme gives each
+    kind its colours (ENG-03 4, Buttons).
     """
     kinds = buttons()
     assert sorted(kinds["quiet"]) == ["Search", "Show", "Sign out"]
@@ -229,9 +229,11 @@ def test_each_button_is_of_its_kind() -> None:
         "Disable {{ account.username }}",
         "Reject upload {{ upload.number }}",
         "Remove {{ role.name }}",
+        'Remove<span class="visually-hidden"> {{ name }}</span>',
         "Withdraw upload {{ upload.number }}",
     ]
     assert sorted(kinds["link secondary"]) == [
+        'Change<span class="visually-hidden"> {{ card.name }}</span>',
         "Export to Excel",
         "Roll back upload {{ upload.number }}",
         "Upload a mapping",

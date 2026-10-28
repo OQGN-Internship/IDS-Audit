@@ -1,0 +1,28 @@
+{% load navigation %}
+{# The header names, field by field, with the sheets each is needed on, from the column check itself (ENG-03 4, ENG-02 4.4 and 4.5). #}
+<section class="card rule-card" id="header_names">
+  <div class="card-header"><h2 class="card-title">Header names</h2></div>
+  <div class="card-body">
+    <p class="decides">Which column headers the report recognises for each field. Each sheet's header row is compared with these names, with capitals, spaces and punctuation ignored, so G/L Account and gl account find the same column. The whole cell must match: Amount doesn't find a column headed Amount in USD.</p>
+    <p class="decides">When a sheet has no column for a field it needs, its upload stops at Needs columns, and its uploader picks the column for that one file. Adding the header to its field here makes every later file read on its own. A GL account or cost center column can't be picked, since they're how each sheet is found: add its header here before the upload.</p>
+    <div class="card table-wrap">
+      <table class="table card-table header-names">
+        <thead><tr><th>Field</th><th>Needed</th><th>Header names recognised</th></tr></thead>
+        <tbody>
+          {% for row in fields %}
+            <tr>
+              <th>{{ row.name }}{% if can_change %}<a class="change" href="{% url 'rules_headers' report.pk row.key %}">{% icon "edit" %}Change<span class="visually-hidden"> the header names for {{ row.name }}</span></a>{% endif %}</th>
+              <td>{{ row.needed }}</td>
+              <td><ul class="name-tags">{% for name in row.names %}<li class="tag">{{ name }}</li>{% endfor %}</ul></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="datagrid">
+      <div class="datagrid-item"><div class="datagrid-title">Default</div><div class="datagrid-content">The built-in names every new report starts with</div></div>
+      <div class="datagrid-item"><div class="datagrid-title">A change applies</div><div class="datagrid-content">{{ read_applies }}</div></div>
+    </div>
+  </div>
+  <div class="card-footer for-command">In change_ruleset's JSON: "header_names", with each field by its key, as command.md lists them</div>
+</section>

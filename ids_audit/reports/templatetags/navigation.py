@@ -33,9 +33,13 @@ ABOVE = {
             "exceptions",
             "faq",
             "uploads",
+            "rules",
             "audit",
         ),
         REPORT,
+    ),
+    **dict.fromkeys(
+        ("rules_version", "rules_change", "rules_headers"), (*REPORT, "rules")
     ),
     "gl_account": (*REPORT, "gl_accounts"),
     "department": (*REPORT, "departments"),
@@ -74,6 +78,7 @@ NAMES = {
     "budget_lines": "Budget lines",
     "faq": "FAQ",
     "uploads": "Uploads",
+    "rules": "Rules",
     "admin_home": "Administration",
     "admin_users": "Users",
     "admin_roles": "Roles",

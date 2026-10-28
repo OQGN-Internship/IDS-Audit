@@ -53,7 +53,8 @@ def pages(page: Page, live_server) -> list[str]:
     approved and a second report whose first upload awaits approval, and
     return the address of each kind of page: every screen's layout, the
     upload's summary, preview and actions, the duplicate mode's choice, a
-    mapping upload's, the forms, the administration, the audit log, a message
+    mapping upload's, the forms, the administration, the audit log, the
+    rules with an older version and their forms, locked and not, a message
     and an error.
     """
     admin = make_admin()
@@ -93,6 +94,8 @@ def pages(page: Page, live_server) -> list[str]:
         ),
         admin,
     )
+    # A report with no uploads yet, whose Uploads point to its rules.
+    empty = create_report("Empty", admin)
     viewer = make_user(fixed_admin=False)
     sign_in(page, live_server, admin.username)
     base = live_server.url
@@ -113,6 +116,13 @@ def pages(page: Page, live_server) -> list[str]:
         f"{r}/uploads/new",
         f"{r}/uploads/new-mapping",
         f"{r}/audit",
+        f"{r}/rules",
+        f"{r}/rules/1",
+        f"{r}/rules/change/actual_spend_rule",
+        f"{r}/rules/change/mapping_rule",
+        f"{r}/rules/headers/amount",
+        f"{base}/reports/{empty.pk}/uploads",
+        f"{base}/reports/{empty.pk}/rules/change/date_order",
         f"{base}/reports/{waiting.pk}/overview",
         f"{base}/reports/{waiting.pk}/uploads/1",
         f"{base}/reports/{picking.pk}/uploads/1",

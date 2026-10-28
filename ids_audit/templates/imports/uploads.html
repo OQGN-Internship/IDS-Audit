@@ -26,5 +26,6 @@
   </div>
 {% else %}
   <p class="none">No uploads yet.</p>
+  <p class="alert note">{% icon "info" %}<span>Before the first upload, check the report's rules: the headers it recognises, how it reads dates and amounts, what counts as actual spend, and its mapping rule, which can't change once an upload is open or committed. <a href="{% url 'rules' report.pk %}">See the rules</a></span></p>
 {% endif %}
 {% endblock %}

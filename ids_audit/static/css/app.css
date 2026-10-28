@@ -478,6 +478,30 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
 .check-card .card-title { margin: 0; font-size: 1rem; }
 .questions li { margin: 0.4rem 0; }
 
+/* The Rules screen (ENG-03 4): a card per setting, the header names as
+   tags, and the key for the command line in each card's footer. */
+.rule-card, .steps-card { margin: 0.5rem 0 1.25rem; }
+.rule-card .card-title, .steps-card .card-title { margin: 0; font-size: 1rem; }
+.rule-card .decides { margin: 0 0 1rem; max-width: 48rem; }
+.rule-card .value { font-weight: bold; }
+.rule-card .alert { margin: 1rem 0 0; }
+.rule-card .table-wrap { margin: 0 0 1rem; }
+.steps-list { margin: 0; padding-inline-start: 1.25rem; display: grid; gap: 0.4rem; }
+.name-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+.name-tags .tag {
+  height: auto;
+  min-height: 1.5rem;
+  color: var(--oqgn-ink);
+  background: var(--oqgn-surface-alt);
+  border-color: var(--oqgn-line);
+  font-size: 0.8125rem;
+}
+.header-names .change { display: flex; align-items: center; gap: 0.3rem; margin-block-start: 0.2rem; color: var(--oqgn-green-text); font-size: 0.8125rem; font-weight: normal; white-space: nowrap; }
+.changes { margin: 0; padding-inline-start: 1rem; }
+.for-command { color: var(--oqgn-ink-subtle); font-size: 0.8125rem; padding: 0.5rem 1.25rem; overflow-wrap: anywhere; }
+.header-card .datagrid { margin-block-end: 1rem; }
+.form-card > .card-body > form + p { margin-block-start: 0.75rem; }
+
 /* Narrow screens, below Tabler's large size: the sidebar becomes a bar
    across the top, its links in one row that scrolls sideways, with no menu
    to open (ENG-03 4). */

@@ -62,6 +62,7 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
     admin = (reverse("admin_home"), "Administration")
     users = (reverse("admin_users"), "Users")
     roles = (reverse("admin_roles"), "Roles")
+    rules = (reverse("rules", args=[report.pk]), "Rules")
     for address, want in (
         (reverse("reports"), None),
         (reverse("new_report"), [top]),
@@ -85,6 +86,10 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
         (reverse("upload", args=[report.pk, upload.number]), [top, home, uploads]),
         (reverse("new_upload", args=[report.pk]), [top, home, uploads]),
         (reverse("new_mapping", args=[report.pk]), [top, home, uploads]),
+        (reverse("rules", args=[report.pk]), [top, home]),
+        (reverse("rules_version", args=[report.pk, 1]), [top, home, rules]),
+        (reverse("rules_change", args=[report.pk, "currency"]), [top, home, rules]),
+        (reverse("rules_headers", args=[report.pk, "amount"]), [top, home, rules]),
         (
             reverse("roll_back", args=[report.pk, upload.number]),
             [top, home, uploads, one],
@@ -113,6 +118,7 @@ def test_every_page_under_a_report_names_it_in_its_crumbs(admin_client) -> None:
         "exceptions",
         "faq",
         "uploads",
+        "rules",
         "audit",
     ):
         assert home in crumbs(admin_client, reverse(name, args=[report.pk])), name
@@ -133,8 +139,8 @@ def test_the_sidebar_groups_a_report_s_screens_with_no_application_name(
     admin_client,
 ) -> None:
     """Verify the sidebar names the report under the label Report, lists its
-    figures' screens, then Uploads and the Audit log in a group of their
-    own, has no "IDS Spend Audit", and links Change password and Sign out.
+    figures' screens, then Uploads, Rules and the Audit log in a group of
+    their own, has no "IDS Spend Audit", and links Change password and Sign out.
     """
     report = make_report()
     nav = sidebar(admin_client, reverse("overview", args=[report.pk]))
@@ -148,7 +154,7 @@ def test_the_sidebar_groups_a_report_s_screens_with_no_application_name(
     assert groups == [
         ["Reports"],
         ["Overview", "GL accounts", "Departments", "Budget lines", "Exceptions", "FAQ"],
-        ["Uploads", "Audit log"],
+        ["Uploads", "Rules", "Audit log"],
         ["Users", "Roles", "Whole audit log"],
     ]
     assert f'href="{reverse("password_change")}"' in nav

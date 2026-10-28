@@ -92,56 +92,45 @@ def create_report(name: str, user: User) -> Report:
 
 
 def change_ruleset(
-    report: Report, user: User, changes: dict, command: str | None = None
+    report: Report,
+    user: User,
+    changes: dict,
+    command: str | None = None,
+    *,
+    screen: str | None = None,
+    based_on: int | None = None,
 ) -> Ruleset:
     """Write the report's next ruleset version, its latest with the changes
     made, and its ruleset_changed event, in one transaction (ENG-02 3).
 
     user must be an active fixed administrator, or it's PermissionDenied. A
-    change that leaves every setting as it was, gives a setting that doesn't
-    exist or a value out of its form, or changes outside_ids_rule or
-    mapping_rule while the report has an open or a committed upload is
-    refused with RulesetRefused, and writes nothing. command is the
-    manage.py command it was run with, which the event keeps.
+    change check_change() refuses is refused with RulesetRefused, and writes
+    nothing. command is the manage.py command it was run with, and screen
+    the screen it was sent from, which the event keeps (ENG-01 6.3).
+    based_on is the version a change made on screen was made from.
     """
     require_fixed_admin(user)
     with transaction.atomic():
         # Locked, as receiving a file locks it, so no upload opens while a
         # setting that acts on the report's figures changes (ENG-01 5.1).
         report = Report.objects.select_for_update().get(pk=report.pk)
-        latest = report.rulesets.order_by("-version").first()
-        new_settings = ruleset.merged(latest.settings, changes)
-        problems = ruleset.problems(new_settings)
-        if problems:
-            raise RulesetRefused(problems)
-        changed = {
-            key: {"before": latest.settings[key], "after": new_settings[key]}
-            for key in new_settings
-            if new_settings[key] != latest.settings[key]
-        }
-        if not changed:
-            raise RulesetRefused(["The change leaves every setting as it was."])
-        shown = [key for key in ruleset.SHOWN_SETTINGS if key in changed]
-        if (
-            shown
-            and report.uploads.filter(status__in=(*OPEN, Status.COMMITTED)).exists()
-        ):
-            raise RulesetRefused(
-                [
-                    f"{key} can't change while the report has an open or a "
-                    "committed upload."
-                    for key in shown
-                ]
-            )
+        latest, new_settings = check_change(report, changes, based_on)
         version = Ruleset.objects.create(
             report=report,
             version=latest.version + 1,
             settings=new_settings,
             created_by=user,
         )
+        changed = {
+            key: {"before": latest.settings[key], "after": new_settings[key]}
+            for key in new_settings
+            if new_settings[key] != latest.settings[key]
+        }
         details = {"version": version.version, "changed": changed}
         if command:
             details["command"] = command
+        if screen:
+            details["screen"] = screen
         audit.record(
             AuditEvent.Action.RULESET_CHANGED,
             user=user,
@@ -149,6 +138,58 @@ def change_ruleset(
             details=details,
         )
     return version
+
+
+def check_change(
+    report: Report, changes: dict, based_on: int | None = None
+) -> tuple[Ruleset, dict]:
+    """Return the report's latest ruleset version and the settings the change
+    would give it, or refuse the change with RulesetRefused, writing nothing
+    (ENG-02 3). change_ruleset() calls it with the report's row locked, and a
+    change's confirmation on screen without, to show only what would save.
+
+    A change is refused when it was made from a version that's no longer the
+    latest, gives a setting that doesn't exist or a value out of its form,
+    leaves every setting as it was, or changes outside_ids_rule or
+    mapping_rule while the report has an open or a committed upload.
+    """
+    latest = report.rulesets.order_by("-version").first()
+    if based_on is not None and based_on != latest.version:
+        raise RulesetRefused(
+            [
+                f"The rules were changed to version {latest.version} while this "
+                f"change was being made from version {based_on}. Look at version "
+                f"{latest.version}, then make the change again."
+            ]
+        )
+    new_settings = ruleset.merged(latest.settings, changes)
+    problems = ruleset.problems(new_settings)
+    if problems:
+        raise RulesetRefused(problems)
+    changed = [key for key in new_settings if new_settings[key] != latest.settings[key]]
+    if not changed:
+        raise RulesetRefused(["The change leaves every setting as it was."])
+    shown = [key for key in ruleset.SHOWN_SETTINGS if key in changed]
+    if shown and shown_settings_locked(report):
+        raise RulesetRefused([locked_reason(key) for key in shown])
+    return latest, new_settings
+
+
+def shown_settings_locked(report: Report) -> bool:
+    """Return whether outside_ids_rule and mapping_rule can't change now: the
+    report has an open or a committed upload (ENG-02 3).
+    """
+    return report.uploads.filter(status__in=(*OPEN, Status.COMMITTED)).exists()
+
+
+def locked_reason(key: str) -> str:
+    """Say why a setting that acts whenever the report is shown can't change,
+    in the words the Rules screen and a refused change share (ENG-02 3).
+    """
+    return (
+        f"{ruleset.SETTING_NAMES[key]}: can't change while the report has an open "
+        "or a committed upload, since figures already shown would move."
+    )
 
 
 def receive_file(

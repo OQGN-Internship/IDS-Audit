@@ -125,14 +125,14 @@ Don't edit SAP's export by hand each month. Tell the developer once. Most differ
 
 | The export has | What's done |
 | --- | --- |
-| Other headers | They're added to the report's header names with `change_ruleset`, the only fix for every column. A column pick at Needs columns fixes one file, and not every column (below) |
+| Other headers | They're added to the report's header names, on its Rules page, the only fix for every column. A column pick at Needs columns fixes one file, and not every column (below) |
 | Dates month first, such as `04.15.2026` | The report's `date_order` |
 | Decimal commas in a text export, such as `1.234,500-` | The report's `decimal_separator` |
 | Rows that aren't actual spend | The report's `actual_spend_rule`, read from a Value Type column |
 | No total row | The uploader types SAP's total on the upload form |
 | An HTML page saved as `.xls` | A reader for it is added to the application |
 
-**Other headers.** A fixed administrator adds each new header to its field's list with `change_ruleset` ([command.md](command.md)). Every file received after the change then reads, wherever the column sits.
+**Other headers.** A fixed administrator adds each new header to its field's list on the report's Rules page, or with `change_ruleset` ([command.md](command.md)). Every file received after the change then reads, wherever the column sits. Everyone who can open the report can see the header names recognised there, before sending a file.
 
 A column pick is for one file. When a needed column, such as the amount, the posting date, the commitment item or the department code, isn't recognised, the upload stops at Needs columns and the uploader picks it. The pick doesn't add the header to the report's header names. Once that file is approved, the pick is reused for the report's next file whose header row on that sheet is exactly the same, cell for cell (ENG-02 4.5). A column added, removed, renamed or moved means picking again.
 

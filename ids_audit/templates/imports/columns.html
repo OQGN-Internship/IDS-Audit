@@ -4,6 +4,7 @@
 {% block heading %}Pick columns for upload {{ upload.number }}{% endblock %}
 {% block content %}
 <p class="alert note">{% icon "info" %}<span>For each problem, pick the column that holds the field. The file is then read again with them, and the choice is used again for later files whose sheet has exactly this header, once this upload is approved.</span></p>
+<p class="alert note">{% icon "info" %}<span>A pick reads this one file. If the export always heads the column this way, a fixed administrator can add the header to its field in the report's rules, so every later file reads on its own, wherever the column sits. <a href="{% url 'rules' report.pk %}#header_names">See the header names</a></span></p>
 <form method="post" action="{% url 'columns' report.pk upload.number %}">
   {% csrf_token %}
   {% for sheet in sheets %}
@@ -24,7 +25,7 @@
       <p class="pick">
         <label class="form-label" for="pick-{{ index }}">{{ problem.text }}</label>
         <select class="form-select" id="pick-{{ index }}" name="pick-{{ index }}">
-          <option value="">Pick a column for {{ problem.field }}</option>
+          <option value="">Pick a column for {{ problem.field_name }}</option>
           {% for letter, header in sheet.choices %}<option value="{{ letter }}">{{ letter }}{% if header %}: {{ header }}{% endif %}</option>{% endfor %}
         </select>
       </p>

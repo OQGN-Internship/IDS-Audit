@@ -115,7 +115,7 @@ def test_a_fixed_admin_sees_every_report_and_can_create_one(signed_in) -> None:
 
     response = signed_in.post(reverse("new_report"), {"name": "  IDS 2026 "})
     created = Report.objects.get(name="IDS 2026")
-    assert response["Location"] == reverse("uploads", args=[created.pk])
+    assert response["Location"] == reverse("rules", args=[created.pk])
     assert created.rulesets.get().version == 1
     assert AuditEvent.objects.filter(action="report_created", report=created).exists()
 
@@ -703,7 +703,7 @@ def test_picking_a_column_reads_the_file_again(signed_in, report) -> None:
     data = csv_file(LINE, total_row("1000.000"), header=NO_AMOUNT_HEADER)
     upload = uploaded(signed_in, report, data)
     assert upload.status == Status.NEEDS_COLUMNS
-    assert "no column matches amount" in page(signed_in, "upload", report.pk, 1)
+    assert "no column matches Amount" in page(signed_in, "upload", report.pk, 1)
 
     text = page(signed_in, "columns", report.pk, 1)
     assert "<th>I</th>" in text and "<td>Value</td>" in text
