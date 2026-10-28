@@ -253,6 +253,32 @@ def test_a_setting_changed_on_screen_is_confirmed_then_saved_once(
     assert set(event.details["changed"]) == set(changes)
 
 
+def test_the_confirmation_says_when_the_change_applies() -> None:
+    """Verify the confirmation says a setting read with a file applies to
+    files received after it, naming an open upload that keeps its version,
+    and the mapping rule applies at once, to every figure.
+    """
+    report = make_report()
+    client = signed_in(make_user())
+    sent = {"value": "own_upload"}
+    mapping = text_of(
+        send(client, report, change_address(report, "mapping_rule"), sent, False)
+    )
+    assert rules.SHOWN_APPLIES in mapping and rules.READ_APPLIES not in mapping
+    make_upload(report, status=Upload.Status.AWAITING_APPROVAL)
+    dates = text_of(
+        send(
+            client,
+            report,
+            change_address(report, "date_order"),
+            {"value": "month_first"},
+            False,
+        )
+    )
+    assert rules.READ_APPLIES in dates
+    assert "Upload 1 is open, and was read with version 1, which it keeps." in dates
+
+
 def test_every_row_counts_again_once_chosen_on_screen() -> None:
     """Verify the actual-spend rule goes back to counting every row, with the
     lists left out.
@@ -441,8 +467,7 @@ def test_a_disabled_administrator_s_change_is_refused() -> None:
         {"value": "month_first"},
         confirm=True,
     )
-    assert response.status_code in (302, 403, 404)
-    assert "/sign-in" in response.get("Location", "/sign-in")
+    assert response.status_code == 302 and "/sign-in" in response["Location"]
     assert report.rulesets.count() == 1 and events(report) == []
 
 

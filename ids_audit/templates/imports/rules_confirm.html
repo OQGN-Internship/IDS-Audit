@@ -15,7 +15,7 @@
     </table>
   </div>
   <p><strong>When it applies.</strong> {{ applies }}</p>
-  {% if open_upload %}<p class="alert notice">{% icon "alert" %}<span>Upload {{ open_upload.number }} is open, and was read with version {{ open_upload.ruleset.version }}, which it keeps. To read it with version {{ next }}, withdraw it and upload it again.</span></p>{% endif %}
+  {% if still_open %}<p class="alert notice">{% icon "alert" %}<span>Upload {{ still_open.number }} is open, and was read with version {{ still_open.ruleset.version }}, which it keeps. To read it with version {{ next }}, withdraw it and upload it again.</span></p>{% endif %}
   <form method="post" action="{{ request.path }}">
     {% csrf_token %}
     {% for field in form %}{{ field.as_hidden }}{% endfor %}

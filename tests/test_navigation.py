@@ -62,6 +62,7 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
     admin = (reverse("admin_home"), "Administration")
     users = (reverse("admin_users"), "Users")
     roles = (reverse("admin_roles"), "Roles")
+    rules = (reverse("rules", args=[report.pk]), "Rules")
     for address, want in (
         (reverse("reports"), None),
         (reverse("new_report"), [top]),
@@ -85,6 +86,10 @@ def test_crumbs_link_the_pages_above(admin_client) -> None:
         (reverse("upload", args=[report.pk, upload.number]), [top, home, uploads]),
         (reverse("new_upload", args=[report.pk]), [top, home, uploads]),
         (reverse("new_mapping", args=[report.pk]), [top, home, uploads]),
+        (reverse("rules", args=[report.pk]), [top, home]),
+        (reverse("rules_version", args=[report.pk, 1]), [top, home, rules]),
+        (reverse("rules_change", args=[report.pk, "currency"]), [top, home, rules]),
+        (reverse("rules_headers", args=[report.pk, "amount"]), [top, home, rules]),
         (
             reverse("roll_back", args=[report.pk, upload.number]),
             [top, home, uploads, one],
@@ -113,6 +118,7 @@ def test_every_page_under_a_report_names_it_in_its_crumbs(admin_client) -> None:
         "exceptions",
         "faq",
         "uploads",
+        "rules",
         "audit",
     ):
         assert home in crumbs(admin_client, reverse(name, args=[report.pk])), name

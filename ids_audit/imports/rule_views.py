@@ -200,7 +200,8 @@ def change(
                         if context["setting"] in SHOWN_SETTINGS
                         else rules.READ_APPLIES
                     ),
-                    "open_upload": open_upload(report),
+                    # Not open_upload, which the sidebar sets for itself.
+                    "still_open": open_upload(report),
                 },
             )
     return render(request, "imports/rules_change.html", context)
