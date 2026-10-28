@@ -223,8 +223,8 @@ def actual_spend_rule_problems(rule) -> list[str]:
 
 def value_in_words(key: str, value) -> str:
     """Return a setting's value in words, as the Rules screen shows it: a
-    choice by its words, the actual-spend rule by what it counts, and header
-    names by how many fields and names they hold.
+    choice by its words, and the actual-spend rule by what it counts. Header
+    names are shown field by field instead.
     """
     if key in VALUE_NAMES:
         return VALUE_NAMES[key].get(value, str(value))
@@ -235,9 +235,6 @@ def value_in_words(key: str, value) -> str:
             f"By value type. Actual spend: {listed(value['actual'])}. "
             f"Not actual spend: {listed(value['not_actual'])}."
         )
-    if key == "header_names":
-        count = sum(len(names) for names in value.values())
-        return f"{count} names for {len(value)} fields"
     return str(value)
 
 
