@@ -38,7 +38,7 @@
     <input class="form-control" type="date" name="to" value="{{ search.end|date:'Y-m-d' }}">
   </label>
   <button type="submit" class="btn">{% icon "search" %}Search</button>
-  {% if search.on %}<a class="clear" href="{{ request.path }}">Clear</a>{% endif %}
+  {% if search.on %}<a class="btn btn-secondary" href="{{ request.path }}">{% icon "clear" %}Clear</a>{% endif %}
 </form>
 </div>
 <div class="card-footer what">

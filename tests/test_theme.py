@@ -186,8 +186,9 @@ def test_app_css_squares_every_corner_and_spaces_by_start_and_end() -> None:
 
 def buttons() -> dict[str, list[str]]:
     """Return the words of every button and every link drawn as one in the
-    templates, by kind: main (btn-primary), secondary (btn-outline-primary)
-    or quiet (a plain btn), with links marked "link".
+    templates, by kind: main (btn-primary), secondary (btn-outline-primary),
+    Clear's own (btn-secondary) or quiet (a plain btn), with links marked
+    "link".
     """
     kinds: dict[str, list[str]] = {}
     for template in TEMPLATES.rglob("*.html"):
@@ -209,6 +210,8 @@ def buttons() -> dict[str, list[str]]:
                 kind = "main"
             elif "btn-outline-primary" in names:
                 kind = "secondary"
+            elif "btn-secondary" in names:
+                kind = "own"
             else:
                 kind = "quiet"
             words = re.sub(r"\{% icon [^%]*%\}", "", words)
@@ -219,11 +222,20 @@ def buttons() -> dict[str, list[str]]:
 def test_each_button_is_of_its_kind() -> None:
     """Verify only Show, Search and Sign out are quiet buttons, only Reject,
     Withdraw, Disable and Remove are secondary ones, Upload a mapping, Export
-    to Excel, Roll back and a rule's Change are the secondary links, every
-    button and link drawn as one is one of Tabler's, and the theme gives each
-    kind its colours (ENG-03 4, Buttons).
+    to Excel, Roll back and a rule's Change are the secondary links, only
+    Clear has its own colour, every button and link drawn as one is one of
+    Tabler's, and the theme gives each kind its colours (ENG-03 4, Buttons).
     """
     kinds = buttons()
+    assert sorted(kinds) == [
+        "link main",
+        "link own",
+        "link secondary",
+        "main",
+        "quiet",
+        "secondary",
+    ]
+    assert kinds["link own"] == ["Clear"]
     assert sorted(kinds["quiet"]) == ["Search", "Show", "Sign out"]
     assert sorted(kinds["secondary"]) == [
         "Disable {{ account.username }}",
@@ -252,6 +264,7 @@ def test_each_button_is_of_its_kind() -> None:
         (".btn", "surface", "ink", "ink-subtle"),
         (".btn-primary", "green-dark", "surface", "green-dark"),
         (".btn-outline-primary", "surface", "green-dark", "green-dark"),
+        (".btn-secondary", "ink-subtle", "surface", "ink-subtle"),
     ):
         assert token(styled[kind]["--tblr-btn-bg"]) == background, kind
         assert token(styled[kind]["--tblr-btn-color"]) == words, kind
