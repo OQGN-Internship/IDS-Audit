@@ -29,7 +29,7 @@ Two more things to know:
 | `axes_reset_username` | Unlock a locked-out username | Yes, for a fixed administrator |
 | `createsuperuser` | Refuses, and names `create_admin` | No |
 | `show_ruleset` | Print a report's ruleset | Yes |
-| `change_ruleset` | Change a report's ruleset | Yes, with the validator |
+| `change_ruleset` | Change a report's ruleset | Yes, for a change written as JSON. The report's Rules page is the usual way |
 | `check_uploads` | Check every uploaded file is intact | Yes |
 | `report_totals` | Print every report's totals | Yes |
 | `apply_grants` | Give `ids_app` its database rights again | Only through `migrate` |
@@ -94,6 +94,8 @@ docker compose exec app python manage.py axes_reset_username abalsalmi
 
 ### imports: rulesets and uploaded files
 
+A report's ruleset is its rules on screen. Its **Rules** page shows every setting in words to anyone who can open the report, and lets an active fixed administrator change each one with a form and a confirmation, through the same check as `change_ruleset` (ENG-02 3, ENG-03 4). That's the usual way. The two commands below stay, for reading the rules as JSON and for a change written as JSON, such as several header names at once.
+
 **`show_ruleset <report>`** prints a report's latest ruleset version as JSON: the report's name, the version number, and every setting, the header names for each field included. The report is found by its name, in any case. It changes nothing.
 
 ```bash
@@ -117,8 +119,8 @@ A change to the date order, the decimal separator and the actual-spend rule, as 
 ```
 
 - **Header names:** each field given replaces that field's whole list. To add a name and keep the others, copy the field's names from `show_ruleset` and add the new one, such as `{"header_names": {"amount": ["Amount in LC", "Amount", "Value in Local Currency", "Val/COArea Crcy", "Amt in Loc.Cur."]}}`. Fields left out keep theirs.
-- **The settings and their values:** `header_names` (a list of names for each field: `gl_code`, `cost_center_code`, `amount`, `posting_date`, `fiscal_year`, `period`, `document_number`, `line_item`, `company_code`, `value_type`, `currency`, `item_text`, `ci_code`, `gl_name`, `ci_name`, `dept_code`, `cc_name`, `dept_name`), `actual_spend_rule` (`null`, or the two lists `actual` and `not_actual`), `date_order` (`day_first` or `month_first`), `decimal_separator` (`.` or `,`), `currency` (three capital letters), `mapping_rule` (`latest` or `own_upload`) and `outside_ids_rule` (only `missing_from_cc_map` for now).
-- **What it refuses, saving nothing:** a change that changes nothing, a setting or field that doesn't exist, a value outside its form, a header name under two fields, and a change to `mapping_rule` or `outside_ids_rule` while the report has an open or approved upload. It says why. So decide `mapping_rule` before the report's first upload.
+- **The settings and their values,** with their names on the Rules page, which the command's messages use too: `header_names`, Header names (a list of names for each field, by its key: `gl_code` GL account, `cost_center_code` Cost center, `amount` Amount, `posting_date` Posting date, `fiscal_year` Fiscal year, `period` Period, `document_number` Document number, `line_item` Line item, `company_code` Company code, `value_type` Value type, `currency` Currency, `item_text` Item text, `ci_code` Commitment item, `gl_name` GL account name, `ci_name` Commitment item name, `dept_code` Department code, `cc_name` Cost center name, `dept_name` Department name), `actual_spend_rule`, Actual spend (`null`, or the two lists `actual` and `not_actual`), `date_order`, Date order (`day_first` Day first, or `month_first` Month first), `decimal_separator`, Decimal separator (`.` A point, or `,` A comma), `currency`, Currency (three capital letters), `mapping_rule`, Mapping rule (`latest` The latest mapping, or `own_upload` Each file's own mapping) and `outside_ids_rule`, Outside IDS (only `missing_from_cc_map` for now). Each card on the Rules page gives its key and value in its footer.
+- **What it refuses, saving nothing:** a change that changes nothing, a setting or field that doesn't exist, a value outside its form, a header name under two fields, a field left with no header name, an `actual` list left empty, and a change to `mapping_rule` or `outside_ids_rule` while the report has an open or approved upload. It says why, naming the setting in words, such as "Date order: must be Day first or Month first." So decide `mapping_rule` before the report's first upload.
 - **When it applies:** to files received after the change. A file already received keeps the version it was read with: withdraw it and upload it again to read it with the new one.
 
 ENG-02 3 has the rules, and ENG-02 13 says which setting answers which difference in the real export.

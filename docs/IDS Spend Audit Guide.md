@@ -34,6 +34,7 @@ Each report has these screens, linked in the sidebar on its pages under the repo
 | Exceptions | GL accounts with no budget line, cost centers outside IDS, IDS cost centers with no department, budget-line and department changes between files, and rows skipped while reading |
 | FAQ | The eight questions in the plan, each answered on its own page |
 | Uploads | Every file uploaded to the report, and its state. It says **Waiting** in the sidebar while an upload awaits approval or needs its columns picked |
+| Rules | How the report's files are read and what counts, explained, with every earlier version |
 | Audit log | Who did what on this report, and when, with a search and filters to narrow it. Only for users whose role holds View audit log |
 
 On every screen:
@@ -43,6 +44,24 @@ On every screen:
 - **Every amount is a link** to the rows of the SAP export behind it, with the file, sheet and row each came from.
 - **Export to Excel**, at the end of the filters, downloads what's on screen, with a Source sheet naming the filters and the uploads used. It's there only if your role holds Export, and every export is recorded in the audit log.
 - **Printing** a screen from the browser leaves out the sidebar, the filters and the buttons, and keeps the report's name, the filter and as-of lines, and every figure.
+
+### A report's rules
+
+**Rules**, in the sidebar after Uploads, shows how the report reads its files and what it counts. Everyone who can open the report sees them, so before you send a file you can check it will read. Each rule is a card saying what it decides, what it's set to, an example, and the default:
+
+| Rule | Decides |
+| --- | --- |
+| Header names | Which column headers the report recognises for each field, such as GL account or Amount, and on which sheets each is needed |
+| Date order | Whether a date such as `03.04.2026` is 3 April or 4 March |
+| Decimal separator | Whether an amount written as text, such as `12,400.500`, uses a point or a comma for its decimals |
+| Currency | The currency every amount must be in. A row in another is skipped |
+| Actual spend | Whether every row counts as actual spend, or only rows whose value type is listed as actual spend |
+| Mapping rule | Which mapping gives a line its budget line and department when the mapping changes between files |
+| Outside IDS | Which cost centers are outside IDS: those missing from the cost center mapping |
+
+Every file is read with the rules in force when it's received, and keeps them, so its upload's page says which version it was read with, linked to that version. A change makes a new version, which applies only to files received after it. The page's history lists every version, who made it, when, and what it changed.
+
+**When a column isn't found,** the upload says Needs columns. Picking the column reads that one file. If the export always uses that header, ask an administrator to add it to the field's header names in the rules, so every later file reads on its own.
 
 ### Uploading a file
 
@@ -111,6 +130,17 @@ Before the client names the first users, the plan's default is one demo account 
 
 **Roles** shows each role's permissions and how many times it's given. **New role** makes one, and a role's page changes its name or permissions, which applies to everyone who has it at their next click. Every role holds View. A role still given to anyone can't be removed: change their access first.
 
+### Changing a report's rules
+
+On a report's **Rules**, each rule you can change has **Change** on its card, and each field of the header names has its own **Change**.
+
+- **Before a report's first upload,** open its export and check it against the rules: the headers against the header names, how it writes dates, the decimal mark in a text file, which rows are actual spend, and above all the mapping rule, which can't change once the report has an upload open or approved. A new report opens on its rules for this.
+- **To change a rule,** choose its new value on the form, then **Check the change**. The next page shows the rule now and after, in words, and when the change applies. Nothing is saved until you press **Save as version** *n*. A refused change says why, and nothing is saved.
+- **Header names** change one at a time: type a header in **Add a header name**, or press **Remove** beside one. Capitals, spaces and punctuation don't matter, but the whole header must match, and no header may be under two fields.
+- **What can't change.** Outside IDS has one rule until the client gives another. The mapping rule is fixed once the report has an open or approved upload. To read old files with new rules, create a new report and upload them again.
+
+Every change is recorded in the audit log, and the history says it was made on the page.
+
 ### The whole audit log
 
 **Whole audit log** lists every event, newest first, sign-ins and account changes included. Nobody can change or delete an event.
@@ -128,8 +158,8 @@ Each command runs in a terminal in the repository folder, as `docker compose exe
 | `disable_admin <username>` | Disables a fixed administrator |
 | `changepassword <username>` | Resets a fixed administrator's forgotten password to a temporary one |
 | `axes_reset_username <username>` | Unlocks a locked-out fixed administrator |
-| `show_ruleset <report>` | Prints the report's ruleset: the settings its files are read with, such as the header names it recognises |
-| `change_ruleset <report> --by <username>` | Makes a new ruleset version from the changes it reads as JSON, run in Git Bash, as the backup scripts are, as `docker compose exec -T app python manage.py change_ruleset "<report>" --by <username> < change.json`. PowerShell has no `<`, and Windows PowerShell passes piped text to a program as ASCII, which would change a header name with a letter outside English. A field of header names given in the file replaces that field's whole list, so copy its current names from `show_ruleset` and add the new one. Used with the validator when the real export needs a setting changed (ENG-02, 3 and 13) |
+| `show_ruleset <report>` | Prints the report's ruleset: the settings its files are read with, such as the header names it recognises, as JSON. The Rules page shows the same in words |
+| `change_ruleset <report> --by <username>` | Makes a new ruleset version from the changes it reads as JSON, run in Git Bash, as the backup scripts are, as `docker compose exec -T app python manage.py change_ruleset "<report>" --by <username> < change.json`. PowerShell has no `<`, and Windows PowerShell passes piped text to a program as ASCII, which would change a header name with a letter outside English. A field of header names given in the file replaces that field's whole list, so copy its current names from `show_ruleset` and add the new one. The Rules page is the usual way to change a rule. The command is for a change written as JSON, such as several header names at once (ENG-02, 3 and 13) |
 
 ## Running the application
 

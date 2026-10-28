@@ -91,17 +91,19 @@ A report is a separate set of uploads with its own totals and its own user acces
 
 Each report has a **ruleset**: the settings that decide how its files are read and what counts. Every upload records the ruleset version it was read with, so any upload can be explained later exactly as it was processed.
 
-| Setting | What it decides | Form | Version 1 |
+| Setting, and its name on screen | What it decides | Form | Version 1 |
 | --- | --- | --- | --- |
-| `header_names` | The header names recognised for each field (Section 4) | An object from each field's key to its list of header names (4.4). Each name holds a letter or a digit, and no name, once cleaned up as in 4.4, is under two fields, since a column would then match both | The built-in list in 4.4 |
-| `actual_spend_rule` | Which value-type values count as actual spend, and which don't | `null`, or an object with two lists of value-type values, such as `{"actual": ["Actual"], "not_actual": ["Commitment"]}`. With an object, a row is actual spend when its value type matches a value in `actual`, isn't when it matches one in `not_actual`, and is unclassified when it matches neither (Section 5). The value-type column is then required (4.4). No value may be in both lists | `null`: every row counts, whether or not the file has a value-type column. This is the plan's default |
-| `date_order` | How a date such as `03.04.2026` is read | `"day_first"` or `"month_first"`. A `yyyy-mm-dd` date is always read as written (Section 5) | `"day_first"`: 3 April 2026 |
-| `decimal_separator` | Which character separates the decimals in an amount written as text (Section 5) | `"."` or `","` | `"."`: `12,400.000` is twelve thousand four hundred |
-| `currency` | The currency every amount must be in | A three-letter currency code | `"OMR"` |
-| `outside_ids_rule` | Which cost centers are outside IDS | `"missing_from_cc_map"`: any cost center missing from the cost center mapping in force (8.1). It's the only value until the client gives another rule (13, item 3) | `"missing_from_cc_map"`. This is the plan's default |
-| `mapping_rule` | Which mapping applies when a code's budget line or department changes between files | `"latest"` or `"own_upload"` (8.1) | `"latest"`. This is the plan's default |
+| `header_names`, Header names | The header names recognised for each field (Section 4) | An object from each field's key to its list of header names (4.4). Every field has at least one name, each name holds a letter or a digit, and no name, once cleaned up as in 4.4, is under two fields, since a column would then match both | The built-in list in 4.4 |
+| `actual_spend_rule`, Actual spend | Which value-type values count as actual spend, and which don't | `null`, or an object with two lists of value-type values, such as `{"actual": ["Actual"], "not_actual": ["Commitment"]}`. With an object, a row is actual spend when its value type matches a value in `actual`, isn't when it matches one in `not_actual`, and is unclassified when it matches neither (Section 5). The value-type column is then required (4.4). `actual` holds at least one value, since otherwise nothing would ever count, and no value may be in both lists | `null`: every row counts, whether or not the file has a value-type column. This is the plan's default |
+| `date_order`, Date order | How a date such as `03.04.2026` is read | `"day_first"` or `"month_first"`. A `yyyy-mm-dd` date is always read as written (Section 5) | `"day_first"`: 3 April 2026 |
+| `decimal_separator`, Decimal separator | Which character separates the decimals in an amount written as text (Section 5) | `"."` or `","` | `"."`: `12,400.000` is twelve thousand four hundred |
+| `currency`, Currency | The currency every amount must be in | A three-letter currency code | `"OMR"` |
+| `outside_ids_rule`, Outside IDS | Which cost centers are outside IDS | `"missing_from_cc_map"`: any cost center missing from the cost center mapping in force (8.1). It's the only value until the client gives another rule (13, item 3) | `"missing_from_cc_map"`. This is the plan's default |
+| `mapping_rule`, Mapping rule | Which mapping applies when a code's budget line or department changes between files | `"latest"` or `"own_upload"` (8.1) | `"latest"`. This is the plan's default |
 
 **Every version holds every setting in full.** A report's version 1 is a copy of the defaults above, kept as `DEFAULT_SETTINGS` in `ids_audit/pipeline/ruleset.py`. A later change to the code's defaults never changes a version that already exists, so each upload's version still says exactly how it was read.
+
+**Words in one place.** Each setting's name on screen, each field's name in words, such as GL account for `gl_code`, and the words for each value of a setting with a fixed list, such as Day first, are kept once, beside `DEFAULT_SETTINGS`, as `SETTING_NAMES`, `FIELD_NAMES` and `VALUE_NAMES`. The Rules screen, every refusal and the column problems (4.5) use them, so a refusal reads as "Date order: must be Day first or Month first." on screen and from the command alike. The setting and field keys stay the ones a change from the command line is written with ([command.md](../command.md) lists both).
 
 The first five settings act while a file is read, so their effect is stored in its rows. `outside_ids_rule` and `mapping_rule` act whenever the report is shown, in `posting_resolved` (8.4). The view reads `mapping_rule` from the report's latest ruleset version. `outside_ids_rule` has only one value, so the view applies that rule directly, and a new value needs a new view migration (8.4).
 
@@ -116,8 +118,17 @@ The first five settings act while a file is read, so their effect is stored in i
 - Every change writes a `ruleset_changed` audit event (ENG-01, 6.3).
 - A change that leaves every setting as it was is refused, so no version repeats the one before it.
 - The report's row is locked while a change is checked and written, as it is while a file is received (ENG-01, 5.1), so no upload can open during a change to `outside_ids_rule` or `mapping_rule`.
+- A change made on screen names the version it was made from, and is refused if another change has saved a newer one since, so what its confirmation showed before and after is what's saved. The message names the newer version, and nothing is written.
 
-**From the command line.** A ruleset is changed with `manage.py change_ruleset <report> --by <username>`, run as the fixed administrators' commands are (ENG-01, 6.1). `<report>` is the report's name, matched ignoring case, and `--by` names the active fixed administrator making the change, whom the new version and its event record. Anyone else is refused. The command reads a JSON object from standard input, holding only the settings that change, such as `{"date_order": "month_first"}`. Each setting given replaces the latest version's whole, except `header_names`, where each field given replaces that field's list and the other fields keep theirs, so adding a header name needs only that field. The field's list is still replaced whole: to add a name and keep the others, give the field's current names with the new one, as `show_ruleset` prints them. The command prints the new version's number. `manage.py show_ruleset <report>` prints the latest version's number and settings as JSON, so a change can be written from it. A screen was the alternative, and isn't built: a change is rare, made with the validator when the real export needs one (Section 13), and a JSON object is the plainest way to write header names and the actual-spend rule.
+**On screen,** the usual way. Each report has a Rules page, with an older version's page and the forms that change it (ENG-03, 4).
+
+- **Who sees what.** Anyone who can open the report, with **view**, sees its rules, since an uploader needs to know which headers a file must have. Only an active fixed administrator sees the controls, and only they may send a change: anyone else gets 403 from a change's address, as from the command. The alternative, the whole page for fixed administrators only, would hide the explanation from the people who meet its effects, at Needs columns.
+- **One setting at a time.** Each change is a form for one setting, with no JSON to write: Date order, Decimal separator and Mapping rule as a choice between their values; Currency as three letters; Actual spend as a choice between counting every row and counting by value type, with the two lists of value types, one per line; and a field's header names one name at a time, added in a box or removed with a button beside it. `outside_ids_rule` has one value, so it has no form.
+- **A confirmation before saving.** Sending a form changes nothing. It opens a confirmation that shows each setting changed, before and after in words, the version it becomes, and when it applies. Only confirming saves it, with a POST through `change_ruleset()`, so a change on screen is checked, locked and recorded exactly as the command's is. Its event keeps `screen` in place of `command` (ENG-01, 6.3).
+- **A locked setting shows no control.** While the report has an open or a committed upload, `mapping_rule` says why it can't change, in the words `change_ruleset()` refuses with, and has no form. A change sent for it anyway, or any change from someone who may not make one, is refused in the same way and writes nothing.
+- **Refusals in words.** A refused change, such as a header name already under another field, shows the refusal's own words, and saves nothing.
+
+**From the command line.** A ruleset is changed with `manage.py change_ruleset <report> --by <username>`, run as the fixed administrators' commands are (ENG-01, 6.1). `<report>` is the report's name, matched ignoring case, and `--by` names the active fixed administrator making the change, whom the new version and its event record. Anyone else is refused. The command reads a JSON object from standard input, holding only the settings that change, such as `{"date_order": "month_first"}`. Each setting given replaces the latest version's whole, except `header_names`, where each field given replaces that field's list and the other fields keep theirs, so adding a header name needs only that field. The field's list is still replaced whole: to add a name and keep the others, give the field's current names with the new one, as `show_ruleset` prints them. The command prints the new version's number. `manage.py show_ruleset <report>` prints the latest version's number and settings as JSON, so a change can be written from it. Both commands stay beside the screen, for a change written as JSON, such as several header names at once.
 
 **Tested by**
 
@@ -131,7 +142,8 @@ The first five settings act while a file is read, so their effect is stored in i
 - A change naming one field of `header_names` changes only that field's list, and writes one `ruleset_changed` event with the new version and each setting changed, before and after. A change that changes nothing, or names a setting that doesn't exist, is refused and writes nothing.
 - `show_ruleset` prints the latest version, and `change_ruleset` reads its change from standard input.
 - A change to `mapping_rule` made while a file is being received waits for it, and is then refused.
-- A header name under two fields, or with no letter or digit, is refused.
+- A header name under two fields, or with no letter or digit, a field left with no header name, and an actual-spend rule whose `actual` list is empty, are each refused, with the setting or field named in words.
+- On screen, anyone with **view** sees the rules, and only an active fixed administrator sees the controls. Each kind of change, a choice, the currency, the actual-spend rule, and a header name added or removed, writes exactly one version and one `ruleset_changed` event keeping `screen`, and only once confirmed. A refused change shows its words and writes nothing. A locked `mapping_rule` has no form, and a change sent for it anyway is refused with the words the page shows. A change from a user who isn't a fixed administrator, or from a disabled one, gets 403 and writes nothing. A change made from a version that's no longer the latest is refused.
 
 ## 4. Reading the file
 
@@ -210,7 +222,9 @@ If a required field isn't found on a classified sheet, the mapping sheets includ
 
 **Picking columns** moves the upload back to `reading` and reads the file again with the columns picked, in one transaction, so an upload is never left at `reading` by a pick (Section 6, An interrupted read). A column picked for a field replaces whatever the header names matched for it on that sheet. If a problem remains, the upload stops at `needs_columns` again, with its problems. Picks add up: the next pick keeps every column picked before it, so only the problems left need a column.
 
-**The choice is saved for the report** in `upload.column_layout`, which holds, for each classified sheet, its header row's number, its header as text, cell by cell to the last one that isn't empty, the column letter of each field, and under `picked` the columns picked for it. The choice applies to the next file whose sheet has exactly the same header, cell for cell, so that file is matched automatically. Only the choices of committed uploads are reused, the most recently committed first (10.2), so a choice made for a file that was rejected, perhaps because the choice was wrong, is never reused. The ruleset's `header_names` stay as they are, since only fixed administrators change a ruleset (Section 3). Each upload records the layout it used, a reused choice included.
+**The choice is saved for the report** in `upload.column_layout`, which holds, for each classified sheet, its header row's number, its header as text, cell by cell to the last one that isn't empty, the column letter of each field, and under `picked` the columns picked for it. The choice applies to the next file whose sheet has exactly the same header, cell for cell, so that file is matched automatically. Only the choices of committed uploads are reused, the most recently committed first (10.2), so a choice made for a file that was rejected, perhaps because the choice was wrong, is never reused. The ruleset's `header_names` stay as they are, since only fixed administrators change a ruleset (Section 3). So the pick page says that a pick reads this one file, and links the report's Rules page, where adding the header name to its field makes every later file read. Each upload records the layout it used, a reused choice included.
+
+**Each problem names its field in words** (Section 3), such as "In sheet GL Mapping, no column matches Commitment item." or "In the file, columns C and E both match Posting date."
 
 **Tested by**
 
@@ -229,6 +243,7 @@ If a required field isn't found on a classified sheet, the mapping sheets includ
 - A file with no value-type column stops at `needs_columns` when `actual_spend_rule` isn't `null`, and is read when the rule is `null`.
 - A GL mapping sheet whose commitment item header isn't recognised stops at `needs_columns`.
 - A file with both Posting Date and Document Date columns uses Posting Date.
+- A column problem names its field in words, and the pick page links the report's Rules page.
 
 ## 5. Cleaning rules
 
@@ -882,7 +897,7 @@ Every assumption the rules above depend on is listed here, including each one ma
 | # | Assumption | Section | Confirmed by | If it's different |
 | --- | --- | --- | --- | --- |
 | 1 | The file is a real Excel file, not HTML saved as `.xls` | 4.1 | Opening the file | Add an HTML table reader |
-| 2 | The headers match the built-in names | 4.4 | Opening the file | Add the names to `header_names` |
+| 2 | The headers match the built-in names | 4.4 | Opening the file | Add the names to their fields' header names on the report's Rules page (`header_names`, Section 3), before its first upload |
 | 3 | The cost center mapping, in the file or uploaded on its own, lists only IDS cost centers | 4.2, 8.2, 8.5 | Opening the file, and the client by Day 2 | Set `outside_ids_rule` to the rule the client gives, before the report's first commit (Section 3) |
 | 4 | Company code, fiscal year, document number and line item are in the file | 2, 7.3 | Opening the file, and the client by Day 3 | Line-key mode isn't offered. Replace by period is used |
 | 5 | The amount column is in the local currency, OMR, and the currency column read is the local currency's (`LCurr`), not the invoice's | 4.4, 5 | The client, by Day 2 | Point the amount and currency fields at the local-currency columns in `header_names`. An amount in `Val/COArea Crcy` is in the controlling area's currency, so it's used only once the client confirms that's OMR |
