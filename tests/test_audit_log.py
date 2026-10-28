@@ -239,7 +239,8 @@ def test_each_filter_narrows_the_whole_log(query: str, kept: list[str]) -> None:
     each narrow the whole log, together too; an empty field is no filter,
     and a username no account has finds nothing (ENG-03 4). The
     administrator's own sign-in, on 28 October with no details, is one of
-    the events too.
+    the events too. The clock stays on 28 October while the log is read, so
+    the session doesn't end whatever the day the test runs.
     """
     admin, who = make_user(), make_user(fixed_admin=False)
     report = make_report()
@@ -252,10 +253,10 @@ def test_each_filter_narrows_the_whole_log(query: str, kept: list[str]) -> None:
     ):
         with time_machine.travel(at, tick=False):
             audit.record(action, user=user, report=named, details={"n": str(n)})
+    query = query.replace("WHO", who.username).replace("REPORT", str(report.pk))
     with time_machine.travel(AT.replace(day=28), tick=False):
         client = signed_in(admin)
-    query = query.replace("WHO", who.username).replace("REPORT", str(report.pk))
-    assert searched(client, reverse("admin_audit"), query) == kept
+        assert searched(client, reverse("admin_audit"), query) == kept
 
 
 def test_a_report_s_log_is_searched_within_its_own_events() -> None:
