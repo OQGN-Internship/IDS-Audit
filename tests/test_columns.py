@@ -272,10 +272,10 @@ def test_a_text_file_ignores_its_mapping_columns() -> None:
 def test_the_problem_message_names_the_sheet_and_columns() -> None:
     """Verify the message the uploader sees says what's wrong and where."""
     assert str(ColumnProblem("S", "amount", ())) == (
-        "In sheet S, no column matches amount."
+        "In sheet S, no column matches Amount."
     )
     assert str(ColumnProblem("", "posting_date", ("C", "E"))) == (
-        "In the file, columns C and E both match posting_date."
+        "In the file, columns C and E both match Posting date."
     )
 
 

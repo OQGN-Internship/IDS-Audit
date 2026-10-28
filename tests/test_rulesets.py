@@ -23,7 +23,17 @@ from ids_audit.imports.services import (
 )
 from ids_audit.imports.stage import stage_upload
 from ids_audit.ledger.models import Posting
-from ids_audit.pipeline.ruleset import DEFAULT_SETTINGS, HEADER_NAMES, merged, problems
+from ids_audit.pipeline.columns import FIELD_NAMES
+from ids_audit.pipeline.ruleset import (
+    CHOICES,
+    DEFAULT_SETTINGS,
+    HEADER_NAMES,
+    SETTING_NAMES,
+    VALUE_NAMES,
+    changes_in_words,
+    merged,
+    problems,
+)
 from ids_audit.reports.models import Ruleset
 from tests.factories import commit, make_report, make_upload, make_user, roll_back
 from tests.files import csv_file, line, total_row
@@ -39,32 +49,44 @@ def test_the_default_settings_pass_the_check() -> None:
 @pytest.mark.parametrize(
     ("changes", "problem"),
     [
-        ({"date_order": "year_first"}, "date_order must be one of"),
-        ({"decimal_separator": ";"}, "decimal_separator must be one of"),
-        ({"mapping_rule": "fiscal_year"}, "mapping_rule must be one of"),
-        ({"outside_ids_rule": "every_cost_center"}, "outside_ids_rule must be one"),
-        ({"currency": "omr"}, "currency must be three capital letters"),
-        ({"currency": "OMRR"}, "currency must be three capital letters"),
+        ({"date_order": "year_first"}, "Date order: must be day first or month first."),
+        ({"decimal_separator": ";"}, "Decimal separator: must be a point or a comma."),
+        (
+            {"mapping_rule": "fiscal_year"},
+            "Mapping rule: must be the latest mapping or each",
+        ),
+        (
+            {"outside_ids_rule": "every_cost_center"},
+            "Outside IDS: must be missing from the cost center",
+        ),
+        ({"currency": "omr"}, "Currency: must be three capital letters"),
+        ({"currency": "OMRR"}, "Currency: must be three capital letters"),
         ({"rounding": "half_up"}, "There's no setting called rounding."),
         (
             {"actual_spend_rule": {"actual": ["Actual"]}},
-            "actual_spend_rule must be null, or hold",
+            "Actual spend: must be null, or hold",
         ),
         (
             {"actual_spend_rule": {"actual": ["Actual "], "not_actual": ["actual"]}},
-            "The value type 'actual' is in both lists.",
+            "Actual spend: 'actual' is in both lists.",
         ),
         (
             {"actual_spend_rule": {"actual": [""], "not_actual": []}},
-            "actual_spend_rule's actual must be a list of value types.",
+            "Actual spend: the actual spend list must be a list of value types.",
         ),
-        ({"header_names": ["Amount"]}, "header_names must be an object"),
-        ({"header_names": {"vendor": ["Vendor"]}}, "no field called vendor"),
-        ({"header_names": {"amount": "Amount"}}, "amount must be a list"),
-        ({"header_names": {"amount": ["--"]}}, "'--' has no letter or digit"),
+        ({"header_names": ["Amount"]}, "Header names: must be an object"),
+        (
+            {"header_names": {"vendor": ["Vendor"]}},
+            "Header names: there's no field called vendor.",
+        ),
+        ({"header_names": {"amount": "Amount"}}, "Header names: Amount must be a list"),
+        (
+            {"header_names": {"amount": ["--"]}},
+            "Header names: '--' has no letter or digit",
+        ),
         (
             {"header_names": {"amount": ["Amount", "G/L Acct"]}},
-            "'G/L Acct' is listed under gl_code and amount",
+            "'GL Acct' under GL account and 'G/L Acct' under Amount match",
         ),
     ],
 )
@@ -81,10 +103,10 @@ def test_a_missing_setting_or_field_is_found() -> None:
     is named.
     """
     without = {k: v for k, v in DEFAULT_SETTINGS.items() if k != "currency"}
-    assert problems(without) == ["The setting currency is missing."]
+    assert problems(without) == ["Currency: the setting is missing."]
     names = {k: v for k, v in HEADER_NAMES.items() if k != "item_text"}
     assert problems({**DEFAULT_SETTINGS, "header_names": names}) == [
-        "header_names has no list for item_text."
+        "Header names: Item text has no list."
     ]
 
 
@@ -99,6 +121,72 @@ def test_header_names_change_field_by_field() -> None:
         **DEFAULT_SETTINGS,
         "actual_spend_rule": rule,
     }
+
+
+# Words in one place (ENG-02 3)
+
+
+def test_every_setting_field_and_value_has_its_words() -> None:
+    """Verify each setting has its name on screen, each field its name in
+    words, and each setting with a fixed list the words of every value.
+    """
+    assert set(SETTING_NAMES) == set(DEFAULT_SETTINGS)
+    assert set(FIELD_NAMES) == set(HEADER_NAMES)
+    assert CHOICES == {key: tuple(names) for key, names in VALUE_NAMES.items()}
+
+
+@pytest.mark.parametrize(
+    ("changes", "words"),
+    [
+        ({"date_order": "year_first"}, "Date order: must be day first or month first."),
+        ({"decimal_separator": ";"}, "Decimal separator: must be a point or a comma."),
+        ({"currency": "omr"}, "Currency: must be three capital letters, such as OMR."),
+        (
+            {"header_names": {"amount": ["Amount", "G/L Acct"]}},
+            "Header names: 'GL Acct' under GL account and 'G/L Acct' under "
+            "Amount match the same header.",
+        ),
+        (
+            {"header_names": {"item_text": []}},
+            "Header names: Item text needs at least one header name.",
+        ),
+        (
+            {"actual_spend_rule": {"actual": [], "not_actual": ["Plan"]}},
+            "Actual spend: at least one value type must be actual spend",
+        ),
+        (
+            {"actual_spend_rule": {"actual": ["KR"], "not_actual": ["kr "]}},
+            "Actual spend: 'kr' is in both lists.",
+        ),
+    ],
+)
+def test_a_refusal_names_its_setting_and_field_in_words(changes, words) -> None:
+    """Verify each problem starts with the setting's name on screen and
+    names a field in words, and a field left with no name and an actual-spend
+    rule with nothing actual are refused.
+    """
+    found = problems(merged(DEFAULT_SETTINGS, changes))
+    assert any(words in problem for problem in found), found
+
+
+def test_a_change_is_said_in_words() -> None:
+    """Verify each change between two versions is said in words, a field of
+    header names at a time.
+    """
+    after = merged(
+        DEFAULT_SETTINGS,
+        {
+            "date_order": "month_first",
+            "actual_spend_rule": {"actual": ["KR"], "not_actual": []},
+            "header_names": {"amount": [*HEADER_NAMES["amount"][1:], "Betrag"]},
+        },
+    )
+    assert [change.summary for change in changes_in_words(DEFAULT_SETTINGS, after)] == [
+        "Header names for Amount: added Betrag, removed Amount in LC",
+        "Date order: Day first to Month first",
+        "Actual spend: Every row counts to By value type. Actual spend: KR. Not "
+        "actual spend: none.",
+    ]
 
 
 # A change (database)
@@ -219,7 +307,7 @@ def test_the_rules_shown_with_the_report_change_only_without_uploads(
     admin = make_user()
     change_ruleset(report, admin, {"header_names": {"amount": ["Betrag"]}})
     if refused:
-        with pytest.raises(RulesetRefused, match="mapping_rule can't change"):
+        with pytest.raises(RulesetRefused, match="Mapping rule: can't change"):
             change_ruleset(report, admin, {"mapping_rule": "own_upload"})
         assert report.rulesets.count() == 2
     else:
@@ -313,6 +401,25 @@ def test_a_rule_change_waits_for_a_file_being_received(monkeypatch) -> None:
     assert waited, "the change didn't wait for the file's lock"
     assert isinstance(results["file"], Upload), results["file"]
     assert isinstance(results["change"], RulesetRefused), results["change"]
+
+
+@pytest.mark.django_db
+def test_a_change_from_an_older_version_is_refused_and_a_screen_s_is_marked() -> None:
+    """Verify a change naming the version it was made from is refused once a
+    newer one exists, writing nothing, and one made from the latest keeps
+    screen in its event in place of command (ENG-02 3, ENG-01 6.3).
+    """
+    report = make_report()
+    admin = make_user()
+    change_ruleset(report, admin, {"currency": "USD"})
+    with pytest.raises(RulesetRefused, match="changed to version 2 while"):
+        change_ruleset(report, admin, {"date_order": "month_first"}, based_on=1)
+    assert report.rulesets.count() == 2
+    change_ruleset(
+        report, admin, {"date_order": "month_first"}, screen="rules", based_on=2
+    )
+    event = events(report)[-1]
+    assert event.details["screen"] == "rules" and "command" not in event.details
 
 
 # The commands

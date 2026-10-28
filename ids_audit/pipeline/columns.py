@@ -20,6 +20,11 @@ SHEET_TYPE_NAMES = {
     GL_MAP: "GL mapping sheets",
     CC_MAP: "cost center mapping sheets",
 }
+SHEET_TYPE_NAME = {
+    SPEND: "spend sheet",
+    GL_MAP: "GL mapping sheet",
+    CC_MAP: "cost center mapping sheet",
+}
 
 # How far down a sheet the header row is looked for (ENG-02 4.3).
 HEADER_SEARCH_ROWS = 25
@@ -45,6 +50,29 @@ FIELDS_READ = {
     SPEND: SPEND_FIELDS + MAPPING_FIELDS,
     GL_MAP: ("gl_code", "gl_name", "ci_code", "ci_name"),
     CC_MAP: ("cost_center_code", "cc_name", "dept_code", "dept_name"),
+}
+
+# Each field's name in words, as ENG-02 4.4's table gives it, which the column
+# problems, the Rules screen and every refusal use (ENG-02 3).
+FIELD_NAMES: dict[str, str] = {
+    "gl_code": "GL account",
+    "cost_center_code": "Cost center",
+    "amount": "Amount",
+    "posting_date": "Posting date",
+    "fiscal_year": "Fiscal year",
+    "period": "Period",
+    "document_number": "Document number",
+    "line_item": "Line item",
+    "company_code": "Company code",
+    "value_type": "Value type",
+    "currency": "Currency",
+    "item_text": "Item text",
+    "ci_code": "Commitment item",
+    "gl_name": "GL account name",
+    "ci_name": "Commitment item name",
+    "dept_code": "Department code",
+    "cc_name": "Cost center name",
+    "dept_name": "Department name",
 }
 
 # A code field, and the name field that takes a second column for the same
@@ -105,8 +133,13 @@ class ColumnProblem:
         if self.columns:
             listed = " and ".join(self.columns)
             each = "both" if len(self.columns) == 2 else "all"
-            return f"In {where}, columns {listed} {each} match {self.field}."
-        return f"In {where}, no column matches {self.field}."
+            return f"In {where}, columns {listed} {each} match {self.field_name}."
+        return f"In {where}, no column matches {self.field_name}."
+
+    @property
+    def field_name(self) -> str:
+        """The field in words, such as Commitment item (ENG-02 4.5)."""
+        return FIELD_NAMES.get(self.field, self.field)
 
 
 class NeedsColumns(Exception):

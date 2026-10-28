@@ -122,10 +122,10 @@ def test_a_missing_column_is_picked_from_the_file_s_first_rows(
     expect(page.get_by_text("No approved uploads yet.")).to_be_visible()
     page.get_by_role("link", name="Go to Uploads").click()
     upload_file(page, path)
-    expect(page.get_by_text("In the file, no column matches amount.")).to_be_visible()
+    expect(page.get_by_text("In the file, no column matches Amount.")).to_be_visible()
     page.get_by_role("link", name="Pick the columns").click()
     expect(page.get_by_role("cell", name="1,000.000")).to_be_visible()
-    page.get_by_label("In the file, no column matches amount.").select_option("I")
+    page.get_by_label("In the file, no column matches Amount.").select_option("I")
     page.get_by_role("button", name="Read the file again with these columns").click()
     expect(page.get_by_text("Upload 1 is read and awaits approval.")).to_be_visible()
 

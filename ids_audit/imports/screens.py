@@ -225,15 +225,10 @@ def column_problems(upload: Upload) -> tuple[list[dict], dict[str, list[str]]]:
     )
     if stop is None:
         return [], {}
-    problems = [
-        {
-            **problem,
-            "text": str(
-                ColumnProblem(
-                    problem["sheet"], problem["field"], tuple(problem["columns"])
-                )
-            ),
-        }
-        for problem in stop.details["problems"]
-    ]
+    problems = []
+    for problem in stop.details["problems"]:
+        found = ColumnProblem(
+            problem["sheet"], problem["field"], tuple(problem["columns"])
+        )
+        problems.append({**problem, "text": str(found), "field_name": found.field_name})
     return problems, stop.details["headers"]

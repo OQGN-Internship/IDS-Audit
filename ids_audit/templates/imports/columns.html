@@ -24,7 +24,7 @@
       <p class="pick">
         <label class="form-label" for="pick-{{ index }}">{{ problem.text }}</label>
         <select class="form-select" id="pick-{{ index }}" name="pick-{{ index }}">
-          <option value="">Pick a column for {{ problem.field }}</option>
+          <option value="">Pick a column for {{ problem.field_name }}</option>
           {% for letter, header in sheet.choices %}<option value="{{ letter }}">{{ letter }}{% if header %}: {{ header }}{% endif %}</option>{% endfor %}
         </select>
       </p>
