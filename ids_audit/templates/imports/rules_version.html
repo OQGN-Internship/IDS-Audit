@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load figures navigation %}
+{% block title %}Rules version {{ version.version }} · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}Rules version {{ version.version }}{% endblock %}
+{% block content %}
+{# One version as it was, with no controls (ENG-03 4). #}
+<p class="alert note">{% icon "info" %}<span>This is rules version {{ version.version }} of {{ report.name }}, made by {{ version.created_by }} on {{ version.created_at|moment }}. {% if until %}It was in force until version {{ version.version|add:1 }} replaced it on {{ until|moment }}. The rules in force now are <a href="{% url 'rules' report.pk %}">version {{ latest.version }}</a>.{% else %}It's the version in force now: <a href="{% url 'rules' report.pk %}">the rules</a> show it with every version before it.{% endif %} {{ read }} upload{{ read|pluralize }} {{ read|pluralize:"was,were" }} read with it.</span></p>
+
+{% include "imports/_header_names.html" with can_change=False %}
+{% for card in cards %}{% include "imports/_rule_card.html" with can_change=False %}{% endfor %}
+{% endblock %}

@@ -133,8 +133,8 @@ def test_the_sidebar_groups_a_report_s_screens_with_no_application_name(
     admin_client,
 ) -> None:
     """Verify the sidebar names the report under the label Report, lists its
-    figures' screens, then Uploads and the Audit log in a group of their
-    own, has no "IDS Spend Audit", and links Change password and Sign out.
+    figures' screens, then Uploads, Rules and the Audit log in a group of
+    their own, has no "IDS Spend Audit", and links Change password and Sign out.
     """
     report = make_report()
     nav = sidebar(admin_client, reverse("overview", args=[report.pk]))
@@ -148,7 +148,7 @@ def test_the_sidebar_groups_a_report_s_screens_with_no_application_name(
     assert groups == [
         ["Reports"],
         ["Overview", "GL accounts", "Departments", "Budget lines", "Exceptions", "FAQ"],
-        ["Uploads", "Audit log"],
+        ["Uploads", "Rules", "Audit log"],
         ["Users", "Roles", "Whole audit log"],
     ]
     assert f'href="{reverse("password_change")}"' in nav

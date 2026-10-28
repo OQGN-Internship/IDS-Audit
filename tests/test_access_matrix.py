@@ -32,12 +32,14 @@ pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("uploads_dir")]
 class Needs:
     """What an address needs, as require() takes it: every permission in
     every, one of any_of, and with uploader, to be the upload's uploader
-    (ENG-01 6.2, rule 6).
+    (ENG-01 6.2, rule 6). With fixed_admin, the user must also be an active
+    fixed administrator, which no role gives (rule 7).
     """
 
     every: tuple[str, ...]
     any_of: tuple[str, ...] = ()
     uploader: bool = False
+    fixed_admin: bool = False
 
 
 VIEW = Needs(("view",))
@@ -49,6 +51,8 @@ AUDIT_LOG = Needs(("view_audit_log",))
 # An upload never committed, and its exception items (ENG-03 4).
 OPEN_PREVIEW = Needs(("view",), any_of=("upload", "approve"))
 AS_UPLOADER = Needs(("upload",), uploader=True)
+# A change to the report's rules (ENG-02 3).
+FIXED_ADMIN = Needs(("view",), fixed_admin=True)
 
 # The screens with an export, and their address arguments after the report.
 SCREENS = [
@@ -106,6 +110,12 @@ def addresses(report: Report, kind: str) -> list[tuple[str, str, Needs]]:
         ("get", reverse("roll_back", args=done), ROLL_BACK),
         ("post", reverse("roll_back", args=done), ROLL_BACK),
         ("get", reverse("audit", args=base), AUDIT_LOG),
+        ("get", reverse("rules", args=base), VIEW),
+        ("get", reverse("rules_version", args=[*base, 1]), VIEW),
+        ("get", reverse("rules_change", args=[*base, "date_order"]), FIXED_ADMIN),
+        ("post", reverse("rules_change", args=[*base, "date_order"]), FIXED_ADMIN),
+        ("get", reverse("rules_headers", args=[*base, "amount"]), FIXED_ADMIN),
+        ("post", reverse("rules_headers", args=[*base, "amount"]), FIXED_ADMIN),
     ]
     return found
 
@@ -122,6 +132,8 @@ def expected(who: str, needs: Needs) -> str:
     if needs.any_of and not held.intersection(needs.any_of):
         return "403"
     if needs.uploader and who not in ("Uploader", "fixed administrator"):
+        return "403"
+    if needs.fixed_admin and who != "fixed administrator":
         return "403"
     return "done"
 

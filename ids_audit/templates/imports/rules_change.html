@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load navigation %}
+{% block title %}{{ heading }} · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
+{% block content %}
+{# One setting, or one field's header names, then the confirmation (ENG-02 3, ENG-03 4). Sending the form saves nothing. #}
+{% if row %}
+  <div class="card form-card header-card"><div class="card-body">
+    <div class="datagrid">
+      <div class="datagrid-item"><div class="datagrid-title">Field</div><div class="datagrid-content">{{ row.name }}</div></div>
+      <div class="datagrid-item"><div class="datagrid-title">Needed</div><div class="datagrid-content">{{ row.needed }}</div></div>
+      <div class="datagrid-item"><div class="datagrid-title">Rules version now</div><div class="datagrid-content">{{ latest.version }}</div></div>
+    </div>
+    {{ form.non_field_errors }}
+    <div class="card table-wrap">
+      <table class="table card-table">
+        <thead><tr><th>Header name</th><th><span class="visually-hidden">Remove</span></th></tr></thead>
+        <tbody>
+          {% for name in row.names %}
+            <tr>
+              <td>{{ name }}</td>
+              <td>
+                <form method="post" action="{% url 'rules_headers' report.pk row.key %}" class="inline">
+                  {% csrf_token %}<input type="hidden" name="version" value="{{ latest.version }}">
+                  <button type="submit" class="btn btn-outline-primary" name="remove" value="{{ name }}">Remove<span class="visually-hidden"> {{ name }}</span></button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form method="post" action="{% url 'rules_headers' report.pk row.key %}" class="narrow">
+      {% csrf_token %}{{ form.version }}
+      <label class="form-label" for="id_add">Add a header name</label>
+      {{ form.add.errors }}{{ form.add|control }}
+      <p class="hint">Type it as the export's header row writes it, such as Amt in Loc.Cur. Capitals, spaces and punctuation are ignored, and the whole header cell must match. A name can be under one field only.</p>
+      <button type="submit" class="btn btn-primary">Check the change</button>
+    </form>
+    <p><a href="{% url 'rules' report.pk %}#header_names">Back to the rules</a></p>
+  </div><div class="card-footer for-command">In change_ruleset's JSON: "header_names": {"{{ row.key }}": [...]}</div></div>
+{% else %}
+  <div class="card form-card"><div class="card-body">
+    <p>{{ card.decides }}</p>
+    <p>Set to now, in version {{ latest.version }}: <strong>{{ card.value }}</strong>.</p>
+    {{ form.non_field_errors }}
+    {% if locked %}
+      <p class="alert note">{% icon "info" %}<span>{{ card.fixed }}</span></p>
+    {% else %}
+      <form method="post" action="{% url 'rules_change' report.pk setting %}" class="narrow">
+        {% csrf_token %}{{ form.version }}
+        {% if setting == "currency" %}
+          <label class="form-label" for="id_currency">Currency</label>
+          {{ form.currency.errors }}{{ form.currency|control }}
+          <p class="hint">Three letters, as SAP writes the company code's currency, such as OMR.</p>
+        {% elif setting == "actual_spend_rule" %}
+          <fieldset>
+            <legend>Which rows count as actual spend</legend>
+            {{ form.counts.errors }}{{ form.counts }}
+          </fieldset>
+          <label class="form-label" for="id_actual">{{ form.actual.label }}</label>
+          {{ form.actual.errors }}{{ form.actual|control }}
+          <label class="form-label" for="id_not_actual">{{ form.not_actual.label }}</label>
+          {{ form.not_actual.errors }}{{ form.not_actual|control }}
+          <p class="hint">Only used when rows count by value type. Type each value as the Value type column holds it. Capitals, and spaces at either end, don't count. A value in neither list blocks approval until it's added to one.</p>
+        {% else %}
+          <fieldset>
+            <legend>Choose the new value</legend>
+            {{ form.value.errors }}{{ form.value }}
+          </fieldset>
+        {% endif %}
+        <p class="hint">When it applies: {{ card.applies }}</p>
+        <button type="submit" class="btn btn-primary">Check the change</button>
+      </form>
+    {% endif %}
+    <p><a href="{% url 'rules' report.pk %}#{{ setting }}">Back to the rules</a></p>
+  </div><div class="card-footer for-command">In change_ruleset's JSON: {{ card.code }}</div></div>
+{% endif %}
+{% endblock %}

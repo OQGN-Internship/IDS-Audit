@@ -61,9 +61,9 @@ def upload_file(page: Page, path: Path) -> None:
 
 def test_a_fixed_admin_imports_and_rolls_back_a_file(page: Page, live_server) -> None:
     """Verify a new fixed administrator signs in, must choose a password,
-    creates a report, uploads the sample, opens an exception's rows in
-    place, approves it, and rolls it back to the figure the confirmation
-    showed.
+    creates a report, which opens on its rules, uploads the sample, opens an
+    exception's rows in place, approves it, and rolls it back to the figure
+    the confirmation showed.
     """
     admin = make_admin(must_change_password=True)
     sign_in(page, live_server, admin.username)
@@ -77,6 +77,12 @@ def test_a_fixed_admin_imports_and_rolls_back_a_file(page: Page, live_server) ->
     page.get_by_role("link", name="New report").click()
     page.get_by_label("Name").fill("IDS 2026")
     page.get_by_role("button", name="Create report").click()
+    # A new report opens on its rules, to check before its first upload.
+    rules = page.get_by_role("heading", name="How files are read and counted")
+    expect(rules).to_be_visible()
+    page.get_by_role("navigation", name="Main").get_by_role(
+        "link", name="Uploads"
+    ).click()
     expect(page.get_by_role("heading", name="Uploads")).to_be_visible()
 
     upload_file(page, SAMPLE)
@@ -147,6 +153,9 @@ def test_a_panel_after_the_session_ends_moves_the_whole_page_to_sign_in(
     page.get_by_role("link", name="New report").click()
     page.get_by_label("Name").fill("Timed out")
     page.get_by_role("button", name="Create report").click()
+    page.get_by_role("navigation", name="Main").get_by_role(
+        "link", name="Uploads"
+    ).click()
     upload_file(page, SAMPLE)
     address = page.url
 

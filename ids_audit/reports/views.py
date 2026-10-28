@@ -75,8 +75,9 @@ def report_list(request):
 
 
 def new_report(request):
-    """Create a report, then open its Uploads. Only fixed administrators
-    create reports, the plan's default (ENG-01 8).
+    """Create a report, then open its rules, to check before its first upload
+    (ENG-03 4). Only fixed administrators create reports, the plan's default
+    (ENG-01 8).
     """
     if not may_create_reports(request.user):
         raise PermissionDenied
@@ -92,8 +93,13 @@ def new_report(request):
                 "capitals count as the same.",
             )
         else:
-            messages.success(request, f"Report {report} is created.")
-            return redirect("uploads", report.pk)
+            messages.success(
+                request,
+                f"Report {report} is created. Check its rules before its first "
+                "upload, above all the mapping rule, which can't change once an "
+                "upload is open or committed.",
+            )
+            return redirect("rules", report.pk)
     return render(request, "reports/new_report.html", {"form": form})
 
 

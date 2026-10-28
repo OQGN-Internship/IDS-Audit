@@ -1,0 +1,22 @@
+{% load navigation %}
+{# One setting of a version, explained (ENG-03 4): what it decides, its value in words, an example built from it, the default and when a change applies. Its key and value for the command line wait in the footer. #}
+<section class="card rule-card" id="{{ card.key }}">
+  <div class="card-header">
+    <h2 class="card-title">{{ card.name }}</h2>
+    {% if can_change and card.changes and not card.fixed %}<div class="card-actions"><a class="btn btn-outline-primary" href="{% url 'rules_change' report.pk card.key %}">{% icon "edit" %}Change<span class="visually-hidden"> {{ card.name }}</span></a></div>{% endif %}
+  </div>
+  <div class="card-body">
+    <p class="decides">{{ card.decides }}</p>
+    <div class="datagrid">
+      <div class="datagrid-item"><div class="datagrid-title">Set to</div><div class="datagrid-content value">{{ card.value }}</div></div>
+      {% for label, values in card.lists %}
+        <div class="datagrid-item"><div class="datagrid-title">{{ label }}</div><div class="datagrid-content">{% if values %}<ul class="name-tags">{% for value in values %}<li class="tag">{{ value }}</li>{% endfor %}</ul>{% else %}None{% endif %}</div></div>
+      {% endfor %}
+      <div class="datagrid-item"><div class="datagrid-title">For example</div><div class="datagrid-content">{{ card.example }}</div></div>
+      <div class="datagrid-item"><div class="datagrid-title">Default</div><div class="datagrid-content">{{ card.default }}</div></div>
+      <div class="datagrid-item"><div class="datagrid-title">A change applies</div><div class="datagrid-content">{{ card.applies }}</div></div>
+    </div>
+    {% if card.fixed %}<p class="alert note">{% icon "info" %}<span>{{ card.fixed }}</span></p>{% endif %}
+  </div>
+  <div class="card-footer for-command">In change_ruleset's JSON: {{ card.code }}</div>
+</section>

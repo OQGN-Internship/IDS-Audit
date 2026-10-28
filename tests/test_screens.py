@@ -115,7 +115,7 @@ def test_a_fixed_admin_sees_every_report_and_can_create_one(signed_in) -> None:
 
     response = signed_in.post(reverse("new_report"), {"name": "  IDS 2026 "})
     created = Report.objects.get(name="IDS 2026")
-    assert response["Location"] == reverse("uploads", args=[created.pk])
+    assert response["Location"] == reverse("rules", args=[created.pk])
     assert created.rulesets.get().version == 1
     assert AuditEvent.objects.filter(action="report_created", report=created).exists()
 

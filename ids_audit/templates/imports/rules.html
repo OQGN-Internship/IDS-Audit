@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load figures navigation %}
+{% block title %}Rules · {{ report.name }} · IDS Spend Audit{% endblock %}
+{% block heading %}How files are read and counted{% endblock %}
+{% block content %}
+{# Top to bottom for someone seeing it for the first time: what the rules are, what to check first, each rule, then every version (ENG-03 4). #}
+<p class="alert note">{% icon "info" %}<span>These rules decide how {{ report.name }}'s files are read, and what counts in its figures. They're rules version {{ version.version }}. Every file is read with the version in force when it's received, and keeps it, so each upload's page says which version it was read with. A change makes a new version, which applies only to files received after it.{% if not can_change %} Only a fixed administrator can change them: ask one when a file needs a rule changed.{% endif %}</span></p>
+
+<section class="card steps-card" id="first-upload">
+  <div class="card-header"><h2 class="card-title">Before the report's first upload, check</h2></div>
+  <div class="card-body">
+    <ol class="steps-list">
+      <li><strong>Header names.</strong> Open the export, and compare its column headers with the header names below. A header that isn't listed isn't found, so add it to its field.</li>
+      <li><strong>Date order.</strong> See how the export writes a date such as 3 April: 03.04.2026 is day first.</li>
+      <li><strong>Decimal separator.</strong> In a CSV export, see how it writes an amount: 12,400.500 uses a point for its decimals.</li>
+      <li><strong>Actual spend.</strong> Ask which rows are actual spend. If only some are, list their value types.</li>
+      <li><strong>Mapping rule.</strong> Choose it now. It can't change once the report has an open or a committed upload.</li>
+    </ol>
+  </div>
+</section>
+
+{% include "imports/_header_names.html" %}
+{% for card in cards %}{% include "imports/_rule_card.html" %}{% endfor %}
+
+<h2 id="history">Every version</h2>
+<div class="card table-wrap">
+  <table class="table card-table versions">
+    <thead><tr><th>Version</th><th>Made</th><th>What it changed</th><th>Where</th><th class="count">Uploads read with it</th></tr></thead>
+    <tbody>
+      {% for row in history %}
+        <tr>
+          <td><a href="{% url 'rules_version' report.pk row.ruleset.version %}">Version {{ row.ruleset.version }}</a>{% if row.in_force %} <span class="badge good">In force</span>{% endif %}</td>
+          <td>{{ row.ruleset.created_by }}<br>{{ row.ruleset.created_at|moment }}</td>
+          <td><ul class="changes">{% for change in row.changes %}<li>{{ change }}</li>{% endfor %}</ul></td>
+          <td>{{ row.made }}</td>
+          <td class="count">{{ row.uploads }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

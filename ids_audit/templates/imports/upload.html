@@ -59,7 +59,7 @@
   <div class="datagrid-item"><div class="datagrid-title">Name</div><div class="datagrid-content">{{ upload.original_name }}</div></div>
   <div class="datagrid-item"><div class="datagrid-title">Size</div><div class="datagrid-content">{{ upload.size_bytes }} bytes</div></div>
   <div class="datagrid-item"><div class="datagrid-title">SHA-256</div><div class="datagrid-content">{{ upload.file_sha256 }}</div></div>
-  <div class="datagrid-item"><div class="datagrid-title">Read with</div><div class="datagrid-content">Ruleset version {{ upload.ruleset.version }}</div></div>
+  <div class="datagrid-item"><div class="datagrid-title">Read with</div><div class="datagrid-content"><a href="{% url 'rules_version' report.pk upload.ruleset.version %}">Rules version {{ upload.ruleset.version }}</a></div></div>
 </div>
 </div></div>
 

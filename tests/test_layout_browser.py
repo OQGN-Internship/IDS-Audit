@@ -262,6 +262,8 @@ def test_the_narrow_bar_is_short_and_nothing_scrolls_sideways(
         f"{base}/uploads",
         f"{base}/uploads/1",
         f"{base}/audit",
+        f"{base}/rules",
+        f"{base}/rules/headers/amount",
         f"{live_server.url}/admin/users/{admin.pk}",
     ):
         page.goto(address)
