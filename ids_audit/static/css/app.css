@@ -185,7 +185,8 @@ fieldset label { display: flex; gap: 0.5rem; align-items: baseline; font-weight:
 fieldset ul, fieldset div > div { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
 input[type="radio"], input[type="checkbox"] { accent-color: var(--oqgn-green-dark); }
 
-/* Buttons: main, secondary and quiet, each as wide as its words (ENG-03 4). */
+/* Buttons: main, secondary and quiet, and Clear's, each as wide as its words
+   (ENG-03 4). */
 .btn {
   --tblr-btn-color: var(--oqgn-ink);
   --tblr-btn-bg: var(--oqgn-surface);
@@ -224,6 +225,18 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--oqgn-green-dar
   --tblr-btn-active-color: var(--oqgn-green-dark);
   --tblr-btn-active-bg: var(--oqgn-surface);
   --tblr-btn-active-border-color: var(--oqgn-green-dark);
+}
+/* Clear, the audit log's, in a colour of its own beside Search. */
+.btn-secondary {
+  --tblr-btn-color: var(--oqgn-surface);
+  --tblr-btn-bg: var(--oqgn-ink-subtle);
+  --tblr-btn-border-color: var(--oqgn-ink-subtle);
+  --tblr-btn-hover-color: var(--oqgn-surface);
+  --tblr-btn-hover-bg: var(--oqgn-ink-subtle);
+  --tblr-btn-hover-border-color: var(--oqgn-ink-subtle);
+  --tblr-btn-active-color: var(--oqgn-surface);
+  --tblr-btn-active-bg: var(--oqgn-ink-subtle);
+  --tblr-btn-active-border-color: var(--oqgn-ink-subtle);
 }
 
 /* Secondary text, on white only. */
@@ -416,7 +429,6 @@ table.wide td.item { white-space: normal; min-width: 16rem; }
 /* The audit log's search: words, the lists and the days in one row. */
 .filters .form-control { width: auto; font-weight: normal; }
 .filters .search .form-control { min-width: 16rem; }
-.filters .clear { align-self: center; }
 .found { margin: 0; }
 
 /* Tiles and cards: Tabler's cards, white with a line around them. */

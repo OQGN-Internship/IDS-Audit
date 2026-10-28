@@ -53,9 +53,9 @@ def pages(page: Page, live_server) -> list[str]:
     approved and a second report whose first upload awaits approval, and
     return the address of each kind of page: every screen's layout, the
     upload's summary, preview and actions, the duplicate mode's choice, a
-    mapping upload's, the forms, the administration, the audit log, the
-    rules with an older version and their forms, locked and not, a message
-    and an error.
+    mapping upload's, the forms, the administration, the audit log, searched
+    too, the rules with an older version and their forms, locked and not, a
+    message and an error.
     """
     admin = make_admin()
     report = sample(admin)
@@ -116,6 +116,7 @@ def pages(page: Page, live_server) -> list[str]:
         f"{r}/uploads/new",
         f"{r}/uploads/new-mapping",
         f"{r}/audit",
+        f"{r}/audit?q=sample",
         f"{r}/rules",
         f"{r}/rules/1",
         f"{r}/rules/change/actual_spend_rule",

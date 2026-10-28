@@ -180,6 +180,25 @@ def test_the_log_s_only_forms_are_its_search_and_signing_out() -> None:
     assert signed_in(viewer).get(log).status_code == 403
 
 
+def test_clear_shows_only_while_the_search_is_on() -> None:
+    """Verify Clear, a link drawn as a button in its own colour, shows on
+    either log only while words or a filter are on, and loads the same log
+    with nothing on (ENG-03 4).
+    """
+    report = make_report()
+    client = signed_in(make_user())
+    for url in (reverse("admin_audit"), reverse("audit", args=[report.pk])):
+        clear = re.escape(f'<a class="btn btn-secondary" href="{url}">') + (
+            r'<svg class="icon"[^>]*><use href="[^"]*#clear"></use></svg>Clear</a>'
+        )
+        for query in ("", "?q=&action=&user=&from=&to="):
+            page = client.get(url + query).content.decode()
+            assert "btn-secondary" not in page and "Clear</a>" not in page, query
+        for query in ("?q=x", "?action=sign_in", "?user=x", "?to=2026-10-25"):
+            page = client.get(url + query).content.decode()
+            assert re.search(clear, page), query
+
+
 def searched(client: Client, url: str, query: str) -> list[str]:
     """Return the details of each event the search lists, newest first."""
     return [text(row)[-1] for row in listed(client, url + query)]
