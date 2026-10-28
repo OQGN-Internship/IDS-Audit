@@ -182,10 +182,12 @@ def change(
             form.add_error(None, f"{' '.join(refused.problems)} Nothing was saved.")
         else:
             if request.POST.get("confirm") == "yes":
+                if context["setting"] in SHOWN_SETTINGS:
+                    applies = "It applies at once, to every figure of the report."
+                else:
+                    applies = "Files received from now on are read with it."
                 messages.success(
-                    request,
-                    f"Rules version {saved.version} is saved. Files received from "
-                    "now on are read with it.",
+                    request, f"Rules version {saved.version} is saved. {applies}"
                 )
                 return redirect("rules", report.pk)
             return render(

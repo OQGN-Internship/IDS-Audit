@@ -279,6 +279,24 @@ def test_the_confirmation_says_when_the_change_applies() -> None:
     assert "Upload 1 is open, and was read with version 1, which it keeps." in dates
 
 
+@pytest.mark.parametrize(
+    ("setting", "sent", "applies"),
+    [
+        ("date_order", {"value": "month_first"}, "Files received from now on"),
+        ("mapping_rule", {"value": "own_upload"}, "It applies at once, to every"),
+    ],
+)
+def test_the_saved_message_says_when_the_change_applies(setting, sent, applies) -> None:
+    """Verify the message after saving names the new version and says when
+    it applies: to later files, or at once for the mapping rule.
+    """
+    report = make_report()
+    client = signed_in(make_user())
+    data = {"version": 1, "confirm": "yes", **sent}
+    saved = client.post(change_address(report, setting), data, follow=True)
+    assert f"Rules version 2 is saved. {applies}" in text_of(saved)
+
+
 def test_every_row_counts_again_once_chosen_on_screen() -> None:
     """Verify the actual-spend rule goes back to counting every row, with the
     lists left out.
